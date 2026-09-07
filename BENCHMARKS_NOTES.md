@@ -123,3 +123,14 @@ corresponding control cannot run yet. Concretely that is:
 
 No other data was downloaded and no analysis was run in this task; this
 is a reconnaissance/benchmark-retrieval deliverable only.
+
+## Addendum (2026-09-07, added while building the simulator)
+
+Two rows were appended for parameters `simulate.py` needed and that
+weren't covered by the original 8 categories: **WGD01** (whole-genome
+doubling prevalence, Bielski et al. 2018 Nat Genet, ~30% pan-cancer,
+confirmed via a real returned URL) and **TMB01** (TCGA-BRCA exome
+mutation counts, same primary paper as TP01/PAM01, with an exact
+arithmetic mean-per-tumor computed from the cited totals). Same
+retrieval method and caveats as every other row in this file apply;
+see each row's own note for specifics.

@@ -1,0 +1,7 @@
+quantity	injected_value	estimand	is_null	feature_type	derivation
+core_hr_loh_second_hit_LR	6.999999999999999	LR	FALSE	categorical	P(LOH_SECOND_HIT|Pathogenic)=0.7 / P(LOH_SECOND_HIT|Benign)=0.1
+ddr_signaling_loh_second_hit_LR	2.666666666666667	LR	FALSE	categorical	P(LOH_SECOND_HIT|Pathogenic)=0.4 / P(LOH_SECOND_HIT|Benign)=0.15
+core_hr_gis_score_LR	75.01427608376818	LR	FALSE	continuous_gaussian	f(GIS=55.0|Pathogenic~N(55.0,12.0)) / f(GIS=55.0|Benign~N(25.0,10.0))
+ddr_signaling_gis_score_LR	1.7473606486524944	LR	FALSE	continuous_gaussian	f(GIS=40.0|Pathogenic~N(40.0,15.0)) / f(GIS=40.0|Benign~N(25.0,12.0))
+core_hr_sbs3_exposure_LR	105.6011169807864	LR	FALSE	continuous_gaussian	f(SBS3=0.35|Pathogenic~N(0.35,0.1)) / f(SBS3=0.35|Benign~N(0.1,0.08))
+null_sequencing_depth_bucket_LR	1.0	LR	TRUE	categorical	P(HIGH_DEPTH|Pathogenic)=0.5 / P(HIGH_DEPTH|Benign)=0.5 (engineered identical by construction -- HIGH_DEPTH is a coin flip independent of class in both branches of the generator)
