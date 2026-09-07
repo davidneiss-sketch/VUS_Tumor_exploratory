@@ -92,7 +92,19 @@ COPY local_channel /opt/local_channel
 #     bioconductor-bsgenome.hsapiens.ucsc.hg19 (confirmed blocked, see the
 #     SigMA note below) -- FACETS, ASCAT and Sequenza (r-facets, ascat,
 #     r-sequenza) do not, and satisfy the task's "two or more of
-#     FACETS/PureCN/ASCAT/Sequenza" on their own. ---
+#     FACETS/PureCN/ASCAT/Sequenza" on their own.
+#
+#     r-iotools is pinned to 0.3_2 (rather than bioconda's unpinned default,
+#     which solves to 0.3.5): sequenza's gc.sample.stats() calls
+#     iotools::chunk.apply(..., parallel = parallel), but iotools renamed
+#     that parameter to CH.PARALLEL at some point after 0.3_2, so with the
+#     newer iotools the unmatched `parallel=` argument falls through
+#     chunk.apply's `...` into sequenza's own per-chunk parser function
+#     (signature function(x, col_types)), which then errors with "unused
+#     argument (parallel = 1)". Confirmed by testing iotools 0.3_2 directly:
+#     it still has a real `parallel` formal, so the call resolves as
+#     sequenza's author intended. This also fixes scarHRD, which calls
+#     sequenza.extract() internally for its own preprocessing. ---
 RUN conda create -n bioenv -y \
     -c /opt/local_channel -c conda-forge -c bioconda \
     r-base=4.2 \
@@ -100,6 +112,7 @@ RUN conda create -n bioenv -y \
     ascat \
     r-sequenza \
     sequenza-utils \
+    "r-iotools=0.3_2" \
     r-scarhrd \
     sigprofilerassignment \
     bioconductor-bsgenome \
