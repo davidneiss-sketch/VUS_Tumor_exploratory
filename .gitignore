@@ -23,3 +23,6 @@
 docker/Miniconda3.sh
 docker/sigma-src/
 docker/agent-proxy-ca.crt
+
+__pycache__/
+*.pyc

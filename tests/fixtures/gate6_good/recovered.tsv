@@ -1,0 +1,3 @@
+quantity	recovered_point	ci_low	ci_high	estimand
+GOOD_QUANTITY	4.6	2.0	9.0	LR
+NULL_QUANTITY	1.05	0.5	2.0	LR

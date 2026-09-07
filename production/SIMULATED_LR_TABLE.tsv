@@ -1,0 +1,7 @@
+stratum	gene_group	status	point_estimate	ci_low	ci_high	n_replicates	n_pathogenic	n_benign	control_type
+CORE_HR_LumA	CORE_HR	FITTED	8.2	3.1	19.5	2000	25	40	analysis
+CORE_HR_Basal	CORE_HR	FITTED	15.6	6.0	42.0	2000	30	22	analysis
+DDR_SIGNALING_LumA	DDR_SIGNALING	FITTED	1.8	0.6	4.9	2000	18	35	analysis
+DDR_SIGNALING_Her2E	DDR_SIGNALING	INSUFFICIENT_N					5	8	analysis
+NEGATIVE_CONTROL_1	CORE_HR	FITTED	1.1	0.2	3.2	2000	20	20	negative_control
+POSITIVE_CONTROL_1	CORE_HR	FITTED	12.0	10.5	13.0	2000	22	20	positive_control

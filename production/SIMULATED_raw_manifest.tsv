@@ -1,0 +1,7 @@
+sample_id	path	byte_size_recorded	md5_recorded	source_url	reference_build_recorded	read_count_recorded
+SIM-S001	/home/user/VUS_Tumor_exploratory/production/SIMULATED_raw/SIMULATED_SIM-S001.rawtxt	340	384e76cf576374a31f290d83dd5fed17		GRCh38	812345
+SIM-S002	/home/user/VUS_Tumor_exploratory/production/SIMULATED_raw/SIMULATED_SIM-S002.rawtxt	366	0810cb36c5523bee7130aea62b044aad		GRCh38	940112
+SIM-S003	/home/user/VUS_Tumor_exploratory/production/SIMULATED_raw/SIMULATED_SIM-S003.rawtxt	327	dd6f371f8bc9adba1dbad384957c8be9		GRCh38	775600
+SIM-S004	/home/user/VUS_Tumor_exploratory/production/SIMULATED_raw/SIMULATED_SIM-S004.rawtxt	393	fac5ea458b9688083bb0528bfc1d5049		GRCh38	1003887
+SIM-S005	/home/user/VUS_Tumor_exploratory/production/SIMULATED_raw/SIMULATED_SIM-S005.rawtxt	353	ac794d532580b0490718b86bf0552e48		GRCh38	861204
+SIM-S006	/home/user/VUS_Tumor_exploratory/production/SIMULATED_raw/SIMULATED_SIM-S006.rawtxt	366	bca84316235fba15aa8e6c126666ea08		GRCh38	902477

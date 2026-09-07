@@ -1,0 +1,4 @@
+metric_name	numerator	denominator	excluded_count	excluded_reason	rate
+core_hr_lumA_pathogenic_call_rate	18	65	3	AMBIGUOUS LOH category (LOH_AMBIGUOUS)	0.27692308
+sample_selection_inclusion_rate	542	611	69	excluded at S4 histology filter	0.88707038
+sigprofilerassignment_success_rate	58	60	2	insufficient tumor mutation burden for cosine-similarity fit	0.96666667

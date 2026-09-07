@@ -1,0 +1,5 @@
+metric_name	value	benchmark_value	benchmark_source
+auc_core_hr_lumA	0.81		
+auc_ddr_signaling_basal	0.74		
+hrd_high_proportion_hgsoc_measured	0.47	0.5	BENCHMARKS.tsv HRD01 (TCGA 2011, ~50% HGSOC)
+tp53_mutation_rate_measured	0.34	0.37	BENCHMARKS.tsv TP02 (37%, TCGA IDC n=680)

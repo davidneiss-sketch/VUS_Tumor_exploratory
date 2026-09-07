@@ -1,0 +1,4 @@
+quantity	injected_value	estimand	is_null
+core_hr_lumA_LR	8.0	LR	FALSE
+ddr_signaling_lumA_LR	1.0	LR	TRUE
+core_hr_basal_LR	15.0	LR	FALSE

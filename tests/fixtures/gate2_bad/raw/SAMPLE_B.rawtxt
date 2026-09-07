@@ -1,0 +1,4 @@
+# SIMULATED test fixture raw input -- gate2 unit test, not biological data
+READS: 100
+REFERENCE: GRCh38
+ACGTACGTACGT

@@ -1,0 +1,2 @@
+metric_name	numerator	denominator	excluded_count	excluded_reason	rate
+test_rate	18	65	3	AMBIGUOUS category	0.27692308

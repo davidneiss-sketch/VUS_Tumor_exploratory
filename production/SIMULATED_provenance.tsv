@@ -1,0 +1,7 @@
+sample_id	patient_id	source_file
+SIM-S001	SIM-P001	/home/user/VUS_Tumor_exploratory/production/SIMULATED_raw/SIMULATED_SIM-S001.rawtxt
+SIM-S002	SIM-P002	/home/user/VUS_Tumor_exploratory/production/SIMULATED_raw/SIMULATED_SIM-S002.rawtxt
+SIM-S003	SIM-P003	/home/user/VUS_Tumor_exploratory/production/SIMULATED_raw/SIMULATED_SIM-S003.rawtxt
+SIM-S004	SIM-P004	/home/user/VUS_Tumor_exploratory/production/SIMULATED_raw/SIMULATED_SIM-S004.rawtxt
+SIM-S005	SIM-P005	/home/user/VUS_Tumor_exploratory/production/SIMULATED_raw/SIMULATED_SIM-S005.rawtxt
+SIM-S006	SIM-P006	/home/user/VUS_Tumor_exploratory/production/SIMULATED_raw/SIMULATED_SIM-S006.rawtxt

@@ -1,0 +1,2 @@
+sample_id	path	byte_size_recorded	md5_recorded	source_url	reference_build_recorded	read_count_recorded
+SAMPLE_B	tests/fixtures/gate2_bad/raw/SAMPLE_B.rawtxt	117	deadbeefdeadbeefdeadbeefdeadbeef		GRCh38	100

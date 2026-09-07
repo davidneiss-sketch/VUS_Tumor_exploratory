@@ -1,0 +1,3 @@
+metric_name	value	benchmark_value	benchmark_source
+auc_test	0.80
+measured_rate	0.47	0.50	test benchmark

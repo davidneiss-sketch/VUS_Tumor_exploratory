@@ -1,0 +1,2 @@
+sample_id	path	byte_size_recorded	md5_recorded	source_url	reference_build_recorded	read_count_recorded
+SAMPLE_A	tests/fixtures/gate2_good/raw/SAMPLE_A.rawtxt	117	4199cce3e9600134155536fe3e20396e		GRCh38	100

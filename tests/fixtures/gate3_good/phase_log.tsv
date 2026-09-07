@@ -1,0 +1,3 @@
+phase	command	exit_code	wall_clock_sec	peak_rss_mb	cpu_hours	bytes_read	n_samples
+copy_number_calling	SIMULATED: test cmd	0	60	400	0.02	1000	10
+hrd_scoring	SIMULATED: test cmd	0	15	200	0.005	1000	10

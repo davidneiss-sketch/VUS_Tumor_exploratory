@@ -1,0 +1,4 @@
+stratum	gene_group	status	point_estimate	ci_low	ci_high	n_replicates	n_pathogenic	n_benign
+STRATUM_1	CORE_HR	FITTED	8.0	3.0	18.0	2000	20	20
+STRATUM_2	CORE_HR	FITTED	2.0	1.0	4.0	2000	15	30
+STRATUM_3	DDR_SIGNALING	INSUFFICIENT_N					2	5

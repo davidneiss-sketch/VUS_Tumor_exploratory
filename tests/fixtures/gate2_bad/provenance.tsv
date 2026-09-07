@@ -1,0 +1,2 @@
+sample_id	patient_id	source_file
+SAMPLE_B	PATIENT_B	tests/fixtures/gate2_bad/raw/SAMPLE_B.rawtxt

@@ -1,0 +1,2 @@
+metric_name	numerator	denominator	excluded_count	excluded_reason	rate
+accuracy_no_denominator_disclosure	93	100		no exclusion count reported	0.93

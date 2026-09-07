@@ -1,0 +1,3 @@
+quantity	injected_value	estimand	is_null
+GOOD_QUANTITY	4.5	LR	FALSE
+NULL_QUANTITY	1.0	LR	TRUE
