@@ -41,6 +41,19 @@ RUN apt-get update \
 COPY Miniconda3.sh /tmp/Miniconda3.sh
 RUN bash /tmp/Miniconda3.sh -b -p /opt/conda && rm /tmp/Miniconda3.sh
 ENV PATH=/opt/conda/bin:$PATH
+
+# This Miniconda build bundles Anaconda Inc.'s telemetry/ToS/auth plugins,
+# which unconditionally phone home to repo.anaconda.cloud on ordinary conda
+# operations even when only the (unauthenticated, ToS-free) conda-forge and
+# bioconda channels are configured. That host is not reachable in this
+# build's network policy (confirmed: proxy CONNECT to repo.anaconda.cloud:443
+# denied with 403) and is not needed for anything this image does, so the
+# plugins are removed outright (plain filesystem/pip operations, no network
+# call) rather than routed around.
+RUN rm -f /opt/conda/condarc.d/anaconda-auth.yml \
+ && /opt/conda/bin/pip uninstall -y anaconda-auth anaconda-cli-base anaconda-anon-usage \
+      anaconda-channel-guide conda-anaconda-tos conda-anaconda-telemetry
+
 RUN conda config --system --set ssl_verify /etc/ssl/certs/ca-certificates.crt \
  && conda config --system --set channel_priority strict \
  && (conda config --system --remove channels defaults || true) \
