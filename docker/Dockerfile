@@ -96,7 +96,6 @@ RUN conda create -n bioenv -y \
     r-scarhrd \
     sigprofilerassignment \
     bioconductor-bsgenome \
-    bioconductor-bsgenome.hsapiens.ucsc.hg19 \
     r-devtools \
     r-dt \
     bioconductor-genomicranges \
@@ -115,10 +114,28 @@ RUN conda create -n bioenv -y \
 # --- SigMA (github.com/parklab/SigMA is not distributed via CRAN/Bioconductor
 #     or any conda channel; source cloned separately at a pinned commit and
 #     installed from source with R CMD INSTALL against the conda-provided
-#     dependencies above; no network access needed at this step) ---
+#     dependencies above; no network access needed at this step).
+#
+#     NOTE: SigMA's DESCRIPTION hard-Imports BSgenome.Hsapiens.UCSC.hg19,
+#     which is NOT installed in this image (see the bioconductor-bsgenome
+#     comment above: its only distribution mirrors are blocked, and its
+#     canonical GitHub mirror could not be fetched either -- this session's
+#     git-proxy repo-attachment allowance was already spent on
+#     Bioconductor/GenomeInfoDbData and parklab/SigMA, and the "cross-tier
+#     adds are not supported" error blocked a third external owner/repo
+#     addition; the repo's actual sequence data is git-lfs-tracked in any
+#     case, which this session's anonymous git lane does not serve). This
+#     RUN step is therefore expected to fail R's "checking whether the
+#     package can be loaded" step. It is intentionally allowed to fail
+#     (|| true) so the rest of this image still builds; the real exit code
+#     and full R CMD INSTALL output are captured to /opt/sigma_install.log
+#     and /opt/sigma_install.exitcode for GATE1.json to report honestly. ---
 COPY sigma-src /opt/SigMA-src
 RUN /opt/conda/envs/bioenv/bin/R CMD INSTALL --no-docs --no-build-vignettes --no-byte-compile /opt/SigMA-src \
-    2>&1 | tee /opt/sigma_install.log
+    > /opt/sigma_install.log 2>&1 ; \
+    echo $? > /opt/sigma_install.exitcode ; \
+    cat /opt/sigma_install.log ; \
+    echo "SigMA R CMD INSTALL exit code: $(cat /opt/sigma_install.exitcode)"
 
 # --- Toy test inputs and per-tool test scripts ---
 COPY tests /opt/tests
