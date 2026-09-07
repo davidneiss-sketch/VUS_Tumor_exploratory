@@ -1,235 +1,448 @@
 SIMULATED DATA — NOT A SCIENTIFIC RESULT
 
-# SIMULATION_SPEC.md
+# SIMULATION_SPEC.md (v2)
 
-SIMULATED: this document specifies `simulate.py`'s design and, in full,
-the derivation of every injected likelihood ratio in `SIMULATED_TRUTH.tsv`.
-It is itself a description of a simulator, not a scientific claim about
-real tumors — no ACMG evidence strength is assigned anywhere in this
-project's simulated artifacts (Standing Rule 1).
+SIMULATED: this document specifies `simulate.py`'s design and the full
+derivation of every injected quantity in `SIMULATED_TRUTH.tsv`. It is
+itself a description of a simulator, not a scientific claim about real
+tumors — no ACMG evidence strength is assigned anywhere in this project's
+simulated artifacts (Standing Rule 1).
 
-## Scope note
+This is a **structural revision** of the simulator built in an earlier
+task. §0 below lists the four defects that revision fixed, each with the
+fix applied and where to find the proof. Everything after §0 describes
+the current (v2) design in full; it does not separately re-derive v1's
+now-superseded design.
 
-This deliverable builds the **simulator** only: it generates synthetic
-tumor/normal pairs with known ground truth and writes that truth down. It
-does **not** run PROTOCOL.md §7's estimation pipeline (KDE/Jeffreys
-class-conditional LR fitting, variant-grouped CV, patient-clustered
-bootstrap) against this simulated data — that is `gate6_recovery.py`'s
-job, consuming a *future* task's fitted output against the
-`SIMULATED_TRUTH.tsv` this script produces. Per Standing Rule 9, that next
-step is explicitly out of scope here.
+## 0. Defects fixed in this revision
 
-## 1. Estimand (copied from PROTOCOL.md §6, not redefined)
+**DEFECT 1 — the primary target category was never generated.** v1 only
+ever injected copy-neutral LOH (`major_cn == cn_total`); bare, deletion-
+type `WT_LOSS` (n_t=1, wild-type allele deleted) never occurred, so a
+caller's ability to detect the Knudson two-hit event itself was never
+tested. **Fix:** deletion-type `WT_LOSS` and deletion-type `VARIANT_LOSS`
+(n_t=1, wild-type retained) are now generated across the full purity x
+depth grid (§2). Confirmed on this run's actual data: `WT_LOSS` n=2855,
+100% with `cn_total=1`; `VARIANT_LOSS` (deletion mechanism) n=1671,
+100% with `cn_total=1` (see `SIMULATED_data/SIMULATED_variant_calls.tsv`,
+`mechanism` column). Full per-cell instance counts:
+`SIMULATED_data/SIMULATED_coverage_report.tsv`.
 
-Every injected quantity in `SIMULATED_TRUTH.tsv` is a **likelihood ratio**:
+**DEFECT 2 — an unidentifiable truth category.** v1's `LOH_AMBIGUOUS`
+set its injected VAF target to the arithmetic midpoint of the two
+loss-direction extremes. Because `expected_vaf(rho,CN_t,X)` is affine in
+`X`, that midpoint is *exactly* `expected_vaf(rho,CN_t,CN_t/2)` — the
+same value as the `RETENTION` hypothesis, for every purity and every
+`CN_t`. This is a real limit of the single-variant binomial model, not of
+the simulator, and is not resolvable by changing the midpoint construction.
+**Fix (§4 below): injected together with the information needed to
+separate it, not dropped.** `AMBIGUOUS` now uses a REAL hidden-direction
+target VAF (not a midpoint) at deliberately low, near-floor depth — a
+genuinely underpowered call, not a mathematically-guaranteed tie. This
+script also now emits per-segment B-allele frequencies from `N_BAF_SNPS`
+flanking heterozygous SNPs (§4), which resolve the *separate* degeneracy
+between `RETENTION` and any LOH state (`m=0`) — see §4's proof.
+
+**DEFECT 3 — independent features.** v1 drew LOH direction, GIS score,
+and SBS3 exposure independently given class, so a product of per-feature
+LRs was mathematically identical to the true joint LR — the entire
+premise of testing whether a naive product-of-marginals estimator
+under-/over-states the truth was vacuous. **Fix (§3):** a shared latent
+HR-deficiency variable `Z` now drives all three features (a one-factor
+model); the injected joint LR is computed from the TRUE joint density
+(1D numerical integration over `Z`), and both the joint LR and the naive
+product-of-marginals LR are persisted, along with their ratio. Confirmed
+non-trivial on this run: `core_hr_joint_LR`=7.24 vs
+`core_hr_product_of_marginals_LR`=92.6 (ratio 0.078 — the naive product
+overstates the truth by ~12.8x); `ddr_signaling_joint_LR`=6.20 vs
+`ddr_signaling_product_of_marginals_LR`=22.8 (ratio 0.272).
+
+**DEFECT 4 — a weak null.** v1's only null was a single-feature
+(sequencing-depth-bucket) indicator; the case a prior version's
+regression got wrong was a FULL-FEATURE-VECTOR null returning 0.36
+[0.30–0.43] instead of ~1. **Fix (§5):** `NULL_ARM`, a DDR-signaling-
+analogue arm (same gene list and link parameters as `DDR_SIGNALING`,
+differing only in that its class-conditional `Z` distribution is
+IDENTICAL between Pathogenic and Benign) has a true joint LR of exactly
+1.0 for every possible evidence vector — proved algebraically in §5, not
+merely verified at one point. The old depth-bucket null is kept as a
+secondary null per this task's explicit instruction.
+
+Also in this revision: `n` was raised substantially (§6, with a
+justification against real Track B class sizes) and the old filename-
+only "no v1 reuse" check was replaced with a scan of every emitted
+numeric VALUE against the retracted v1 figures (§7).
+
+## 1. Estimand (unchanged from v1, copied from PROTOCOL.md §6)
+
+Every LR-estimand quantity in `SIMULATED_TRUTH.tsv` is
 
 ```
 LR(E) = P(E | Pathogenic) / P(E | Benign)
 ```
 
-— never an odds ratio. `gate6_recovery.py` treats an OR compared against
-an LR target as an automatic FAIL regardless of numeric CI overlap; this
-simulator only ever injects LR-estimand quantities, and every row in
-`SIMULATED_TRUTH.tsv` has `estimand = LR`.
+— never an odds ratio. The new `*_inflation_ratio` quantities use a
+distinct estimand string, `LR_RATIO` (a ratio of two LRs, not itself an
+LR against which `gate6_recovery.py`'s automatic OR-vs-LR check would
+apply) — see §3.
 
-## 2. The six injected quantities and their derivations
+## 2. Tumor/normal pair generation: the purity x depth coverage grid
 
-Each is computed **analytically**, in closed form, directly from the same
-class-conditional distribution parameters that `simulate.py` uses to draw
-the actual per-sample data (see `PARAMETER_PROVENANCE.tsv` for the
-provenance of every number below). This is the load-bearing design choice
-that makes the truth genuine: the "true LR" is not a separately-invented
-label bolted onto arbitrary data — it is the actual data-generating
-parameter, in closed form.
+Every sample belongs to one of 3 arms (`CORE_HR`, `DDR_SIGNALING`,
+`NULL_ARM` — gene lists in `simulate.py`'s `GENE_GROUPS`) x 2 classes
+(`Pathogenic`, `Benign`). For each (arm, class), samples are drawn into
+a **purity x depth grid**:
 
-### 2.1 Categorical (Bernoulli) features — LOH_SECOND_HIT
+- **Purity bins:** `LOW` [0.10,0.35), `MID` [0.35,0.65), `HIGH` [0.65,0.95]
+- **Depth bins (evaluable range only, tumor depth):** `LOW` [25,45),
+  `MID` [45,75), `HIGH` [75,120)
 
-For a binary evidence event `E = {variant shows LOH_SECOND_HIT}`
-(PROTOCOL.md §5.1 category), with class-conditional Bernoulli
-probabilities `π₁ = P(E|Pathogenic)` and `π₀ = P(E|Benign)`:
+For each of the 9 (purity_bin, depth_bin) cells, `DRAWS_PER_GRID_CELL`
+= 200 samples are drawn with purity/depth uniform within that cell's
+range. Within each draw, the assigned LOH category is a genuine
+stochastic outcome of the shared-latent model (§3) — the grid controls
+*difficulty* (how hard the call is), not the *category proportions*
+(which are purity/depth-independent, driven only by `Z`/class). Enough
+draws per cell (200) ensure every one of the 4 "grid categories"
+(`RETENTION`, `CN_NEUTRAL_LOH_WT_LOSS`, `WT_LOSS`, `VARIANT_LOSS`)
+reaches `MIN_PER_CELL_GRID` = 5 instances per cell with high probability
+— verified on this run: **all 540 IN_SCOPE grid cells meet the minimum**
+(`SIMULATED_data/SIMULATED_coverage_report.tsv`; 0 cells below minimum).
 
-```
-LR(E) = P(E|Pathogenic) / P(E|Benign) = π₁ / π₀
-```
+`AMBIGUOUS` and `NOT_EVALUABLE` are defined by construction OUTSIDE the
+evaluable-depth grid (near-floor depth [20,35) and sub-floor depth [4,19)
+respectively) — every grid cell for these two categories is therefore
+explicitly declared `OUT_OF_SCOPE` in the coverage report (not silently
+absent), with the reason stated; they instead get their own purity-only
+allocation (`MIN_PER_CELL_SIDE_ARM` = 8 per (purity_bin, arm, class)).
 
-This is the estimand formula directly — no additional derivation step,
-since a Bernoulli's "density" at the observed outcome *is* its
-probability mass.
+Every sample also independently draws: gene (uniform within its arm's
+gene list), PAM50 subtype (`BENCHMARKS.tsv` `PAM01`), ploidy
+(`PLOIDY_RANGE`), a WGD flag (`BENCHMARKS.tsv` `WGD01`, sets baseline
+`CN_t` = 4 if WGD else 2), and normal sequencing depth.
 
-**`core_hr_loh_second_hit_LR`**: π₁ = 0.70 (CORE_HR, Pathogenic), π₀ = 0.10
-(CORE_HR, Benign) → `LR = 0.70 / 0.10 = 7.0`.
+### 2.1 Copy-number construction per category
 
-**`ddr_signaling_loh_second_hit_LR`**: π₁ = 0.40, π₀ = 0.15 →
-`LR = 0.40 / 0.15 = 2.6666...7`.
+| Category | Mechanism | major_cn | minor_cn | mutant_copies |
+|---|---|---|---|---|
+| `RETENTION` | — | `CN_t/2` | `CN_t/2` | `CN_t/2` |
+| `CN_NEUTRAL_LOH_WT_LOSS` | copy-neutral | `CN_t` | 0 | `CN_t` |
+| `WT_LOSS` | **deletion** | **1** | **0** | **1** |
+| `VARIANT_LOSS` | copy-neutral | `CN_t` | 0 | 0 |
+| `VARIANT_LOSS` | **deletion** | **1** | **0** | **0** |
+| `AMBIGUOUS` | deletion | 1 | 0 | 1 or 0 (hidden true direction, 50/50) |
+| `NOT_EVALUABLE` | — | `CN_t/2` | `CN_t/2` | `CN_t/2` (irrelevant — depth alone determines this category) |
 
-`simulate.py` draws each sample's assigned LOH category from exactly
-these Bernoulli probabilities (`draw_loh_category()`), then constructs
-the tumor allele-specific copy number and read counts for that category
-using PROTOCOL.md §5.2's own binomial VAF model (`cn_and_depth_for_category()`,
-`expected_vaf()`) — so the *data*, not just the label, is generated
-consistent with the injected LOH state.
+`RETENTION`'s `mutant_copies = CN_t/2` (not a fixed 1 regardless of
+ploidy, as v1 used) is itself a correctness fix made as a side effect of
+this rewrite: a preserved heterozygous variant under whole-genome
+doubling genuinely occupies half the doubled copies, and using the
+ploidy-scaled value here removes a WGD/RETENTION VAF mismatch the prior
+LOH-caller-validation task had identified and documented as a disclosed,
+out-of-scope-at-the-time limitation. This was not one of the four listed
+defects but was fixed in passing since this rewrite touches the same code
+path; it does not otherwise change this task's scope.
 
-### 2.2 Continuous (Gaussian) features — HRD/GIS score, SBS3 exposure
+Tumor/normal reads are drawn binomially around `expected_vaf(purity,
+CN_t, mutant_copies)` (PROTOCOL.md §5.2, unchanged) at the depth assigned
+by the grid cell (or the side-arm's depth range for AMBIGUOUS/
+NOT_EVALUABLE).
 
-For continuous evidence `E = x` with class-conditional densities
-`f(x|Pathogenic) = Normal(μ₁, σ₁)` and `f(x|Benign) = Normal(μ₀, σ₀)`:
+## 3. The one-factor shared-latent model and the joint-vs-marginal LR (DEFECT 3)
 
-```
-LR(E=x) = f(x|Pathogenic) / f(x|Benign)
-        = [ (1/(σ₁√(2π))) · exp(−(x−μ₁)²/(2σ₁²)) ]
-        / [ (1/(σ₀√(2π))) · exp(−(x−μ₀)²/(2σ₀²)) ]
-```
+For each sample, `Z ~ Normal(Z_MEAN[arm][class], 1)` is drawn once and
+shared across all three features:
 
-implemented exactly as `gaussian_lr()` / `norm_pdf()` in `simulate.py`.
-Each quantity below is this ratio evaluated at one fixed `x`, chosen in
-advance (not searched for after seeing any result).
+- **LOH direction** (binary): `P(WT_LOST_DIRECTION | Z) = Phi(a[arm] + b[arm]*Z)`
+  (a probit link). Given NOT WT-lost, a further ARBITRARY, disclosed,
+  Z-independent split (0.6 `RETENTION` / 0.4 `VARIANT_LOSS`) and, given
+  either loss direction, an ARBITRARY 0.65/0.35 `DELETION`/`COPY_NEUTRAL`
+  mechanism split (deletion weighted higher: large-scale copy loss is the
+  more commonly reported real-world second-hit mechanism).
+- **GIS/HRD score** (continuous): `GIS = c[arm] + d[arm]*Z + Normal(0, sigma[arm])`.
+- **SBS3 exposure** (continuous): `SBS3 = c[arm] + d[arm]*Z + Normal(0, sigma[arm])`,
+  clipped to [0, 0.95].
 
-**`core_hr_gis_score_LR`** (CORE_HR gene group): Pathogenic ~ N(55, 12),
-Benign ~ N(25, 10), evaluated at x = 55 (the Pathogenic mean, also above
-the BENCHMARKS.tsv `HRD03` GIS≥42 threshold):
+Because all three depend on the SAME `Z`, they are genuinely correlated
+given class — exactly the "LOH, HRD and SBS3 are three views of one
+event" premise the task requires, and precisely what makes the joint
+density differ from a product of marginals.
 
-```
-f(55 | N(55,12)) = 1/(12√(2π)) · exp(0)          = 0.0332452...
-f(55 | N(25,10)) = 1/(10√(2π)) · exp(−(30)²/200) = 0.0004432...
-LR = 0.0332452 / 0.0004432 = 75.01427608376818
-```
+### 3.1 Marginal LRs (closed form)
 
-**`ddr_signaling_gis_score_LR`** (DDR_SIGNALING gene group): Pathogenic ~
-N(40, 15), Benign ~ N(25, 12), evaluated at x = 40:
-
-```
-LR = f(40|N(40,15)) / f(40|N(25,12)) = 1.7473606486524944
-```
-
-Deliberately chosen so this quantity's true LR (1.75) is non-null but
-still falls *below* the BENCHMARKS.tsv `ODDS01` supporting threshold
-(2.08) — a concrete illustration that "not exactly 1.0" and "clears the
-supporting-evidence bar" are different claims; PROTOCOL.md §10 requires
-this distinction be kept explicit.
-
-**`core_hr_sbs3_exposure_LR`**: Pathogenic ~ N(0.35, 0.10), Benign ~
-N(0.10, 0.08), evaluated at x = 0.35:
-
-```
-LR = f(0.35|N(0.35,0.10)) / f(0.35|N(0.10,0.08)) = 105.6011169807864
-```
-
-`simulate.py` draws each sample's true SBS3-like relative exposure from
-these same Normals, then builds an actual 96-trinucleotide-context
-mutation catalog: total mutation count ~ Normal(mean = `MEAN_MUTATIONS_PER_EXOME`
-= 60.05, `BENCHMARKS.tsv` `TMB01`), split between an arbitrary "HRD-like"
-signature shape and an arbitrary "background" shape in proportion to the
-drawn exposure (see `PARAMETER_PROVENANCE.tsv` for why these shapes are
-declared arbitrary rather than the real COSMIC SBS3 weights).
-
-### 2.3 The injected null
-
-PROTOCOL.md §11 requires at least one injected-null quantity (true
-LR = 1.0). **`null_sequencing_depth_bucket_LR`** uses a categorical
-"HIGH_DEPTH" indicator with `P(HIGH_DEPTH|Pathogenic) = P(HIGH_DEPTH|Benign)
-= 0.50` — identical *by construction*, not by coincidence of sampling:
+`GIS`/`SBS3` given class are linear-Gaussian in `Z`, hence themselves
+Gaussian: `X | class ~ Normal(c + d*muZ, sqrt(d^2 * Var(Z) + sigma^2))`.
+The `WT_LOST_DIRECTION` marginal probability uses the exact
+Gaussian-probit convolution identity (`Var(Z)=1` fixed):
 
 ```
-LR = 0.50 / 0.50 = 1.0   exactly
+P(WT_LOST_DIRECTION | class) = Phi( (a + b*muZ) / sqrt(1 + b^2) )
 ```
 
-`is_null = TRUE` for this row in `SIMULATED_TRUTH.tsv`; every other row
-is `FALSE`.
+Each marginal LR (`*_wt_lost_direction_LR`, `*_gis_score_LR`,
+`*_sbs3_exposure_LR`) is the ratio of these class-conditional marginals,
+evaluated at the fixed point `EVAL_POINT = {wt_lost:1, gis:42.0 (the
+real BENCHMARKS.tsv HRD03 GIS-positive threshold), sbs3:0.30}`, chosen in
+advance.
 
-## 3. ACMG-band coverage (context, not itself an ACMG classification)
+### 3.2 The joint density (numerical, not closed-form) and the injected joint LR
 
-For reference only — no ACMG evidence strength is assigned to any of
-these values anywhere in this project's simulated artifacts, per
-Standing Rule 1. This just documents that the six chosen parameter sets
-span a useful range of `BENCHMARKS.tsv` `ODDS01` bands, which is why
-these particular parameter values were picked:
-
-| Quantity | True LR | ODDS01 band it would fall in, if this were a real Stage-1 result |
-|---|---|---|
-| `null_sequencing_depth_bucket_LR` | 1.0 | (null — no evidence direction) |
-| `ddr_signaling_gis_score_LR` | 1.747 | below supporting (2.08) — NO_EVIDENCE |
-| `ddr_signaling_loh_second_hit_LR` | 2.667 | SUPPORTING (2.08–4.33) |
-| `core_hr_loh_second_hit_LR` | 7.0 | MODERATE (4.33–18.7) |
-| `core_hr_gis_score_LR` | 75.014 | STRONG (18.7–350) |
-| `core_hr_sbs3_exposure_LR` | 105.601 | STRONG (18.7–350) |
-
-## 4. Tumor/normal pair generation
-
-For each of 4 cells (`{CORE_HR, DDR_SIGNALING} × {Pathogenic, Benign}`),
-`N_PER_CELL = 15` samples are drawn (60 total), each independently
-assigned:
-
-- a gene (uniform within its gene group's PROTOCOL.md §1 list)
-- a PAM50 subtype (weighted by `BENCHMARKS.tsv` `PAM01`)
-- purity ~ Uniform(0.10, 0.95)
-- ploidy ~ Uniform(1.5, 5.5)
-- a WGD flag ~ Bernoulli(`BENCHMARKS.tsv` `WGD01` = 0.30), which sets the
-  per-locus total copy number used below (`CN_t = 4` if WGD else `2`)
-- normal sequencing depth ~ Normal(40, 8)
-- an LOH category (§2.1) and, from it, allele-specific copy number
-  (major/minor) and a target tumor VAF via PROTOCOL.md §5.2's exact
-  formula `E[VAF|X] = (p·X + (1−p)·1) / (p·CN_t + (1−p)·2)`
-- actual tumor/normal ALT/REF read counts, drawn binomially around that
-  target VAF and around a normal-VAF of 0.5, at depths drawn from
-  Normal(80, 15) / Normal(40, 8) (tumor/normal) — except `LOH_AMBIGUOUS`
-  (deliberately borderline depth, 20–25x) and `NOT_EVALUABLE`
-  (deliberately below PROTOCOL.md's 20x evaluable floor)
-- a true SBS3-like exposure (§2.2) and a synthetic 96-context mutation
-  catalog built from it
-
-**Self-check, run and reported on every invocation** (not merely
-described here): `simulate.py` re-implements PROTOCOL.md §5.1/§5.2's own
-binomial-test classification logic (`classify_loh()` /
-`binom_two_sided_pvalue()`, stdlib-only exact binomial p-values, no
-scipy) and re-classifies every generated sample's read counts, comparing
-the recovered category against the category it was told to inject.
-Result this run: **57/60 samples' recovered category matched the
-assigned category** (see `SIMULATED_data/SIMULATED_loh_injection_self_check.md`
-for the live figure). A less-than-100% match rate is expected and
-correct, not a bug: `LOH_AMBIGUOUS` is defined (PROTOCOL.md §5.1) as a
-locus where the binomial test *cannot* confidently distinguish the two
-hypotheses — under real binomial sampling noise it will sometimes
-resolve to a definite category by chance, exactly as a real ambiguous
-locus would. `NOT_EVALUABLE` is expected to match 100% of the time,
-since it is determined by depth alone.
-
-## 5. File layout
+`simulate.py`'s `joint_density(arm, cls, x)` computes this class-conditional
+joint density directly (not a product of marginals):
 
 ```
-SIMULATED_data/                          <- observable, pipeline-input-shaped files
-  SIMULATED_sample_metadata.tsv
-  SIMULATED_variant_calls.tsv
+joint_density(x | class) = f(wt_lost, gis, sbs3 | class) = INTEGRAL over Z of
+    [ Phi(a+bZ) if wt_lost=1 else (1-Phi(a+bZ)) ]
+  * Normal_pdf(gis;  c_GIS  + d_GIS*Z,  sigma_GIS)
+  * Normal_pdf(sbs3; c_SBS3 + d_SBS3*Z, sigma_SBS3)
+  * Normal_pdf(Z; muZ_class, 1)                        dZ
+```
+
+This integral has no closed form (the probit term prevents one), so it
+is computed by 1D composite Simpson's-rule integration (`simulate.py`'s
+`simpson_integrate()`, stdlib `math` only, Z in [-8,8], 4000 steps) —
+reproducible, deterministic, and self-checked: `normalization_self_check()`
+integrates `P(wt_lost=1|class) + P(wt_lost=0|class)` over `Z` and confirms
+it sums to 1.0 to 10 decimal places for every arm/class this run.
+
+```
+joint_LR(x*) = f(x*|Pathogenic) / f(x*|Benign)
+product_of_marginals_LR(x*) = [marginal WT LR] * [marginal GIS LR] * [marginal SBS3 LR], same x*
+```
+
+**Both are persisted** (`*_joint_LR`, `*_product_of_marginals_LR`), plus
+their ratio `*_joint_vs_marginal_inflation_ratio = joint_LR / product_LR`
+(estimand `LR_RATIO`, distinct from bare `LR`) — this ratio is the
+target quantity a future estimation-pipeline task (referred to in the
+originating task as "P09") would need to recover to demonstrate whether
+a naive conditional-independence estimator is biased. Confirmed
+non-trivial this run (§0's DEFECT 3 entry has the exact numbers): the
+naive product overstates `CORE_HR`'s true joint LR by ~12.8x and
+`DDR_SIGNALING`'s by ~3.7x.
+
+## 4. LOH_AMBIGUOUS and the BAF channel (DEFECT 2)
+
+### 4.1 AMBIGUOUS's new construction
+
+Unlike v1, `AMBIGUOUS` samples use a REAL, non-midpoint target VAF: a
+hidden true direction is drawn (50/50, not Z-linked — this is an
+engineered hard case, not a Z-model outcome), `major_cn=1, minor_cn=0`
+(deletion mechanism, matching `WT_LOSS`/`VARIANT_LOSS`'s deletion
+flavor), `mutant_copies` set from the hidden direction, and depth drawn
+from `[20,35)` — near, but not below, the evaluable floor. At this depth,
+the exact binomial test (PROTOCOL.md §5.1/§5.2) genuinely sometimes
+cannot reject either hypothesis — the ambiguity is a real, depth-driven
+statistical property of the data, not a rigged mathematical identity.
+Confirmed this run: only 43/144 (29.9%) of `AMBIGUOUS` samples' own
+single-variant reads resolve to `classify_loh() == LOH_AMBIGUOUS` — the
+rest resolve to a definite direction by chance, exactly as expected for
+a genuinely (not artificially) underpowered call
+(`SIMULATED_data/SIMULATED_loh_injection_self_check.md`).
+
+### 4.2 The BAF channel — what it resolves, and the proof
+
+`simulate.py` emits `N_BAF_SNPS` = 15 flanking heterozygous SNPs per
+segment (`SIMULATED_data/SIMULATED_baf_segments.tsv`: `sample_id,
+snp_index, phase, normal_ref_reads, normal_alt_reads, tumor_ref_reads,
+tumor_alt_reads, mirrored_baf`). Each SNP's phase (whether ITS OWN alt
+allele sits on the major or minor copy) is independent and unknown a
+priori (50/50) — this is what makes a real BAF track show two symmetric
+bands for an imbalanced segment. Mirroring (`min(vaf, 1-vaf)`) folds
+away the phase ambiguity, revealing the true |allelic imbalance|
+regardless of which physical allele happened to be "alt" at each SNP.
+`SIMULATED_variant_calls.tsv` also carries a convenience
+`mirrored_baf_mean`/`n_baf_snps` summary per sample.
+
+**Proof this breaks the RETENTION-vs-AMBIGUOUS degeneracy:** `expected_vaf`
+is affine in `X`. For `RETENTION` (`X = CN_t/2`, i.e. both phase choices
+give the SAME expected VAF since major=minor):
+
+```
+E[VAF | X=CN_t/2] = (p*(CN_t/2) + (1-p)) / (p*CN_t + 2(1-p)) = 1/2   exactly,
+```
+
+for every purity `p` and every `CN_t` — an invariant, algebraically
+independent of purity/ploidy. For ANY `m=0` category (`CN_NEUTRAL_LOH_WT_LOSS`,
+`WT_LOSS`, `VARIANT_LOSS`, `AMBIGUOUS`), both phase choices (X=CN_t or
+X=0) mirror to the SAME value:
+
+```
+mirror(E[VAF|X=CN_t]) = mirror(E[VAF|X=0]) = (1-p) / (p*CN_t + 2(1-p))   <  1/2  for any p > 0.
+```
+
+So **`E[mirrored BAF] = 0.5` for `RETENTION`, and `< 0.5` for every LOH
+state (including `AMBIGUOUS`), for every purity and `CN_t`** — a clean,
+provable separation entirely independent of the single at-risk variant's
+own read noise. Confirmed empirically this run (n and stdev shown; SEMs
+are non-overlapping by a wide margin):
+
+| Category | n | mean mirrored BAF | sd |
+|---|---|---|---|
+| `RETENTION` | 3894 | 0.4478 | 0.0104 |
+| `AMBIGUOUS` | 144 | 0.3102 | 0.1160 |
+| `CN_NEUTRAL_LOH_WT_LOSS` | 1504 | 0.2316 | 0.1254 |
+| `WT_LOSS` | 2855 | 0.3040 | 0.1175 |
+| `VARIANT_LOSS` | 2547 | 0.2793 | 0.1240 |
+| `NOT_EVALUABLE` | 144 | 0.4480 | 0.0099 |
+
+(`RETENTION`'s observed mean, 0.4478, sits slightly below the true 0.5
+target — expected: mirroring a noisy binomial observation around a true
+mean of exactly 0.5 biases the empirical mean downward, a real,
+well-understood property of the fold/mirror transform under finite
+depth, not an error.) `RETENTION` is separated from every LOH state
+(including `AMBIGUOUS`) by 0.12–0.22 in mean mirrored BAF, against SEMs
+of ~0.0002 (`RETENTION`, n=3894) and ~0.01 (`AMBIGUOUS`, n=144) — the gap
+is many SEMs wide, not a coincidence of this run's particular seed.
+
+BAF does NOT resolve DIRECTION (which specific allele, WT or mutant, is
+retained) — both loss directions mirror to the identical value, by the
+same algebra above. Direction remains the single at-risk variant's own
+read-count job (PROTOCOL.md §5.1/§5.2), exactly where `AMBIGUOUS`'s
+genuine, depth-driven uncertainty now correctly lives.
+
+**Decision recorded, per the task's requirement:** `LOH_AMBIGUOUS` was
+NOT dropped as an injectable category (the "drop it" option was
+available and considered) — it was resolved by injecting it together
+with the BAF channel, matching the task's second option, because
+dropping it would have discarded a real, useful evidentiary state
+(PROTOCOL.md §5.1's own category 4) rather than fixing the actual defect
+(an unresolvable construction), and because the BAF channel was already
+independently required by this task's DO list for its own sake.
+
+## 5. NULL_ARM — a full-feature-vector null (DEFECT 4)
+
+`NULL_ARM` shares `DDR_SIGNALING`'s gene list and every link parameter
+(`WT_LOST_LINK`, `GIS_LINK`, `SBS3_LINK` — identical dicts), differing
+ONLY in `Z_MEAN`: `{"Pathogenic": 0.0, "Benign": 0.0}` (identical,
+vs. `DDR_SIGNALING`'s `{0.8, -0.5}`).
+
+**Proof the true joint LR is exactly 1.0 for every possible evidence
+vector `x`, not merely at one evaluation point:** `f(x|Pathogenic)` and
+`f(x|Benign)` are the SAME function of `x` when every parameter feeding
+that function (`Z`'s mean AND variance, and every link coefficient) is
+identical between classes — the two class-conditional distributions are
+literally the same distribution. Therefore `LR(x) = f(x|Path)/f(x|Benign)
+= f(x)/f(x) = 1` identically, for every `x` in the support, not just at
+`EVAL_POINT`. Since every marginal of two identical distributions is
+itself identical, the naive product-of-marginals estimator is ALSO
+exactly 1.0 here — this null tests the FULL feature vector (the case a
+prior version's regression got wrong, returning 0.36 [0.30–0.43] instead
+of ~1), not merely a single engineered-independent feature. Verified
+numerically at `EVAL_POINT` this run:
+`null_arm_full_vector_joint_LR` = 1.0, `null_arm_full_vector_product_of_marginals_LR`
+= 1.0, `null_arm_full_vector_inflation_ratio` = 1.0 — all exact
+(`repr()`-written floats, no rounding).
+
+The old, single-feature `null_sequencing_depth_bucket_LR` (an engineered-
+identical-by-construction categorical coin flip) is kept as a **secondary**
+null per the task's explicit instruction.
+
+## 6. Raising n — justification against realistic Track B class sizes
+
+**New n: `DRAWS_PER_GRID_CELL` = 200 per (purity_bin, depth_bin, arm,
+class) grid cell** (9 cells) **+ `MIN_PER_CELL_SIDE_ARM` = 8 per
+(purity_bin, arm, class) for each of `AMBIGUOUS`/`NOT_EVALUABLE`** (3
+purity bins each) = `9*200 + 3*8 + 3*8` = **1848 samples per (arm,
+class)**, i.e. **3696 per arm** (Pathogenic+Benign), **11088 total**
+across all 3 arms — up from v1's 60 total (15 per cell x 4 cells).
+
+**This n is derived bottom-up from DEFECT 1's coverage-grid requirement**
+(enough draws per cell that all 4 grid categories clear
+`MIN_PER_CELL_GRID`=5 with high probability — verified, not merely
+assumed: 0 of 540 in-scope cells fall short this run), **not picked to
+match real-world Track B class sizes.** Those are, in fact, far smaller:
+
+- `BENCHMARKS.tsv` `BRCA_PREV01` (Yost et al. 2019, JNCI Cancer Spectrum,
+  live-cited): a TCGA-derived breast-cancer cohort shows 5.0% (39/779)
+  germline BRCA1/BRCA2 pathogenic-carrier frequency — BRCA1/2 dominate
+  this project's `CORE_HR` gene list.
+- `BENCHMARKS.tsv` `DDR_PREV01` (Couch et al. 2017, JAMA Oncology,
+  live-cited): a large panel-testing-referred cohort shows CHEK2 1.73%,
+  ATM 1.06% carrier prevalence — ATM+CHEK2 dominate `DDR_SIGNALING`.
+
+Extrapolating both (arithmetic done here, not itself a published figure,
+and explicitly caveated: Couch 2017 is a clinically-referred cohort, not
+an unselected population, so its prevalence likely overstates an
+unselected cohort's true rate) to a ~1097-patient TCGA-BRCA-scale cohort:
+**`CORE_HR` pathogenic class ≈ 55–75 patients; `DDR_SIGNALING` pathogenic
+class ≈ 25–35 patients** — both far below this simulator's 1848-per-class
+figure.
+
+**This is a deliberate, disclosed departure, not an oversight.** Stage 2's
+purpose is to verify the ESTIMATION MACHINERY recovers known targets
+correctly given adequate statistical power; it is not a claim about what
+a real Track B run will produce. A real Stage 1 run at the realistic
+class sizes above may frequently need to declare `INSUFFICIENT_N`
+(PROTOCOL.md §8, `n < 20` per stratum — note CORE_HR's realistic ~55-75
+total, split across ~10 sub-gene and PAM50 strata per PROTOCOL.md §8,
+could plausibly fall under 20 in several individual strata even though
+the gene-group-level total clears it) for individual strata even as the
+gene-group-level total clears PROTOCOL's n≥20 floor. This tension is
+recorded here explicitly rather than hidden by picking a "realistic-
+looking" n that would leave gate6 exactly as imprecise as before.
+
+## 7. Numeric v1-reuse scan (replaces the filename-only check)
+
+A filename scan tests naming, not values — the actual rule (Standing
+Rule 3/"do not reuse a retracted figure") is about VALUES. `simulate.py`
+now scans every emitted numeric value in two tiers:
+
+- **Tier 1 (what actually matters):** every `SIMULATED_TRUTH.tsv`
+  `injected_value` (16 design-level quantities) against all 9 retracted
+  v1 figures (`-3.54, 34.0, 0.9598, 0.9976, 15.13, 4.45, 0.99, 80.0,
+  91.7`) at `rel_tol=1e-3, abs_tol=1e-6`. **Result this run: ZERO
+  matches.**
+- **Tier 2 (context, not itself evidence):** every raw per-sample/per-
+  observation value (depths, read counts, per-SNP BAFs, purity/ploidy/
+  GIS draws — ~1.2M values per figure this run). Matches WERE found here
+  for several figures (e.g. `normal_depth=34.0` — an exact match, since
+  `normal_depth` is an integer-valued field and 34 is a common draw
+  within its distribution). **These are reported in full (Standing Rule
+  4), and are expected, not evidence of reuse:** integer-valued fields
+  will exactly equal an integer-valued target at a predictable base rate
+  purely from quantization, and continuous fields drawn from a wide
+  distribution will occasionally land within 0.1% of any fixed target
+  purely by chance when ~1.2M values are scanned per figure. No design-
+  level parameter was tuned to produce any Tier-2 coincidence.
+
+Full detail, every figure's scanned-count and match locations:
+`V1_NUMERIC_SCAN.tsv`; narrative: `SIMULATED_data/SIMULATED_no_v1_reuse_check.md`.
+
+## 8. File layout
+
+```
+SIMULATED_data/
+  SIMULATED_sample_metadata.tsv     <- +purity_bin, depth_regime, gis_score columns (new)
+  SIMULATED_variant_calls.tsv       <- +mechanism, mirrored_baf_mean, n_baf_snps columns (new)
+  SIMULATED_baf_segments.tsv        <- NEW: per-segment flanking-SNP BAF (DEFECT 2)
   SIMULATED_mutation_catalogs.tsv
   SIMULATED_signature_exposures.tsv
+  SIMULATED_coverage_report.tsv     <- NEW: every (category,arm,class,purity_bin,depth_regime) cell,
+                                        count + scope_status + reason (DEFECT 1's coverage requirement)
   SIMULATED_loh_injection_self_check.md
-  SIMULATED_no_v1_reuse_check.md
-  README.md
+  SIMULATED_no_v1_reuse_check.md    <- now narrates the numeric scan, not a filename scan
 
-SIMULATED_TRUTH.tsv                      <- repo root: aggregate LR ground truth, separate from SIMULATED_data/
-SIMULATED_TRUTH_detail/                  <- also separate from SIMULATED_data/
-  SIMULATED_sample_labels.tsv            <- per-sample hidden class label (the answer key)
-  README.md
+SIMULATED_TRUTH.tsv                 <- 16 quantities now (was 6), estimand column populated for all
+SIMULATED_TRUTH_detail/
+  SIMULATED_sample_labels.tsv       <- +z_latent, hidden_direction columns (new)
+
+V1_NUMERIC_SCAN.tsv                 <- NEW deliverable: the two-tier numeric scan, every figure
 ```
 
-`SIMULATED_TRUTH.tsv` and `SIMULATED_TRUTH_detail/` are both physically
-separate directories/files from `SIMULATED_data/`, satisfying the
-task's "in a directory separate from the simulated data" requirement —
-not nested inside it.
+## 9. Known, disclosed downstream incompatibility (Standing Rule 4/8)
 
-## 6. Parameter independence (Standing Rule: no tuning to reproduce a prior number)
-
-Every constant `simulate.py` uses is listed in `PARAMETER_PROVENANCE.tsv`
-with either a `BENCHMARKS.tsv` row ID or an explicit `ARBITRARY` +
-rationale. None of the `ARBITRARY` values was chosen by first computing
-what value would reproduce a specific prior output — each is justified
-independently (either against PROTOCOL.md's own pre-registered
-thresholds, against an installed tool's own operational bounds, or as a
-declared free design choice for spanning a useful evidence range).
-
-**No-v1-reuse check** (run automatically on every `simulate.py`
-invocation, not a one-off manual claim): a repository-wide scan for any
-filename matching the word `v1` or containing `retract` (excluding
-`.git/`). This session's scan found **zero** such files anywhere in this
-repository — there are no retracted v1 artifacts to have reproduced a
-value from, confirmed by the scan rather than assumed. Full output:
-`SIMULATED_data/SIMULATED_no_v1_reuse_check.md`.
+**`loh_caller.py` (built against v1's schema, a prior task) is now
+BROKEN against this revision** — confirmed by actually running it:
+`KeyError: 'WT_LOSS'` in `load_loci()`'s `TRUTH_CATEGORY_MAP` lookup,
+because v1's `assigned_loh_category` values were PROTOCOL vocabulary
+(`RETAINED`, `LOH_SECOND_HIT`, ...) requiring translation, whereas v2
+emits the direction-aware vocabulary directly (`RETENTION`, `WT_LOSS`,
+...) with no such mapping needed or present. `scripts/check_loh_caller_acceptance.py`
+and the `SIMULATED_loh_validation/` artifacts it depends on are
+consequently stale/inapplicable to this revision's output too. This is
+**explicitly out of scope for this task** (the DELIVERABLE list here is
+`simulate.py, SIMULATED_data/, SIMULATED_TRUTH.tsv, SIMULATION_SPEC.md,
+PARAMETER_PROVENANCE.tsv, V1_NUMERIC_SCAN.tsv` only) and per Standing
+Rule 9 is not fixed here — updating `loh_caller.py` for the new schema
+is a follow-up task. Reported here prominently, per Standing Rule 8,
+rather than left for a future session to discover by surprise.

@@ -1,5 +1,9 @@
 SIMULATED DATA — NOT A SCIENTIFIC RESULT
 
-# No-v1-reuse parameter-independence check
+# Numeric v1-reuse scan (replaces the old filename-only check)
 
-SIMULATED: repo-wide scan (excluding .git/) for filenames matching the word 'v1' or containing 'retract' found ZERO matching files. There are no retracted v1 artifacts in this repository (confirmed by this scan, not assumed) -- this check is therefore vacuously satisfied: no prior-run value exists for this simulator's output to have reproduced, by construction or otherwise.
+SIMULATED: this is a scan of VALUES, not filenames -- Standing Rule 3's concern is a reproduced NUMBER, and a filename scan (this simulator's v1 approach) cannot detect that at all.
+
+**Tier 1 (the check that actually matters): every SIMULATED_TRUTH.tsv `injected_value` (16 design-level quantities this simulator asserts as ground truth) scanned against all 9 retracted v1 figures ([-3.54, 34.0, 0.9598, 0.9976, 15.13, 4.45, 0.99, 80.0, 91.7]) at rel_tol=0.001, abs_tol=1e-06: **ZERO matches**. None of this simulator's 16 injected ground-truth quantities coincide with a retracted v1 figure within the stated tolerance.
+
+**Tier 2 (context, not itself evidence of reuse): 1197504 raw per-sample/per-observation numeric values** (depths, read counts, per-SNP BAFs, purity/ploidy/GIS draws) were also scanned against the same 9 figures. Matches were found for figure(s) [34.0, 0.9976, 15.13, 4.45, 80.0, 91.7] -- see V1_NUMERIC_SCAN.tsv for exact locations. **These are expected, not evidence of reuse**: at n=11088 samples (~1197504 numeric values scanned per figure), (a) INTEGER-valued fields like `normal_depth` and read counts will exactly equal an integer-valued target (e.g. 34.0, 80.0) at a predictable base rate purely from quantization -- this is arithmetic coincidence, not reproduction of a retracted figure's SCIENTIFIC CONTENT; (b) continuous fields (gis_score, ploidy) drawn from a wide distribution will occasionally land within a 0.1% relative tolerance of any fixed target purely by chance when this many values are scanned. No design-level parameter was tuned to produce any of these per-observation coincidences; they are logged in full per Standing Rule 4, not filtered out, but are not what this check is protecting against -- Tier 1 is.

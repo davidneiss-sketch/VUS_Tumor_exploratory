@@ -23,9 +23,11 @@ satisfied here, at the directory level, and in each file's companion
 
 | File | Contents |
 |---|---|
-| `SIMULATED_sample_metadata.tsv` | one row per simulated tumor/normal pair: gene, gene group, PAM50 subtype, purity, ploidy, WGD flag, normal depth |
-| `SIMULATED_variant_calls.tsv` | one row per simulated germline variant: normal/tumor ref+alt read counts, allele-specific copy number, and the injected LOH category |
+| `SIMULATED_sample_metadata.tsv` | one row per simulated tumor/normal pair: gene, gene group (arm), PAM50 subtype, purity, ploidy, WGD flag, normal depth, purity_bin/depth_regime (coverage-grid cell), gis_score |
+| `SIMULATED_variant_calls.tsv` | one row per simulated germline variant: normal/tumor ref+alt read counts, allele-specific copy number, the injected LOH category, mechanism (COPY_NEUTRAL/DELETION/NA), and a mirrored-BAF summary (mean + n SNPs) |
+| `SIMULATED_baf_segments.tsv` | **v2, new:** per-segment B-allele frequency from flanking heterozygous SNPs (phase, reads, mirrored BAF) -- resolves the RETENTION-vs-AMBIGUOUS degeneracy; see SIMULATION_SPEC.md §4.2 |
+| `SIMULATED_coverage_report.tsv` | **v2, new:** every (category, arm, class, purity_bin, depth_regime) cell's instance count, minimum required, and IN_SCOPE/OUT_OF_SCOPE status + reason |
 | `SIMULATED_mutation_catalogs.tsv` | one row per sample, 96 SBS-trinucleotide-context mutation counts |
 | `SIMULATED_signature_exposures.tsv` | the true injected SBS3-like relative exposure and mutation-count breakdown per sample |
-| `SIMULATED_loh_injection_self_check.md` | confirms the injected LOH categories are recoverable by re-running PROTOCOL.md §5.1/§5.2's own classification logic on the generated reads |
-| `SIMULATED_no_v1_reuse_check.md` | the repo-wide scan for retracted v1 artifacts (parameter-independence check) |
+| `SIMULATED_loh_injection_self_check.md` | confirms the injected LOH direction is recoverable by re-running PROTOCOL.md §5.1/§5.2's own classification logic on the generated reads |
+| `SIMULATED_no_v1_reuse_check.md` | **v2:** the two-tier NUMERIC scan of every emitted value against the retracted v1 figures (replaces v1's filename-only scan) -- see `V1_NUMERIC_SCAN.tsv` (repo root) for full detail |

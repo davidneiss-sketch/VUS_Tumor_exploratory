@@ -1,36 +1,39 @@
 #!/usr/bin/env python3
-"""simulate.py — SIMULATED regime simulator with fully-known ground truth.
+"""simulate.py (v2) — SIMULATED regime simulator with fully-known ground
+truth. This is a structural revision of the original simulator, fixing
+four defects found in a review of that version (see SIMULATION_SPEC.md
+§0 for the full defect list and the fix applied for each):
 
-Standing Rule 1 applies to every artifact this script produces: every
-output filename contains SIMULATED, every report's first line is
-"SIMULATED DATA — NOT A SCIENTIFIC RESULT", every caption begins
-"SIMULATED:", no ACMG evidence strength is assigned anywhere in this
-script's output, and status fields use only SIMULATED / SIMULATED_PASS /
-SIMULATED_FAIL / BLOCKED.
+  DEFECT 1 — bare, deletion-type WT_LOSS (n_t=1, wild-type allele
+    deleted, variant retained) and deletion-type VARIANT_LOSS (n_t=1,
+    variant deleted, wild-type retained) are now genuinely generated,
+    across a purity x depth grid, not just copy-neutral LOH.
+  DEFECT 2 — LOH_AMBIGUOUS no longer uses a VAF-midpoint construction
+    (which was analytically IDENTICAL to the RETENTION hypothesis'
+    target, an unresolvable degeneracy of the single-variant binomial
+    model). It now uses a real hidden-direction target VAF at low
+    (but evaluable) depth, and this script emits per-segment B-allele
+    frequencies from flanking heterozygous SNPs, which independently
+    confirm LOH state (m=0 vs m>=1) regardless of the single at-risk
+    variant's own read noise.
+  DEFECT 3 — LOH-direction, GIS/HRD score, and SBS3 exposure are now
+    generated from a single shared latent HR-deficiency variable Z per
+    sample (a one-factor model), so they are genuinely correlated given
+    class. The injected joint LR is computed from the true joint
+    density (1D numerical integration over Z), and recorded alongside
+    the naive product-of-marginals LR and their ratio.
+  DEFECT 4 — a full-feature-vector null arm (NULL_ARM, a DDR-signaling-
+    analogue: same gene list and link structure as DDR_SIGNALING, but
+    with the class-conditional Z distribution made IDENTICAL between
+    Pathogenic and Benign) is added, whose true joint LR is exactly 1.0
+    for every possible evidence vector, not just at one evaluation
+    point. The old engineered-null depth-bucket quantity is kept as a
+    secondary null.
 
-What this generates, per the task:
-  - SIMULATED_data/: tumor/normal pairs with independently controlled
-    purity, ploidy, WGD, per-locus allele-specific copy number, depth,
-    and germline genotype; a known LOH category (PROTOCOL.md §5.1) per
-    variant; and known signature exposures at exome-scale mutation
-    counts (PROTOCOL.md §5.4-style features).
-  - SIMULATED_TRUTH.tsv (repo root, separate from SIMULATED_data/): the
-    analytically-derived ground-truth likelihood ratio for each of 6
-    injected quantities, with an `estimand` column. The full derivation
-    of each is in SIMULATION_SPEC.md; the exact same distributional
-    parameters are used here to both (a) compute the closed-form LR and
-    (b) draw the actual per-sample data, so the "truth" is the genuine
-    data-generating parameter, not a decorative number.
-  - SIMULATED_TRUTH_detail/SIMULATED_sample_labels.tsv: the per-sample
-    hidden class label (Pathogenic/Benign) a real downstream classifier
-    would not see -- the answer key, also kept separate from
-    SIMULATED_data/.
-
-Every parameter used below is recorded in PARAMETER_PROVENANCE.tsv as
-either a BENCHMARKS.tsv row ID or ARBITRARY with a stated rationale.
-Nothing here was tuned to reproduce a prior run's output -- see the
-`--check-no-v1-reuse` self-check this script runs and reports on every
-invocation.
+Also per this revision's task: n is raised substantially (see
+SIMULATION_SPEC.md §6 for the justification against real Track B class
+sizes), and the old filename-only "no v1 reuse" check is replaced with a
+NUMERIC scan of every emitted value against the retracted v1 figures.
 
 Run: python3 simulate.py
 """
@@ -42,138 +45,131 @@ import math
 import random
 from pathlib import Path
 
-# ============================================================================
-# Fixed parameters. Every name here has a matching row in
-# PARAMETER_PROVENANCE.tsv (checked by scripts/check_simulator_acceptance.py).
-# ============================================================================
+REPO_ROOT = Path(__file__).resolve().parent
+DATA_DIR = REPO_ROOT / "SIMULATED_data"
+TRUTH_DETAIL_DIR = REPO_ROOT / "SIMULATED_TRUTH_detail"
+TRUTH_TSV = REPO_ROOT / "SIMULATED_TRUTH.tsv"
+V1_SCAN_TSV = REPO_ROOT / "V1_NUMERIC_SCAN.tsv"
+
+BANNER = "SIMULATED DATA — NOT A SCIENTIFIC RESULT"
 
 SEED = 20260907  # fixed for full reproducibility; ARBITRARY (today's date as YYYYMMDD)
-N_PER_CELL = 15   # samples per (class x gene_group) cell; ARBITRARY, see PARAMETER_PROVENANCE.tsv
+
 GENE_GROUPS = {
     # PROTOCOL.md §1 gene lists, copied verbatim.
     "CORE_HR": ["BRCA1", "BRCA2", "PALB2", "RAD51C", "RAD51D", "RAD51B", "BRIP1", "BARD1", "RAD54L"],
     "DDR_SIGNALING": ["ATM", "CHEK1", "CHEK2", "ATR", "MRE11", "RAD50", "NBN", "FANCM"],
+    # NULL_ARM is a "DDR-signaling-analogue": the SAME gene list and link
+    # structure as DDR_SIGNALING (see *_LINK dicts below), differing only
+    # in that its class-conditional Z distribution is made identical
+    # between Pathogenic and Benign (Z_MEAN), which is what forces its
+    # true joint LR to be exactly 1.0 -- see DEFECT 4.
+    "NULL_ARM": ["ATM", "CHEK1", "CHEK2", "ATR", "MRE11", "RAD50", "NBN", "FANCM"],
 }
 PAM50_PROPORTIONS = {  # BENCHMARKS.tsv PAM01 (225/126/57/93 of 501)
     "LumA": 225 / 501, "LumB": 126 / 501, "HER2E": 57 / 501, "Basal": 93 / 501,
 }
 WGD_PREVALENCE = 0.30          # BENCHMARKS.tsv WGD01
 MEAN_MUTATIONS_PER_EXOME = 60.05  # BENCHMARKS.tsv TMB01 (30626/510)
-PURITY_RANGE = (0.10, 0.95)     # ARBITRARY, see PARAMETER_PROVENANCE.tsv
-PLOIDY_RANGE = (1.5, 5.5)       # ARBITRARY (matches ASCAT's own default search bounds)
-TUMOR_DEPTH_MEAN = 80.0         # ARBITRARY (headroom over PROTOCOL.md's 30x floor)
-NORMAL_DEPTH_MEAN = 40.0        # ARBITRARY (headroom over PROTOCOL.md's 15x floor)
 MIN_EVALUABLE_DEPTH = 20        # PROTOCOL.md §5.2, copied verbatim (not a free parameter)
+NORMAL_DEPTH_MEAN = 40.0        # ARBITRARY, unchanged from v1
+PLOIDY_RANGE = (1.5, 5.5)       # ARBITRARY (matches ASCAT's own default search bounds), unchanged from v1
 
-# Class-conditional feature distributions -- these ARE the injected ground
-# truth. Every one is ARBITRARY (chosen to produce a specific, pre-declared
-# LR spanning several ACMG evidence bands, not fit to any prior data) --
-# see PARAMETER_PROVENANCE.tsv for the per-parameter rationale.
-LOH_SECOND_HIT_PROB = {
-    "CORE_HR": {"Pathogenic": 0.70, "Benign": 0.10},
-    "DDR_SIGNALING": {"Pathogenic": 0.40, "Benign": 0.15},
+# --- Purity x depth coverage grid (DEFECT 1) ---
+# Bin edges are pre-declared, fixed before generation, not chosen post-hoc.
+PURITY_BINS = [("LOW", 0.10, 0.35), ("MID", 0.35, 0.65), ("HIGH", 0.65, 0.95)]
+DEPTH_BINS = [("LOW", 25, 45), ("MID", 45, 75), ("HIGH", 75, 120)]  # evaluable-depth grid only (>= floor)
+GRID_CATEGORIES = ["RETENTION", "CN_NEUTRAL_LOH_WT_LOSS", "WT_LOSS", "VARIANT_LOSS"]
+MIN_PER_CELL_GRID = 5    # minimum instances required per (category, purity_bin, depth_bin, arm, class) cell
+DRAWS_PER_GRID_CELL = 200  # raw draws per (purity_bin, depth_bin, arm, class) cell; see SIMULATION_SPEC.md §6
+
+# AMBIGUOUS and NOT_EVALUABLE are defined by construction outside the
+# evaluable-depth grid (AMBIGUOUS: near-floor depth; NOT_EVALUABLE:
+# below-floor depth) -- every grid cell for these two categories is
+# therefore explicitly declared OUT_OF_SCOPE (see coverage report), and
+# they get their own, separate, purity-only allocation instead.
+AMBIGUOUS_DEPTH_RANGE = (20, 35)      # near the evaluable floor, deliberately low-power
+NOT_EVALUABLE_DEPTH_RANGE = (4, 19)   # below the evaluable floor, by construction
+MIN_PER_CELL_SIDE_ARM = 8             # instances per (purity_bin, arm, class) for AMBIGUOUS / NOT_EVALUABLE
+
+# --- One-factor shared-latent model (DEFECT 3 / DEFECT 4) ---
+# Z ~ Normal(Z_MEAN[arm][class], 1) per sample, shared across all 3
+# features below. NULL_ARM's Z_MEAN is IDENTICAL between classes --
+# the entire mechanism of DEFECT 4's exact null.
+Z_SD = 1.0
+Z_MEAN = {
+    "CORE_HR": {"Pathogenic": 1.5, "Benign": -1.0},
+    "DDR_SIGNALING": {"Pathogenic": 0.8, "Benign": -0.5},
+    "NULL_ARM": {"Pathogenic": 0.0, "Benign": 0.0},  # identical -> exact null, see DEFECT 4
 }
-GIS_SCORE_DIST = {  # (mu, sigma) of a Normal, evaluated at a fixed x below
-    "CORE_HR": {"Pathogenic": (55.0, 12.0), "Benign": (25.0, 10.0), "eval_x": 55.0},
-    "DDR_SIGNALING": {"Pathogenic": (40.0, 15.0), "Benign": (25.0, 12.0), "eval_x": 40.0},
+# P(WT_LOST_DIRECTION | Z) = Phi(a + b*Z) -- probit link.
+WT_LOST_LINK = {
+    "CORE_HR": {"a": -0.3, "b": 1.0},
+    "DDR_SIGNALING": {"a": -0.5, "b": 0.7},
+    "NULL_ARM": {"a": -0.5, "b": 0.7},  # same link as DDR_SIGNALING ("analogue")
 }
-SBS3_EXPOSURE_DIST = {"Pathogenic": (0.35, 0.10), "Benign": (0.10, 0.08), "eval_x": 0.35}
-NULL_FEATURE_PROB = {"Pathogenic": 0.50, "Benign": 0.50}  # engineered null: identical by construction
-
-OTHER_LOH_CATEGORY_SPLIT = {  # among non-LOH_SECOND_HIT draws; ARBITRARY, see PARAMETER_PROVENANCE.tsv
-    "RETAINED": 0.60, "LOH_NON_SECOND_HIT": 0.25, "LOH_AMBIGUOUS": 0.10, "NOT_EVALUABLE": 0.05,
+# GIS = c + d*Z + Normal(0, sigma)
+GIS_LINK = {
+    "CORE_HR": {"c": 30.0, "d": 12.0, "sigma": 8.0},
+    "DDR_SIGNALING": {"c": 25.0, "d": 8.0, "sigma": 10.0},
+    "NULL_ARM": {"c": 25.0, "d": 8.0, "sigma": 10.0},
 }
+# SBS3 = c + d*Z + Normal(0, sigma), clipped to [0, 0.95]
+SBS3_LINK = {
+    "CORE_HR": {"c": 0.15, "d": 0.12, "sigma": 0.08},
+    "DDR_SIGNALING": {"c": 0.12, "d": 0.08, "sigma": 0.08},
+    "NULL_ARM": {"c": 0.12, "d": 0.08, "sigma": 0.08},
+}
+# Given NOT WT-lost-direction: split between RETENTION and VARIANT_LOSS.
+# Given WT-lost OR variant-lost direction: split between COPY_NEUTRAL and
+# DELETION mechanism. Both ARBITRARY, disclosed; DELETION is weighted
+# higher than 50% because large-scale copy-number loss is the more
+# commonly reported real-world second-hit mechanism (also gives the
+# deletion-type categories DEFECT 1 requires more representation).
+NOT_WT_LOST_SPLIT = {"RETENTION": 0.6, "VARIANT_LOSS": 0.4}
+MECHANISM_SPLIT_DELETION_PROB = 0.65
 
-REPO_ROOT = Path(__file__).resolve().parent
-DATA_DIR = REPO_ROOT / "SIMULATED_data"
-TRUTH_DETAIL_DIR = REPO_ROOT / "SIMULATED_TRUTH_detail"
-TRUTH_TSV = REPO_ROOT / "SIMULATED_TRUTH.tsv"
+# Fixed evaluation point for the joint / marginal / inflation-ratio
+# quantities -- chosen in advance, not searched for after seeing data.
+# gis=42 ties directly to BENCHMARKS.tsv HRD03's real GIS-positive
+# threshold rather than an arbitrary round number.
+EVAL_POINT = {"wt_lost": 1, "gis": 42.0, "sbs3": 0.30}
 
-BANNER = "SIMULATED DATA — NOT A SCIENTIFIC RESULT"
+# --- BAF channel (DEFECT 2) ---
+N_BAF_SNPS = 15          # ARBITRARY, disclosed: flanking heterozygous SNPs pooled per segment
+BAF_SNP_DEPTH_MEAN = 60.0  # ARBITRARY, disclosed: representative per-SNP depth away from the at-risk variant
+NORMAL_BAF_DEPTH_MEAN = 40.0
+
+# --- Retracted v1 figures (numeric scan, replaces the old filename-only check) ---
+RETRACTED_V1_FIGURES = [-3.54, 34.0, 0.9598, 0.9976, 15.13, 4.45, 0.99, 80.0, 91.7]
+V1_SCAN_REL_TOL = 1e-3
+V1_SCAN_ABS_TOL = 1e-6
 
 
 # ============================================================================
-# Analytic LR derivations (closed form; see SIMULATION_SPEC.md for the
-# written-out derivation of each formula used here).
+# Math helpers (stdlib only)
 # ============================================================================
 
-def norm_pdf(x: float, mu: float, sigma: float) -> float:
+def phi_pdf(x: float, mu: float = 0.0, sigma: float = 1.0) -> float:
     return math.exp(-0.5 * ((x - mu) / sigma) ** 2) / (sigma * math.sqrt(2 * math.pi))
 
 
-def categorical_lr(p_pathogenic: float, p_benign: float) -> float:
-    """LR of observing the indicator event under a Bernoulli feature.
-    PROTOCOL.md §6: LR(E) = P(E|Pathogenic) / P(E|Benign)."""
-    return p_pathogenic / p_benign
+def Phi(x: float) -> float:
+    """Standard normal CDF."""
+    return 0.5 * (1.0 + math.erf(x / math.sqrt(2)))
 
 
-def gaussian_lr(x: float, mu1: float, s1: float, mu0: float, s0: float) -> float:
-    """LR of observing continuous evidence E=x under two Normal class-
-    conditional densities. PROTOCOL.md §6: LR(E) = f(E|Pathogenic) / f(E|Benign)."""
-    return norm_pdf(x, mu1, s1) / norm_pdf(x, mu0, s0)
+def simpson_integrate(f, lo: float, hi: float, n: int) -> float:
+    """Composite Simpson's rule, n even. Stdlib only."""
+    if n % 2 == 1:
+        n += 1
+    h = (hi - lo) / n
+    total = f(lo) + f(hi)
+    for i in range(1, n):
+        x = lo + i * h
+        total += (4 if i % 2 == 1 else 2) * f(x)
+    return total * h / 3
 
-
-def compute_truth_quantities() -> list[dict]:
-    rows = []
-
-    for group in ("CORE_HR", "DDR_SIGNALING"):
-        p1 = LOH_SECOND_HIT_PROB[group]["Pathogenic"]
-        p0 = LOH_SECOND_HIT_PROB[group]["Benign"]
-        rows.append({
-            "quantity": f"{group.lower()}_loh_second_hit_LR",
-            "injected_value": categorical_lr(p1, p0),
-            "estimand": "LR",
-            "is_null": "FALSE",
-            "feature_type": "categorical",
-            "derivation": f"P(LOH_SECOND_HIT|Pathogenic)={p1} / P(LOH_SECOND_HIT|Benign)={p0}",
-        })
-
-    for group in ("CORE_HR", "DDR_SIGNALING"):
-        d = GIS_SCORE_DIST[group]
-        mu1, s1 = d["Pathogenic"]
-        mu0, s0 = d["Benign"]
-        x = d["eval_x"]
-        rows.append({
-            "quantity": f"{group.lower()}_gis_score_LR",
-            "injected_value": gaussian_lr(x, mu1, s1, mu0, s0),
-            "estimand": "LR",
-            "is_null": "FALSE",
-            "feature_type": "continuous_gaussian",
-            "derivation": f"f(GIS={x}|Pathogenic~N({mu1},{s1})) / f(GIS={x}|Benign~N({mu0},{s0}))",
-        })
-
-    d = SBS3_EXPOSURE_DIST
-    mu1, s1 = d["Pathogenic"]
-    mu0, s0 = d["Benign"]
-    x = d["eval_x"]
-    rows.append({
-        "quantity": "core_hr_sbs3_exposure_LR",
-        "injected_value": gaussian_lr(x, mu1, s1, mu0, s0),
-        "estimand": "LR",
-        "is_null": "FALSE",
-        "feature_type": "continuous_gaussian",
-        "derivation": f"f(SBS3={x}|Pathogenic~N({mu1},{s1})) / f(SBS3={x}|Benign~N({mu0},{s0}))",
-    })
-
-    p1 = NULL_FEATURE_PROB["Pathogenic"]
-    p0 = NULL_FEATURE_PROB["Benign"]
-    rows.append({
-        "quantity": "null_sequencing_depth_bucket_LR",
-        "injected_value": categorical_lr(p1, p0),
-        "estimand": "LR",
-        "is_null": "TRUE",
-        "feature_type": "categorical",
-        "derivation": f"P(HIGH_DEPTH|Pathogenic)={p1} / P(HIGH_DEPTH|Benign)={p0} "
-                       f"(engineered identical by construction -- HIGH_DEPTH is a coin "
-                       f"flip independent of class in both branches of the generator)",
-    })
-
-    return rows
-
-
-# ============================================================================
-# Data generation
-# ============================================================================
 
 def expected_vaf(purity: float, cn_total: int, mutant_copies: int) -> float:
     """PROTOCOL.md §5.2 binomial VAF model, exact formula:
@@ -181,200 +177,203 @@ def expected_vaf(purity: float, cn_total: int, mutant_copies: int) -> float:
     return (purity * mutant_copies + (1 - purity) * 1) / (purity * cn_total + (1 - purity) * 2)
 
 
-def draw_loh_category(rng: random.Random, group: str, cls: str) -> str:
-    p_second_hit = LOH_SECOND_HIT_PROB[group][cls]
-    if rng.random() < p_second_hit:
-        return "LOH_SECOND_HIT"
-    r = rng.random()
-    cum = 0.0
-    for cat, prob in OTHER_LOH_CATEGORY_SPLIT.items():
-        cum += prob
-        if r < cum:
-            return cat
-    return "NOT_EVALUABLE"
+def percentile(sorted_vals: list[float], p: float) -> float:
+    if not sorted_vals:
+        return float("nan")
+    k = (len(sorted_vals) - 1) * (p / 100)
+    f, c = math.floor(k), math.ceil(k)
+    if f == c:
+        return sorted_vals[int(k)]
+    return sorted_vals[f] * (c - k) + sorted_vals[c] * (k - f)
 
 
-def cn_and_depth_for_category(rng: random.Random, category: str, purity: float, wgd: bool) -> dict:
-    cn_total = 4 if wgd else 2
-    if category == "RETAINED":
-        major, minor = cn_total // 2, cn_total // 2
-        mutant_copies = 1
-        depth = max(MIN_EVALUABLE_DEPTH + 5, round(rng.gauss(TUMOR_DEPTH_MEAN, 15)))
-    elif category == "LOH_SECOND_HIT":
-        major, minor = cn_total, 0
-        mutant_copies = cn_total
-        depth = max(MIN_EVALUABLE_DEPTH + 5, round(rng.gauss(TUMOR_DEPTH_MEAN, 15)))
-    elif category == "LOH_NON_SECOND_HIT":
-        major, minor = cn_total, 0
-        mutant_copies = 0
-        depth = max(MIN_EVALUABLE_DEPTH + 5, round(rng.gauss(TUMOR_DEPTH_MEAN, 15)))
-    elif category == "LOH_AMBIGUOUS":
-        major, minor = cn_total, 0
-        vaf_hi = expected_vaf(purity, cn_total, cn_total)
-        vaf_lo = expected_vaf(purity, cn_total, 0)
-        mutant_copies = None  # use midpoint VAF directly, not a discrete copy count
-        depth = MIN_EVALUABLE_DEPTH + rng.randint(0, 5)  # deliberately borderline depth
-        return {"major": major, "minor": minor, "depth": depth, "vaf_target": (vaf_hi + vaf_lo) / 2}
-    else:  # NOT_EVALUABLE
-        major, minor = cn_total // 2, cn_total // 2
-        mutant_copies = 1
-        depth = rng.randint(4, MIN_EVALUABLE_DEPTH - 1)  # below the evaluable floor, by construction
-        return {"major": major, "minor": minor, "depth": depth,
-                "vaf_target": expected_vaf(purity, cn_total, mutant_copies)}
+# ============================================================================
+# Latent-model marginal / joint / product-of-marginals LR (DEFECT 3 / 4)
+# ============================================================================
 
-    return {"major": major, "minor": minor, "depth": depth,
-            "vaf_target": expected_vaf(purity, cn_total, mutant_copies)}
+def marginal_wt_lost_prob(arm: str, cls: str) -> float:
+    """P(WT_LOST_DIRECTION | class), integrating out Z ~ Normal(muZ, 1).
+    Exact closed form (the Gaussian-probit convolution identity):
+    E_Z[Phi(a+bZ)] = Phi( (a + b*muZ) / sqrt(1 + b^2 * Var(Z)) )."""
+    link = WT_LOST_LINK[arm]
+    muZ = Z_MEAN[arm][cls]
+    return Phi((link["a"] + link["b"] * muZ) / math.sqrt(1 + link["b"] ** 2 * Z_SD ** 2))
 
 
-SBS_CONTEXTS = [
-    f"{five}[{sub}]{three}"
-    for sub in ("C>A", "C>G", "C>T", "T>A", "T>C", "T>G")
-    for five, three in itertools.product("ACGT", "ACGT")
-]
-assert len(SBS_CONTEXTS) == 96
-
-# Two ARBITRARY, stylized 96-context "signature shapes" -- NOT the real
-# published COSMIC SBS3 weights: this session's network policy blocks live
-# retrieval of cancer.sanger.ac.uk / the COSMIC signature matrices (see
-# BENCHMARKS_NOTES.md), so per Standing Rule 3 these are declared arbitrary
-# rather than presented as the literal COSMIC values. They are internally
-# consistent (each sums to 1 and is fixed once, not re-tuned) and serve only
-# to give the simulator's mutation catalogs a non-uniform, reproducible shape.
-def _make_shape(rng: random.Random, favored_substr: str, favored_weight: float) -> list[float]:
-    weights = []
-    for ctx in SBS_CONTEXTS:
-        w = favored_weight if favored_substr in ctx else 1.0
-        w *= rng.uniform(0.7, 1.3)
-        weights.append(w)
-    total = sum(weights)
-    return [w / total for w in weights]
+def marginal_gaussian_feature_params(link: dict, arm: str, cls: str) -> tuple[float, float]:
+    muZ = Z_MEAN[arm][cls]
+    mean = link["c"] + link["d"] * muZ
+    sd = math.sqrt((link["d"] ** 2) * (Z_SD ** 2) + link["sigma"] ** 2)
+    return mean, sd
 
 
-def build_signature_shapes(rng: random.Random) -> tuple[list[float], list[float]]:
-    hrd_shape = _make_shape(rng, "C>T", 4.0)      # ARBITRARY stylized "HRD-like" shape
-    background_shape = _make_shape(rng, "", 1.0)  # ARBITRARY ~flat background shape
-    return hrd_shape, background_shape
+def product_of_marginals_lr(arm: str, x: dict) -> float:
+    p1 = marginal_wt_lost_prob(arm, "Pathogenic")
+    p0 = marginal_wt_lost_prob(arm, "Benign")
+    lr_wt = (p1 if x["wt_lost"] == 1 else (1 - p1)) / (p0 if x["wt_lost"] == 1 else (1 - p0))
+
+    gis_mean1, gis_sd1 = marginal_gaussian_feature_params(GIS_LINK[arm], arm, "Pathogenic")
+    gis_mean0, gis_sd0 = marginal_gaussian_feature_params(GIS_LINK[arm], arm, "Benign")
+    lr_gis = phi_pdf(x["gis"], gis_mean1, gis_sd1) / phi_pdf(x["gis"], gis_mean0, gis_sd0)
+
+    sbs3_mean1, sbs3_sd1 = marginal_gaussian_feature_params(SBS3_LINK[arm], arm, "Pathogenic")
+    sbs3_mean0, sbs3_sd0 = marginal_gaussian_feature_params(SBS3_LINK[arm], arm, "Benign")
+    lr_sbs3 = phi_pdf(x["sbs3"], sbs3_mean1, sbs3_sd1) / phi_pdf(x["sbs3"], sbs3_mean0, sbs3_sd0)
+
+    return lr_wt * lr_gis * lr_sbs3
 
 
-def generate() -> None:
-    master_rng = random.Random(SEED)
+def joint_density(arm: str, cls: str, x: dict, z_lo: float = -8.0, z_hi: float = 8.0, n_steps: int = 4000) -> float:
+    """The TRUE joint density of (wt_lost, gis, sbs3) given class,
+    integrating out the shared latent Z -- 1D numerical integration
+    (Simpson's rule), not a product of marginals."""
+    wt_link = WT_LOST_LINK[arm]
+    gis_link = GIS_LINK[arm]
+    sbs3_link = SBS3_LINK[arm]
+    muZ = Z_MEAN[arm][cls]
 
-    DATA_DIR.mkdir(exist_ok=True)
-    TRUTH_DETAIL_DIR.mkdir(exist_ok=True)
+    def integrand(z: float) -> float:
+        p_wt = Phi(wt_link["a"] + wt_link["b"] * z)
+        wt_term = p_wt if x["wt_lost"] == 1 else (1 - p_wt)
+        gis_term = phi_pdf(x["gis"], gis_link["c"] + gis_link["d"] * z, gis_link["sigma"])
+        sbs3_term = phi_pdf(x["sbs3"], sbs3_link["c"] + sbs3_link["d"] * z, sbs3_link["sigma"])
+        z_term = phi_pdf(z, muZ, Z_SD)
+        return wt_term * gis_term * sbs3_term * z_term
 
-    hrd_shape, background_shape = build_signature_shapes(random.Random(SEED + 1))
+    return simpson_integrate(integrand, z_lo, z_hi, n_steps)
 
-    truth_rows = compute_truth_quantities()
-    with open(TRUTH_TSV, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=["quantity", "injected_value", "estimand", "is_null", "feature_type", "derivation"], delimiter="\t")
-        w.writeheader()
-        for r in truth_rows:
-            w.writerow({**r, "injected_value": repr(r["injected_value"])})
 
-    sample_rows, variant_rows, catalog_rows, exposure_rows, label_rows = [], [], [], [], []
-    self_check_rows = []
-    sample_idx = 0
+def joint_lr(arm: str, x: dict) -> float:
+    return joint_density(arm, "Pathogenic", x) / joint_density(arm, "Benign", x)
 
-    for group in ("CORE_HR", "DDR_SIGNALING"):
-        for cls in ("Pathogenic", "Benign"):
-            for _ in range(N_PER_CELL):
-                sample_idx += 1
-                sample_id = f"SIM-{sample_idx:04d}"
-                rng = random.Random(SEED * 1000 + sample_idx)  # per-sample reproducible substream
 
-                gene = rng.choice(GENE_GROUPS[group])
-                subtype = rng.choices(list(PAM50_PROPORTIONS), weights=list(PAM50_PROPORTIONS.values()))[0]
-                purity = rng.uniform(*PURITY_RANGE)
-                ploidy = rng.uniform(*PLOIDY_RANGE)
-                wgd = rng.random() < WGD_PREVALENCE
-                normal_depth = max(5, round(rng.gauss(NORMAL_DEPTH_MEAN, 8)))
+def normalization_self_check(arm: str, cls: str, n_steps: int = 4000) -> float:
+    """Self-check: integrating the joint density over both wt_lost outcomes
+    and over gis/sbs3 (via their own marginal normalization, since for
+    fixed wt_lost the gis/sbs3 x Z integrand is a proper density in Z
+    only up to the point-evaluation of gis/sbs3 -- so instead check that
+    P(wt_lost=1|class) + P(wt_lost=0|class), each obtained by integrating
+    Phi/[1-Phi] x Z-density over Z alone, sums to 1.0."""
+    wt_link = WT_LOST_LINK[arm]
+    muZ = Z_MEAN[arm][cls]
+    p1 = simpson_integrate(lambda z: Phi(wt_link["a"] + wt_link["b"] * z) * phi_pdf(z, muZ, Z_SD), -8, 8, n_steps)
+    p0 = simpson_integrate(lambda z: (1 - Phi(wt_link["a"] + wt_link["b"] * z)) * phi_pdf(z, muZ, Z_SD), -8, 8, n_steps)
+    return p1 + p0
 
-                sample_rows.append({
-                    "sample_id": sample_id, "gene": gene, "gene_group": group,
-                    "pam50_subtype": subtype, "purity": round(purity, 4),
-                    "ploidy": round(ploidy, 4), "wgd": wgd, "normal_depth": normal_depth,
-                })
-                label_rows.append({"sample_id": sample_id, "true_class": cls, "gene_group": group, "gene": gene})
 
-                # --- LOH category injection + read-count generation ---
-                loh_category = draw_loh_category(rng, group, cls)
-                cn_info = cn_and_depth_for_category(rng, loh_category, purity, wgd)
-                depth = cn_info["depth"]
-                vaf_target = cn_info["vaf_target"]
-                tumor_alt = rng.binomialvariate(depth, max(0.0, min(1.0, vaf_target))) if hasattr(rng, "binomialvariate") else sum(1 for _ in range(depth) if rng.random() < vaf_target)
-                tumor_ref = depth - tumor_alt
-                normal_alt = rng.binomialvariate(normal_depth, 0.5) if hasattr(rng, "binomialvariate") else sum(1 for _ in range(normal_depth) if rng.random() < 0.5)
-                normal_ref = normal_depth - normal_alt
+def compute_truth_quantities() -> list[dict]:
+    rows = []
 
-                variant_rows.append({
-                    "sample_id": sample_id, "gene": gene, "chrom": "chrSIM", "pos": 1000 + sample_idx,
-                    "ref": "A", "alt": "G",
-                    "normal_ref_reads": normal_ref, "normal_alt_reads": normal_alt,
-                    "tumor_ref_reads": tumor_ref, "tumor_alt_reads": tumor_alt,
-                    "major_cn": cn_info["major"], "minor_cn": cn_info["minor"],
-                    "assigned_loh_category": loh_category,
-                })
+    for arm in ("CORE_HR", "DDR_SIGNALING"):
+        p1 = marginal_wt_lost_prob(arm, "Pathogenic")
+        p0 = marginal_wt_lost_prob(arm, "Benign")
+        rows.append({
+            "quantity": f"{arm.lower()}_wt_lost_direction_LR", "injected_value": p1 / p0,
+            "estimand": "LR", "is_null": "FALSE", "feature_type": "categorical",
+            "derivation": f"marginal P(WT_LOST_DIRECTION|Pathogenic)={p1:.6f} / P(...|Benign)={p0:.6f}, "
+                           f"each via the Gaussian-probit convolution identity Phi((a+b*muZ)/sqrt(1+b^2))",
+        })
 
-                # Self-check: re-run PROTOCOL.md §5.1/§5.2's own classification
-                # logic against the generated reads and confirm it recovers
-                # the category we assigned (evidence the injection is
-                # internally consistent, not just a label with no matching data).
-                recovered = classify_loh(tumor_ref, tumor_alt, cn_info["major"], cn_info["minor"], purity)
-                self_check_rows.append({
-                    "sample_id": sample_id, "assigned": loh_category, "recovered": recovered,
-                    "match": assigned_matches_recovered(loh_category, recovered),
-                })
+        gis_mean1, gis_sd1 = marginal_gaussian_feature_params(GIS_LINK[arm], arm, "Pathogenic")
+        gis_mean0, gis_sd0 = marginal_gaussian_feature_params(GIS_LINK[arm], arm, "Benign")
+        x_gis = EVAL_POINT["gis"]
+        rows.append({
+            "quantity": f"{arm.lower()}_gis_score_LR",
+            "injected_value": phi_pdf(x_gis, gis_mean1, gis_sd1) / phi_pdf(x_gis, gis_mean0, gis_sd0),
+            "estimand": "LR", "is_null": "FALSE", "feature_type": "continuous_gaussian_marginal",
+            "derivation": f"f(GIS={x_gis}|Pathogenic~N({gis_mean1:.4f},{gis_sd1:.4f})) / "
+                           f"f(GIS={x_gis}|Benign~N({gis_mean0:.4f},{gis_sd0:.4f})), marginal over Z",
+        })
 
-                # --- signature exposure injection + mutation catalog ---
-                mu, sigma = SBS3_EXPOSURE_DIST[cls]
-                sbs3_exposure = min(0.95, max(0.0, rng.gauss(mu, sigma)))
-                total_muts = max(5, round(rng.gauss(MEAN_MUTATIONS_PER_EXOME, 15)))
-                n_hrd = round(total_muts * sbs3_exposure)
-                n_bg = total_muts - n_hrd
-                counts = [0] * 96
-                if n_hrd > 0:
-                    for ctx in rng.choices(range(96), weights=hrd_shape, k=n_hrd):
-                        counts[ctx] += 1
-                if n_bg > 0:
-                    for ctx in rng.choices(range(96), weights=background_shape, k=n_bg):
-                        counts[ctx] += 1
-                catalog_rows.append({"sample_id": sample_id, **{SBS_CONTEXTS[i]: counts[i] for i in range(96)}})
-                exposure_rows.append({
-                    "sample_id": sample_id, "sbs3_relative_exposure_true": round(sbs3_exposure, 4),
-                    "total_mutations": total_muts, "n_hrd_process_mutations": n_hrd, "n_background_mutations": n_bg,
-                })
+        sbs3_mean1, sbs3_sd1 = marginal_gaussian_feature_params(SBS3_LINK[arm], arm, "Pathogenic")
+        sbs3_mean0, sbs3_sd0 = marginal_gaussian_feature_params(SBS3_LINK[arm], arm, "Benign")
+        x_sbs3 = EVAL_POINT["sbs3"]
+        rows.append({
+            "quantity": f"{arm.lower()}_sbs3_exposure_LR",
+            "injected_value": phi_pdf(x_sbs3, sbs3_mean1, sbs3_sd1) / phi_pdf(x_sbs3, sbs3_mean0, sbs3_sd0),
+            "estimand": "LR", "is_null": "FALSE", "feature_type": "continuous_gaussian_marginal",
+            "derivation": f"f(SBS3={x_sbs3}|Pathogenic~N({sbs3_mean1:.4f},{sbs3_sd1:.4f})) / "
+                           f"f(SBS3={x_sbs3}|Benign~N({sbs3_mean0:.4f},{sbs3_sd0:.4f})), marginal over Z",
+        })
 
-    write_simulated_tsv(DATA_DIR / "SIMULATED_sample_metadata.tsv", sample_rows,
-                         ["sample_id", "gene", "gene_group", "pam50_subtype", "purity", "ploidy", "wgd", "normal_depth"])
-    write_simulated_tsv(DATA_DIR / "SIMULATED_variant_calls.tsv", variant_rows,
-                         ["sample_id", "gene", "chrom", "pos", "ref", "alt", "normal_ref_reads", "normal_alt_reads",
-                          "tumor_ref_reads", "tumor_alt_reads", "major_cn", "minor_cn", "assigned_loh_category"])
-    write_simulated_tsv(DATA_DIR / "SIMULATED_mutation_catalogs.tsv", catalog_rows, ["sample_id"] + SBS_CONTEXTS)
-    write_simulated_tsv(DATA_DIR / "SIMULATED_signature_exposures.tsv", exposure_rows,
-                         ["sample_id", "sbs3_relative_exposure_true", "total_mutations", "n_hrd_process_mutations", "n_background_mutations"])
-    write_simulated_tsv(TRUTH_DETAIL_DIR / "SIMULATED_sample_labels.tsv", label_rows,
-                         ["sample_id", "true_class", "gene_group", "gene"])
+        jlr = joint_lr(arm, EVAL_POINT)
+        plr = product_of_marginals_lr(arm, EVAL_POINT)
+        rows.append({
+            "quantity": f"{arm.lower()}_joint_LR", "injected_value": jlr,
+            "estimand": "LR", "is_null": "FALSE", "feature_type": "joint_latent_model",
+            "derivation": f"joint_density(x*|Pathogenic)/joint_density(x*|Benign) at x*={EVAL_POINT}, "
+                           f"each joint_density computed by 1D Simpson's-rule integration over the shared "
+                           f"latent Z (see joint_density()); NOT a product of marginals",
+        })
+        rows.append({
+            "quantity": f"{arm.lower()}_product_of_marginals_LR", "injected_value": plr,
+            "estimand": "LR", "is_null": "FALSE", "feature_type": "product_of_marginals",
+            "derivation": f"naive product of the 3 marginal per-feature LRs above, evaluated at the SAME "
+                           f"x*={EVAL_POINT} -- the quantity a conditional-independence-assuming estimator "
+                           f"would recover if it ignored the shared-Z correlation",
+        })
+        rows.append({
+            "quantity": f"{arm.lower()}_joint_vs_marginal_inflation_ratio", "injected_value": jlr / plr,
+            "estimand": "LR_RATIO", "is_null": "FALSE", "feature_type": "diagnostic_ratio",
+            "derivation": f"{arm.lower()}_joint_LR / {arm.lower()}_product_of_marginals_LR -- P09's known "
+                           f"inflation target; != 1.0 because the 3 features share latent Z and are therefore "
+                           f"correlated given class, so the conditional-independence assumption behind a "
+                           f"naive product-of-marginals estimator is violated by construction",
+        })
 
-    # LOH self-check report (SIMULATED artifact -- Standing Rule 1 vocabulary)
-    n_match = sum(1 for r in self_check_rows if r["match"])
-    write_simulated_report(
-        DATA_DIR / "SIMULATED_loh_injection_self_check.md",
-        "LOH injection self-check",
-        f"Re-classifying every generated sample's tumor/normal read counts with PROTOCOL.md "
-        f"§5.1/§5.2's own binomial-test logic recovered the assigned LOH category for "
-        f"{n_match}/{len(self_check_rows)} samples "
-        f"({100*n_match/len(self_check_rows):.1f}%). LOH_AMBIGUOUS is expected to sometimes "
-        f"resolve to a definite category by chance (that is what \"ambiguous\" means under a "
-        f"noisy binomial draw); NOT_EVALUABLE is expected to match 100% (depth alone determines it).",
-    )
+    # NULL_ARM: Z_MEAN identical between classes -> f(x|Pathogenic) == f(x|Benign)
+    # as full joint distributions, so joint_LR(x) == 1.0 EXACTLY for every x
+    # (not just at EVAL_POINT) and, since every marginal of an identical
+    # distribution is itself identical, product_of_marginals_LR(x) == 1.0
+    # exactly too. This is DEFECT 4's full-feature-vector null.
+    jlr_null = joint_lr("NULL_ARM", EVAL_POINT)
+    plr_null = product_of_marginals_lr("NULL_ARM", EVAL_POINT)
+    rows.append({
+        "quantity": "null_arm_full_vector_joint_LR", "injected_value": jlr_null,
+        "estimand": "LR", "is_null": "TRUE", "feature_type": "joint_latent_model",
+        "derivation": "NULL_ARM's Z_MEAN is identical (0.0) for Pathogenic and Benign, and every other "
+                      "link parameter is shared -- f(x|Pathogenic)===f(x|Benign) as distributions, so "
+                      "joint_LR(x)===1.0 for EVERY evidence vector x, not merely at one evaluation point "
+                      "(proof: LR(x)=f(x|Path)/f(x|Benign)=f(x)/f(x)=1 identically when the two class-"
+                      "conditional densities are the same function). Verified numerically at EVAL_POINT.",
+    })
+    rows.append({
+        "quantity": "null_arm_full_vector_product_of_marginals_LR", "injected_value": plr_null,
+        "estimand": "LR", "is_null": "TRUE", "feature_type": "product_of_marginals",
+        "derivation": "Each marginal of two identical distributions is itself identical, so the naive "
+                      "product-of-marginals LR is also exactly 1.0 here -- this null arm is a genuine test "
+                      "of the FULL feature vector (the case the task's v2 regression got wrong, returning "
+                      "0.36 [0.30-0.43] instead of ~1), not merely the single-feature depth-bucket null below.",
+    })
+    rows.append({
+        "quantity": "null_arm_full_vector_inflation_ratio", "injected_value": jlr_null / plr_null,
+        "estimand": "LR_RATIO", "is_null": "TRUE", "feature_type": "diagnostic_ratio",
+        "derivation": "joint/product ratio for the null arm; == 1.0 exactly since both the numerator and "
+                      "denominator quantities above are each exactly 1.0 by construction (no shared-Z "
+                      "correlation exists between classes here, because there is no class difference at all).",
+    })
 
-    print(f"Generated {sample_idx} SIMULATED tumor/normal pairs under {DATA_DIR}")
-    print(f"Wrote {TRUTH_TSV} ({len(truth_rows)} quantities) and {TRUTH_DETAIL_DIR}")
-    print(f"LOH self-check: {n_match}/{len(self_check_rows)} recovered category matched assigned category")
+    # Secondary null, kept from v1 per the task's explicit instruction.
+    p1 = p0 = 0.50
+    rows.append({
+        "quantity": "null_sequencing_depth_bucket_LR", "injected_value": p1 / p0,
+        "estimand": "LR", "is_null": "TRUE", "feature_type": "categorical",
+        "derivation": f"P(HIGH_DEPTH|Pathogenic)={p1} / P(HIGH_DEPTH|Benign)={p0} (engineered identical by "
+                       f"construction -- HIGH_DEPTH is a coin flip independent of class in both branches of "
+                       f"the generator). Kept as a SECONDARY null per this revision's task -- the PRIMARY "
+                       f"null test is now null_arm_full_vector_joint_LR above, a full-feature-vector null, "
+                       f"which is the case a prior version's regression got wrong.",
+    })
 
+    return rows
+
+
+# ============================================================================
+# PROTOCOL.md §5.1/§5.2 classification logic (self-check only, unchanged
+# mechanics from v1 -- this is PROTOCOL's OWN model, not this simulator's).
+# ============================================================================
 
 def classify_loh(tumor_ref: int, tumor_alt: int, major: int, minor: int, purity: float) -> str:
-    """PROTOCOL.md §5.1/§5.2, implemented exactly as specified there."""
     depth = tumor_ref + tumor_alt
     if depth < MIN_EVALUABLE_DEPTH:
         return "NOT_EVALUABLE"
@@ -383,7 +382,6 @@ def classify_loh(tumor_ref: int, tumor_alt: int, major: int, minor: int, purity:
     if minor >= 1:
         if 0.35 <= vaf <= 0.65:
             return "RETAINED"
-        # falls through to AMBIGUOUS-style handling below if imbalanced despite minor>=1
     vaf_mutant_retained = expected_vaf(purity, cn_total, major)
     vaf_wt_retained = expected_vaf(purity, cn_total, 0)
     p_mutant = binom_two_sided_pvalue(tumor_alt, depth, vaf_mutant_retained)
@@ -400,7 +398,6 @@ def classify_loh(tumor_ref: int, tumor_alt: int, major: int, minor: int, purity:
 
 
 def binom_two_sided_pvalue(k: int, n: int, p: float) -> float:
-    """Exact two-sided binomial test p-value (stdlib only, no scipy)."""
     if n == 0:
         return 1.0
     p = min(max(p, 1e-9), 1 - 1e-9)
@@ -417,16 +414,364 @@ def binom_two_sided_pvalue(k: int, n: int, p: float) -> float:
     return min(1.0, total)
 
 
-def assigned_matches_recovered(assigned: str, recovered: str) -> bool:
-    return assigned == recovered
+DIRECTION_OF_PROTOCOL_CATEGORY = {
+    # classify_loh only recovers DIRECTION (PROTOCOL.md's own model has no
+    # concept of copy-neutral vs deletion mechanism) -- this collapses this
+    # simulator's mechanism-aware assigned category down to the same
+    # direction-only vocabulary for a fair self-check comparison.
+    "RETENTION": "RETAINED",
+    "CN_NEUTRAL_LOH_WT_LOSS": "LOH_SECOND_HIT",
+    "WT_LOSS": "LOH_SECOND_HIT",
+    "VARIANT_LOSS": "LOH_NON_SECOND_HIT",
+    "AMBIGUOUS": "LOH_AMBIGUOUS",
+    "NOT_EVALUABLE": "NOT_EVALUABLE",
+}
 
 
-def write_simulated_tsv(path: Path, rows: list[dict], columns: list[str]) -> None:
+# ============================================================================
+# Per-locus data generation
+# ============================================================================
+
+def binomial_draw(rng: random.Random, n: int, p: float) -> int:
+    p = min(max(p, 0.0), 1.0)
+    if hasattr(rng, "binomialvariate"):
+        return rng.binomialvariate(n, p)
+    return sum(1 for _ in range(n) if rng.random() < p)
+
+
+def draw_category_and_mechanism(rng: random.Random, arm: str, z: float) -> tuple[str, str, str]:
+    link = WT_LOST_LINK[arm]
+    p_wt_lost = Phi(link["a"] + link["b"] * z)
+    if rng.random() < p_wt_lost:
+        direction = "WT_LOST"
+        mechanism = "DELETION" if rng.random() < MECHANISM_SPLIT_DELETION_PROB else "COPY_NEUTRAL"
+        category = "WT_LOSS" if mechanism == "DELETION" else "CN_NEUTRAL_LOH_WT_LOSS"
+    else:
+        direction = "NOT_WT_LOST"
+        if rng.random() < NOT_WT_LOST_SPLIT["RETENTION"]:
+            category, mechanism = "RETENTION", "NA"
+        else:
+            mechanism = "DELETION" if rng.random() < MECHANISM_SPLIT_DELETION_PROB else "COPY_NEUTRAL"
+            category = "VARIANT_LOSS"
+    return category, mechanism, direction
+
+
+def cn_for_category(category: str, mechanism: str, baseline_cn: int, hidden_direction: str = "") -> tuple[int, int, int]:
+    """Returns (major, minor, mutant_copies)."""
+    if category == "RETENTION":
+        half = baseline_cn // 2
+        return half, half, half
+    if category == "CN_NEUTRAL_LOH_WT_LOSS":
+        return baseline_cn, 0, baseline_cn
+    if category == "WT_LOSS":
+        return 1, 0, 1
+    if category == "VARIANT_LOSS":
+        major = 1 if mechanism == "DELETION" else baseline_cn
+        return major, 0, 0
+    if category == "AMBIGUOUS":
+        # DEFECT 2: deletion-type (cn_total=1) so BAF cleanly shows m=0
+        # (real LOH), while the DIRECTION is left genuinely underpowered
+        # by low depth alone (see generate()), not by a rigged VAF target.
+        mutant_copies = 1 if hidden_direction == "WT_LOST" else 0
+        return 1, 0, mutant_copies
+    if category == "NOT_EVALUABLE":
+        half = baseline_cn // 2
+        return half, half, half
+    raise ValueError(category)
+
+
+def generate_baf_snps(rng: random.Random, purity: float, cn_total: int, major: int, minor: int,
+                       n_snps: int, sample_id: str) -> list[dict]:
+    """DEFECT 2: B-allele frequencies for flanking heterozygous SNPs on the
+    same segment. Each SNP's phase (whether its own alt allele sits on the
+    major or minor copy) is independent and unknown a priori (50/50) --
+    this is what makes real BAF tracks show two symmetric bands for an
+    imbalanced segment, collapsing to one band for a balanced segment.
+    Mirroring (min(vaf,1-vaf)) removes the phase ambiguity, revealing the
+    true |allelic imbalance| regardless of which physical allele is 'alt'."""
+    rows = []
+    for i in range(n_snps):
+        phase = "major" if rng.random() < 0.5 else "minor"
+        mutant_copies_snp = major if phase == "major" else minor
+        depth = max(10, round(rng.gauss(BAF_SNP_DEPTH_MEAN, 12)))
+        normal_depth = max(10, round(rng.gauss(NORMAL_BAF_DEPTH_MEAN, 8)))
+        vaf_target = expected_vaf(purity, cn_total, mutant_copies_snp)
+        tumor_alt = binomial_draw(rng, depth, vaf_target)
+        tumor_ref = depth - tumor_alt
+        normal_alt = binomial_draw(rng, normal_depth, 0.5)
+        normal_ref = normal_depth - normal_alt
+        observed_vaf = tumor_alt / depth if depth > 0 else 0.0
+        rows.append({
+            "sample_id": sample_id, "snp_index": i, "phase": phase,
+            "normal_ref_reads": normal_ref, "normal_alt_reads": normal_alt,
+            "tumor_ref_reads": tumor_ref, "tumor_alt_reads": tumor_alt,
+            "mirrored_baf": min(observed_vaf, 1 - observed_vaf),
+        })
+    return rows
+
+
+# ============================================================================
+# Mutation catalog / SBS3-like signature exposure (mechanics unchanged from
+# v1; the exposure value itself now comes from the shared-latent model)
+# ============================================================================
+
+SBS_CONTEXTS = [
+    f"{five}[{sub}]{three}"
+    for sub in ("C>A", "C>G", "C>T", "T>A", "T>C", "T>G")
+    for five, three in itertools.product("ACGT", "ACGT")
+]
+assert len(SBS_CONTEXTS) == 96
+
+
+def _make_shape(rng: random.Random, favored_substr: str, favored_weight: float) -> list[float]:
+    # ARBITRARY, stylized shapes -- NOT real COSMIC SBS3 weights; see
+    # PARAMETER_PROVENANCE.tsv (cancer.sanger.ac.uk is blocked this session).
+    weights = []
+    for ctx in SBS_CONTEXTS:
+        w = favored_weight if favored_substr in ctx else 1.0
+        w *= rng.uniform(0.7, 1.3)
+        weights.append(w)
+    total = sum(weights)
+    return [w / total for w in weights]
+
+
+def build_signature_shapes(rng: random.Random) -> tuple[list[float], list[float]]:
+    hrd_shape = _make_shape(rng, "C>T", 4.0)
+    background_shape = _make_shape(rng, "", 1.0)
+    return hrd_shape, background_shape
+
+
+# ============================================================================
+# Main generation loop
+# ============================================================================
+
+def _emit_sample(state: dict, arm: str, cls: str, purity_bin: str, p_lo: float, p_hi: float,
+                  depth_regime: str, d_lo: float, d_hi: float, forced_category: str | None,
+                  hrd_shape: list[float], background_shape: list[float]) -> None:
+    state["sample_idx"] += 1
+    sample_idx = state["sample_idx"]
+    sample_id = f"SIM-{sample_idx:05d}"
+    rng = random.Random(SEED * 1000 + sample_idx)  # per-sample reproducible substream
+
+    purity = rng.uniform(p_lo, p_hi)
+    depth = round(rng.uniform(d_lo, d_hi))
+
+    gene = rng.choice(GENE_GROUPS[arm])
+    subtype = rng.choices(list(PAM50_PROPORTIONS), weights=list(PAM50_PROPORTIONS.values()))[0]
+    ploidy = rng.uniform(*PLOIDY_RANGE)
+    wgd = rng.random() < WGD_PREVALENCE
+    baseline_cn = 4 if wgd else 2
+    normal_depth = max(5, round(rng.gauss(NORMAL_DEPTH_MEAN, 8)))
+
+    z = rng.gauss(Z_MEAN[arm][cls], Z_SD)
+
+    hidden_direction = ""
+    if forced_category is None:
+        category, mechanism, direction = draw_category_and_mechanism(rng, arm, z)
+    elif forced_category == "AMBIGUOUS":
+        hidden_direction = "WT_LOST" if rng.random() < 0.5 else "NOT_WT_LOST"
+        category, mechanism, direction = "AMBIGUOUS", "DELETION", hidden_direction
+    else:  # NOT_EVALUABLE
+        category, mechanism, direction = "NOT_EVALUABLE", "NA", "NOT_EVALUABLE"
+
+    major, minor, mutant_copies = cn_for_category(category, mechanism, baseline_cn, hidden_direction)
+    cn_total = major + minor
+
+    tumor_alt = binomial_draw(rng, depth, expected_vaf(purity, cn_total, mutant_copies))
+    tumor_ref = depth - tumor_alt
+    normal_alt = binomial_draw(rng, normal_depth, 0.5)
+    normal_ref = normal_depth - normal_alt
+
+    gis = GIS_LINK[arm]["c"] + GIS_LINK[arm]["d"] * z + rng.gauss(0, GIS_LINK[arm]["sigma"])
+    sbs3 = min(0.95, max(0.0, SBS3_LINK[arm]["c"] + SBS3_LINK[arm]["d"] * z + rng.gauss(0, SBS3_LINK[arm]["sigma"])))
+
+    state["sample_rows"].append({
+        "sample_id": sample_id, "gene": gene, "gene_group": arm, "pam50_subtype": subtype,
+        "purity": round(purity, 4), "ploidy": round(ploidy, 4), "wgd": wgd, "normal_depth": normal_depth,
+        "purity_bin": purity_bin, "depth_regime": depth_regime, "gis_score": round(gis, 4),
+    })
+    state["label_rows"].append({
+        "sample_id": sample_id, "true_class": cls, "gene_group": arm, "gene": gene,
+        "z_latent": round(z, 6), "hidden_direction": hidden_direction or direction,
+    })
+
+    baf = generate_baf_snps(rng, purity, cn_total, major, minor, N_BAF_SNPS, sample_id)
+    state["baf_rows_all"].extend(baf)
+    mean_mirrored = sum(r["mirrored_baf"] for r in baf) / len(baf)
+
+    state["variant_rows"].append({
+        "sample_id": sample_id, "gene": gene, "chrom": "chrSIM", "pos": 1000 + sample_idx,
+        "ref": "A", "alt": "G",
+        "normal_ref_reads": normal_ref, "normal_alt_reads": normal_alt,
+        "tumor_ref_reads": tumor_ref, "tumor_alt_reads": tumor_alt,
+        "major_cn": major, "minor_cn": minor,
+        "assigned_loh_category": category, "mechanism": mechanism,
+        "mirrored_baf_mean": round(mean_mirrored, 6), "n_baf_snps": len(baf),
+    })
+
+    recovered = classify_loh(tumor_ref, tumor_alt, major, minor, purity)
+    expected_direction_label = DIRECTION_OF_PROTOCOL_CATEGORY[category]
+    state["self_check_rows"].append({
+        "sample_id": sample_id, "assigned": category, "recovered": recovered,
+        "match": recovered == expected_direction_label,
+    })
+
+    total_muts = max(5, round(rng.gauss(MEAN_MUTATIONS_PER_EXOME, 15)))
+    n_hrd = round(total_muts * sbs3)
+    n_bg = total_muts - n_hrd
+    counts = [0] * 96
+    if n_hrd > 0:
+        for ctx in rng.choices(range(96), weights=hrd_shape, k=n_hrd):
+            counts[ctx] += 1
+    if n_bg > 0:
+        for ctx in rng.choices(range(96), weights=background_shape, k=n_bg):
+            counts[ctx] += 1
+    state["catalog_rows"].append({"sample_id": sample_id, **{SBS_CONTEXTS[i]: counts[i] for i in range(96)}})
+    state["exposure_rows"].append({
+        "sample_id": sample_id, "sbs3_relative_exposure_true": round(sbs3, 4),
+        "total_mutations": total_muts, "n_hrd_process_mutations": n_hrd, "n_background_mutations": n_bg,
+    })
+
+    key = (category, arm, cls, purity_bin, depth_regime)
+    state["coverage_counts"][key] = state["coverage_counts"].get(key, 0) + 1
+
+
+def build_coverage_report(coverage_counts: dict) -> list[dict]:
+    """Every (category, arm, class, purity_bin, depth_regime) cell in the
+    grid, either with its actual count or an explicit OUT_OF_SCOPE
+    declaration + reason -- never a silently-blank cell (Standing Rule 4)."""
+    rows = []
+    depth_regimes_in_grid = [b[0] for b in DEPTH_BINS]
+    all_depth_labels = depth_regimes_in_grid + ["AMBIGUOUS_REGIME", "NOT_EVALUABLE_REGIME"]
+    all_categories = GRID_CATEGORIES + ["AMBIGUOUS", "NOT_EVALUABLE"]
+
+    for arm in GENE_GROUPS:
+        for cls in ("Pathogenic", "Benign"):
+            for category in all_categories:
+                for purity_bin, _, _ in PURITY_BINS:
+                    for depth_label in all_depth_labels:
+                        count = coverage_counts.get((category, arm, cls, purity_bin, depth_label), 0)
+                        in_scope = (
+                            (category in GRID_CATEGORIES and depth_label in depth_regimes_in_grid) or
+                            (category == "AMBIGUOUS" and depth_label == "AMBIGUOUS_REGIME") or
+                            (category == "NOT_EVALUABLE" and depth_label == "NOT_EVALUABLE_REGIME")
+                        )
+                        min_required = MIN_PER_CELL_GRID if category in GRID_CATEGORIES else MIN_PER_CELL_SIDE_ARM
+                        if not in_scope:
+                            rows.append({
+                                "category": category, "arm": arm, "class": cls, "purity_bin": purity_bin,
+                                "depth_regime": depth_label, "count": count, "min_required": "",
+                                "meets_minimum": "", "scope_status": "OUT_OF_SCOPE",
+                                "scope_reason": (
+                                    f"{category} is defined only in its own depth regime by construction "
+                                    f"(AMBIGUOUS: near-floor depth {AMBIGUOUS_DEPTH_RANGE}; NOT_EVALUABLE: "
+                                    f"sub-floor depth {NOT_EVALUABLE_DEPTH_RANGE}); it has no representation "
+                                    f"in the evaluable-depth grid bins by design, not by omission"
+                                ) if category in ("AMBIGUOUS", "NOT_EVALUABLE") else (
+                                    f"{category} is one of the 4 evaluable-depth grid categories and is not "
+                                    f"generated in the {depth_label} side-arm regime, which is reserved for "
+                                    f"AMBIGUOUS/NOT_EVALUABLE by construction"
+                                ),
+                            })
+                        else:
+                            rows.append({
+                                "category": category, "arm": arm, "class": cls, "purity_bin": purity_bin,
+                                "depth_regime": depth_label, "count": count, "min_required": min_required,
+                                "meets_minimum": count >= min_required, "scope_status": "IN_SCOPE",
+                                "scope_reason": "",
+                            })
+    return rows
+
+
+def generate() -> dict:
+    DATA_DIR.mkdir(exist_ok=True)
+    TRUTH_DETAIL_DIR.mkdir(exist_ok=True)
+
+    hrd_shape, background_shape = build_signature_shapes(random.Random(SEED + 1))
+
+    truth_rows = compute_truth_quantities()
+    write_simulated_tsv(TRUTH_TSV, truth_rows,
+                         ["quantity", "injected_value", "estimand", "is_null", "feature_type", "derivation"],
+                         float_repr_cols=["injected_value"])
+
+    state = {
+        "sample_idx": 0, "sample_rows": [], "variant_rows": [], "catalog_rows": [], "exposure_rows": [],
+        "label_rows": [], "baf_rows_all": [], "self_check_rows": [], "coverage_counts": {},
+    }
+
+    for arm in GENE_GROUPS:
+        for cls in ("Pathogenic", "Benign"):
+            for purity_bin, p_lo, p_hi in PURITY_BINS:
+                for depth_bin, d_lo, d_hi in DEPTH_BINS:
+                    for _ in range(DRAWS_PER_GRID_CELL):
+                        _emit_sample(state, arm, cls, purity_bin, p_lo, p_hi, depth_bin, d_lo, d_hi,
+                                     None, hrd_shape, background_shape)
+                for _ in range(MIN_PER_CELL_SIDE_ARM):
+                    _emit_sample(state, arm, cls, purity_bin, p_lo, p_hi, "AMBIGUOUS_REGIME",
+                                 *AMBIGUOUS_DEPTH_RANGE, "AMBIGUOUS", hrd_shape, background_shape)
+                for _ in range(MIN_PER_CELL_SIDE_ARM):
+                    _emit_sample(state, arm, cls, purity_bin, p_lo, p_hi, "NOT_EVALUABLE_REGIME",
+                                 *NOT_EVALUABLE_DEPTH_RANGE, "NOT_EVALUABLE", hrd_shape, background_shape)
+
+    write_simulated_tsv(DATA_DIR / "SIMULATED_sample_metadata.tsv", state["sample_rows"],
+                         ["sample_id", "gene", "gene_group", "pam50_subtype", "purity", "ploidy", "wgd",
+                          "normal_depth", "purity_bin", "depth_regime", "gis_score"])
+    write_simulated_tsv(DATA_DIR / "SIMULATED_variant_calls.tsv", state["variant_rows"],
+                         ["sample_id", "gene", "chrom", "pos", "ref", "alt", "normal_ref_reads", "normal_alt_reads",
+                          "tumor_ref_reads", "tumor_alt_reads", "major_cn", "minor_cn", "assigned_loh_category",
+                          "mechanism", "mirrored_baf_mean", "n_baf_snps"])
+    write_simulated_tsv(DATA_DIR / "SIMULATED_baf_segments.tsv", state["baf_rows_all"],
+                         ["sample_id", "snp_index", "phase", "normal_ref_reads", "normal_alt_reads",
+                          "tumor_ref_reads", "tumor_alt_reads", "mirrored_baf"])
+    write_simulated_tsv(DATA_DIR / "SIMULATED_mutation_catalogs.tsv", state["catalog_rows"], ["sample_id"] + SBS_CONTEXTS)
+    write_simulated_tsv(DATA_DIR / "SIMULATED_signature_exposures.tsv", state["exposure_rows"],
+                         ["sample_id", "sbs3_relative_exposure_true", "total_mutations", "n_hrd_process_mutations", "n_background_mutations"])
+    write_simulated_tsv(TRUTH_DETAIL_DIR / "SIMULATED_sample_labels.tsv", state["label_rows"],
+                         ["sample_id", "true_class", "gene_group", "gene", "z_latent", "hidden_direction"])
+
+    coverage_rows = build_coverage_report(state["coverage_counts"])
+    write_simulated_tsv(DATA_DIR / "SIMULATED_coverage_report.tsv", coverage_rows,
+                         ["category", "arm", "class", "purity_bin", "depth_regime", "count", "min_required",
+                          "meets_minimum", "scope_status", "scope_reason"])
+
+    n_match = sum(1 for r in state["self_check_rows"] if r["match"])
+    n_check = len(state["self_check_rows"])
+    write_simulated_report(
+        DATA_DIR / "SIMULATED_loh_injection_self_check.md",
+        "LOH injection self-check",
+        f"Re-classifying every generated sample's tumor/normal read counts with PROTOCOL.md "
+        f"§5.1/§5.2's own binomial-test logic (direction only -- PROTOCOL's model has no concept "
+        f"of copy-neutral vs deletion mechanism, so CN_NEUTRAL_LOH_WT_LOSS and WT_LOSS are both "
+        f"collapsed to LOH_SECOND_HIT for this comparison) recovered the expected direction label "
+        f"for {n_match}/{n_check} samples ({100*n_match/n_check:.1f}%). AMBIGUOUS is expected to "
+        f"sometimes resolve to a definite direction by chance at its deliberately low, near-floor "
+        f"depth (that is what \"ambiguous\" means under a noisy binomial draw); NOT_EVALUABLE is "
+        f"expected to match 100% (depth alone determines it).",
+    )
+
+    check_no_v1_reuse_numeric(state, truth_rows)
+
+    n_underfilled = sum(1 for r in coverage_rows if r["scope_status"] == "IN_SCOPE" and r["meets_minimum"] is False)
+    print(f"Generated {state['sample_idx']} SIMULATED tumor/normal pairs under {DATA_DIR}")
+    print(f"Wrote {TRUTH_TSV} ({len(truth_rows)} quantities) and {TRUTH_DETAIL_DIR}")
+    print(f"LOH self-check: {n_match}/{n_check} recovered direction matched assigned direction")
+    print(f"Coverage report: {len(coverage_rows)} cells, {n_underfilled} IN_SCOPE cell(s) below minimum")
+    return state
+
+
+def write_simulated_tsv(path: Path, rows: list[dict], columns: list[str], float_repr_cols: list[str] | None = None) -> None:
+    float_repr_cols = float_repr_cols or []
     with open(path, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=columns, delimiter="\t")
         w.writeheader()
         for row in rows:
-            w.writerow({c: row.get(c, "") for c in columns})
+            out = {}
+            for c in columns:
+                v = row.get(c, "")
+                if c in float_repr_cols and isinstance(v, float):
+                    v = repr(v)
+                out[c] = v
+            w.writerow(out)
 
 
 def write_simulated_report(path: Path, title: str, body: str) -> None:
@@ -436,43 +781,113 @@ def write_simulated_report(path: Path, title: str, body: str) -> None:
         f.write(f"SIMULATED: {body}\n")
 
 
-def check_no_v1_reuse() -> None:
-    """Explicitly scan this repository for any 'v1'/'retracted' artifacts
-    and confirm no simulator output value reproduces one. Reports the
-    result either way (Standing Rule 4/8: log the check, don't skip it
-    silently just because nothing was found)."""
-    import re
+# ============================================================================
+# Numeric v1 scan (replaces the old filename-only check; Standing Rule 3/4:
+# the rule is about VALUES, not filenames, so this scans every emitted
+# numeric value against the retracted v1 figures at a stated tolerance).
+# ============================================================================
 
-    candidates = []
-    for p in REPO_ROOT.rglob("*"):
-        if p.is_file() and (".git" not in p.parts):
-            name = p.name.lower()
-            if re.search(r"\bv1\b", name) or "retract" in name:
-                candidates.append(str(p.relative_to(REPO_ROOT)))
+def _iter_numeric_cells(rows: list[dict], source_name: str):
+    for i, row in enumerate(rows):
+        for col, val in row.items():
+            try:
+                fval = float(val)
+            except (TypeError, ValueError):
+                continue
+            yield source_name, i, col, fval
 
-    report_lines = [BANNER, "", "# No-v1-reuse parameter-independence check", ""]
-    if not candidates:
-        report_lines.append(
-            "SIMULATED: repo-wide scan (excluding .git/) for filenames matching "
-            "the word 'v1' or containing 'retract' found ZERO matching files. "
-            "There are no retracted v1 artifacts in this repository (confirmed "
-            "by this scan, not assumed) -- this check is therefore vacuously "
-            "satisfied: no prior-run value exists for this simulator's output "
-            "to have reproduced, by construction or otherwise."
-        )
-    else:
-        report_lines.append("SIMULATED: candidate v1/retracted artifact files found:")
-        for c in candidates:
-            report_lines.append(f"  - {c}")
-        report_lines.append(
-            "SIMULATED: manual review required -- this script does not itself "
-            "diff simulator output against arbitrary prior files; the presence "
-            "of matching filenames is reported as BLOCKED pending that review."
-        )
+
+# TIER_1 is the set of values this check actually cares about: the
+# simulator's own asserted DESIGN-LEVEL/ground-truth numbers. A match here
+# would be the real, serious "reproduced a retracted figure" finding.
+# TIER_2 is every raw per-sample/per-observation value (depths, read
+# counts, per-SNP BAFs, ...) -- at n=8388 samples x ~15 BAF SNPs each,
+# some of these are EXPECTED to land within tolerance of any given target
+# purely by chance, and INTEGER-valued fields (depths, read counts) will
+# exactly equal an integer-valued target (34.0, 80.0) at a predictable
+# base rate purely from quantization, not from reuse. Both tiers are
+# reported in full (Standing Rule 4: never omit a real match), but only
+# TIER_1 is treated as evidence bearing on Standing Rule 3.
+def check_no_v1_reuse_numeric(state: dict, truth_rows: list[dict]) -> None:
+    tier2_sources = [
+        (state["sample_rows"], "SIMULATED_sample_metadata.tsv"),
+        (state["variant_rows"], "SIMULATED_variant_calls.tsv"),
+        (state["exposure_rows"], "SIMULATED_signature_exposures.tsv"),
+        (state["baf_rows_all"], "SIMULATED_baf_segments.tsv"),
+    ]
+    tier1_source = (truth_rows, "SIMULATED_TRUTH.tsv (injected_value column only)")
+
+    def scan_one_tier(sources, restrict_col: str | None) -> list[dict]:
+        rows = []
+        for v1_value in RETRACTED_V1_FIGURES:
+            matches = []
+            scanned = 0
+            for src_rows, source_name in sources:
+                for _src, row_idx, col, fval in _iter_numeric_cells(src_rows, source_name):
+                    if restrict_col is not None and col != restrict_col:
+                        continue
+                    scanned += 1
+                    if math.isclose(fval, v1_value, rel_tol=V1_SCAN_REL_TOL, abs_tol=V1_SCAN_ABS_TOL):
+                        matches.append(f"{source_name}:row{row_idx}:{col}={fval}")
+            rows.append({
+                "v1_figure": v1_value, "tolerance_rel": V1_SCAN_REL_TOL, "tolerance_abs": V1_SCAN_ABS_TOL,
+                "values_scanned_count": scanned, "any_match_found": bool(matches),
+                "matching_locations": "; ".join(matches[:20]) + (f" ... ({len(matches)} total)" if len(matches) > 20 else ""),
+            })
+        return rows
+
+    tier1_rows = [{**r, "tier": "TIER_1_DESIGN_LEVEL_TRUTH"} for r in scan_one_tier([tier1_source], "injected_value")]
+    tier2_rows = [{**r, "tier": "TIER_2_RAW_PER_OBSERVATION"} for r in scan_one_tier(tier2_sources, None)]
+
+    write_simulated_tsv(V1_SCAN_TSV, tier1_rows + tier2_rows,
+                         ["tier", "v1_figure", "tolerance_rel", "tolerance_abs", "values_scanned_count",
+                          "any_match_found", "matching_locations"])
+
+    tier1_any_match = any(r["any_match_found"] for r in tier1_rows)
+    tier2_any_match = any(r["any_match_found"] for r in tier2_rows)
+    tier2_scanned_total = sum(r["values_scanned_count"] for r in tier2_rows) // len(RETRACTED_V1_FIGURES)
+    tier2_matched_figures = [r["v1_figure"] for r in tier2_rows if r["any_match_found"]]
+
+    report_lines = [BANNER, "", "# Numeric v1-reuse scan (replaces the old filename-only check)", ""]
+    report_lines.append(
+        f"SIMULATED: this is a scan of VALUES, not filenames -- Standing Rule 3's concern is a "
+        f"reproduced NUMBER, and a filename scan (this simulator's v1 approach) cannot detect that at all."
+    )
+    report_lines.append("")
+    report_lines.append(
+        f"**Tier 1 (the check that actually matters): every SIMULATED_TRUTH.tsv `injected_value` "
+        f"({len(truth_rows)} design-level quantities this simulator asserts as ground truth) scanned "
+        f"against all {len(RETRACTED_V1_FIGURES)} retracted v1 figures "
+        f"({RETRACTED_V1_FIGURES}) at rel_tol={V1_SCAN_REL_TOL}, abs_tol={V1_SCAN_ABS_TOL}: "
+        f"**{'MATCH FOUND' if tier1_any_match else 'ZERO matches'}**. "
+        + ("Manual review required before these design-level quantities can be trusted as independent "
+           "of the retracted v1 artifacts." if tier1_any_match else
+           "None of this simulator's 16 injected ground-truth quantities coincide with a retracted v1 "
+           "figure within the stated tolerance.")
+    )
+    report_lines.append("")
+    report_lines.append(
+        f"**Tier 2 (context, not itself evidence of reuse): {tier2_scanned_total} raw per-sample/per-"
+        f"observation numeric values** (depths, read counts, per-SNP BAFs, purity/ploidy/GIS draws) were "
+        f"also scanned against the same 9 figures. "
+        + (f"Matches were found for figure(s) {tier2_matched_figures} -- see V1_NUMERIC_SCAN.tsv for exact "
+           f"locations. **These are expected, not evidence of reuse**: at n={state['sample_idx']} samples "
+           f"(~{tier2_scanned_total} numeric values scanned per figure), (a) INTEGER-valued fields like "
+           f"`normal_depth` and read counts will exactly equal an integer-valued target (e.g. 34.0, 80.0) "
+           f"at a predictable base rate purely from quantization -- this is arithmetic coincidence, not "
+           f"reproduction of a retracted figure's SCIENTIFIC CONTENT; (b) continuous fields (gis_score, "
+           f"ploidy) drawn from a wide distribution will occasionally land within a {V1_SCAN_REL_TOL:.1%} "
+           f"relative tolerance of any fixed target purely by chance when this many values are scanned. "
+           f"No design-level parameter was tuned to produce any of these per-observation coincidences; "
+           f"they are logged in full per Standing Rule 4, not filtered out, but are not what this check "
+           f"is protecting against -- Tier 1 is."
+           if tier2_any_match else "ZERO matches found.")
+    )
     (DATA_DIR / "SIMULATED_no_v1_reuse_check.md").write_text("\n".join(report_lines) + "\n", encoding="utf-8")
-    print("\n".join(report_lines))
+    print(f"V1 numeric scan -- Tier 1 (design-level truth): {'MATCH FOUND' if tier1_any_match else 'no matches'}; "
+          f"Tier 2 (raw per-observation, {tier2_scanned_total} values/figure): "
+          f"{'matches found (expected, see report)' if tier2_any_match else 'no matches'}")
 
 
 if __name__ == "__main__":
     generate()
-    check_no_v1_reuse()
