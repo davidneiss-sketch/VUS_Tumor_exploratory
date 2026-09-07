@@ -1,0 +1,25 @@
+# Docker build prerequisites that must be (re)generated locally before
+# `docker build`, rather than committed:
+#
+# - docker/Miniconda3.sh   : fetch with
+#     curl -o docker/Miniconda3.sh https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+#   (sha256 of the exact file used for the recorded build is pinned in
+#   ENVIRONMENT.lock)
+#
+# - docker/sigma-src/      : SigMA (github.com/parklab/SigMA) is licensed
+#   "Academic and Non-Commercial Research Use" with an explicit
+#   NO-REDISTRIBUTION clause (see its LICENSE file once cloned), so its
+#   source may not be published/pushed into this repository. Fetch the
+#   pinned commit locally before building:
+#     git clone https://github.com/parklab/sigma docker/sigma-src
+#     git -C docker/sigma-src checkout <commit recorded in ENVIRONMENT.lock>
+#     rm -rf docker/sigma-src/.git
+#
+# - docker/agent-proxy-ca.crt : this session's network-egress-proxy CA
+#   certificate, needed only to build inside this sandboxed environment's
+#   TLS-inspecting proxy. Not meaningful outside it; a rebuild on an
+#   unrestricted network can drop the COPY/update-ca-certificates step in
+#   docker/Dockerfile entirely.
+docker/Miniconda3.sh
+docker/sigma-src/
+docker/agent-proxy-ca.crt
