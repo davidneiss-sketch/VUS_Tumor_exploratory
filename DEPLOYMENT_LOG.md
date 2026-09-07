@@ -168,3 +168,60 @@ a new dated entry here (or an equivalent structured log) naming the exact
 production files gate5 and gate6 were run against for that invocation —
 a tripwire gate whose only evidence of running is its own unit test is,
 per the task, not deployed.
+
+## Invocation 2 — direction-aware LOH caller (`loh_caller.py`), 2026-09-07T22:08:14Z
+
+A new production component (`loh_caller.py`, its own task) ran gate6 and
+gate7 against its own real, on-disk output files — not the fixtures
+above, and not the `production/` directory's earlier fixture set.
+
+| File | Used by |
+|---|---|
+| `SIMULATED_TRUTH.tsv` (repo root — the real simulator ground truth, 6 quantities), `SIMULATED_loh_validation/SIMULATED_recovered_quantities.tsv` (2 quantities this caller recovers) → emits `SIMULATED_RECOVERY_TABLE.tsv` + `.md` (repo root) | **gate6** |
+| `SIMULATED_loh_validation/SIMULATED_rates_table.tsv` | gate7 |
+
+```
+$ python3 gates/gate6_recovery.py --truth SIMULATED_TRUTH.tsv \
+    --recovered SIMULATED_loh_validation/SIMULATED_recovered_quantities.tsv --outdir .
+
+core_hr_loh_second_hit_LR: estimand truth=LR, recovered=LR (MATCH)
+[SIMULATED_FAIL] core_hr_loh_second_hit_LR: injected=6.999999999999999, recovered=4.6, CI=[1.9090909090909092, 25.0], relative_bias=0.3429 — relative bias 0.3429 exceeds tolerance 0.25
+ddr_signaling_loh_second_hit_LR: estimand truth=LR, recovered=LR (MATCH)
+[SIMULATED_FAIL] ddr_signaling_loh_second_hit_LR: injected=2.666666666666667, recovered=3.6666666666666665, CI=[1.0, 17.0], relative_bias=0.3750 — relative bias 0.3750 exceeds tolerance 0.25
+[SIMULATED_FAIL] core_hr_gis_score_LR: no recovered value found
+[SIMULATED_FAIL] ddr_signaling_gis_score_LR: no recovered value found
+[SIMULATED_FAIL] core_hr_sbs3_exposure_LR: no recovered value found
+[SIMULATED_FAIL] null_sequencing_depth_bucket_LR: no recovered value found
+=== gate6_recovery ===
+[PASS] truth and recovered files present — truth=SIMULATED_TRUTH.tsv (6 quantities), recovered=SIMULATED_recovered_quantities.tsv (2 rows)
+[PASS] SIMULATED_RECOVERY_TABLE.tsv and .md emitted — SIMULATED_RECOVERY_TABLE.tsv (6 rows), SIMULATED_RECOVERY_TABLE.md
+[FAIL] every quantity is SIMULATED_PASS (any single FAIL halts the pipeline) — at least one quantity is SIMULATED_FAIL
+gate6_recovery OVERALL: FAIL
+EXIT_CODE=1
+```
+
+**This FAIL is genuine and expected, reported per Standing Rule 2, not spun.**
+Of the 6 `SIMULATED_TRUTH.tsv` quantities: 4 (both GIS/HRD-score quantities,
+the SBS3-exposure quantity, the engineered null) are out of scope for an
+LOH caller — it never fabricated a recovered value for them, so gate6
+correctly reports "no recovered value found" for each. The 2 in-scope
+LOH-direction quantities (`core_hr_loh_second_hit_LR`,
+`ddr_signaling_loh_second_hit_LR`) are a real, uncontrived test: both
+CIs contain their injected target, but both relative-bias values
+(0.3429, 0.3750) exceed PROTOCOL.md §11's 0.25 tolerance —
+**`SIMULATED_FAIL`**, not tuned to pass. Full breakdown, root-cause
+investigation, and the confusion matrix / stratified accuracy this
+caller was scored on: `SIMULATED_loh_validation.md`.
+
+```
+$ python3 gates/gate7_denominators.py --rates-table SIMULATED_loh_validation/SIMULATED_rates_table.tsv
+
+=== gate7_denominators ===
+[PASS] rates table present — SIMULATED_rates_table.tsv, 14 metric row(s)
+[PASS] every row has a positive denominator — all 14 row(s) have a positive denominator
+[PASS] every row has an explicit (non-blank) excluded_count — all 14 row(s) carry an explicit excluded_count
+[PASS] numerator never exceeds denominator — all 14 row(s) OK
+[PASS] reported rate (if present) matches numerator/denominator — all reported rates internally consistent
+gate7_denominators OVERALL: PASS
+EXIT_CODE=0
+```
