@@ -84,11 +84,18 @@ COPY local_channel /opt/local_channel
 
 # --- The analysis environment. r-base is pinned to 4.2 because r-scarhrd's
 #     only bioconda builds require R >=4.2,<4.3 (or the much older R 3.5
-#     line); every other requested package is compatible with R 4.2. ---
+#     line); every other requested package is compatible with R 4.2.
+#
+#     bioconductor-purecn is deliberately NOT installed: isolated with a
+#     one-package-at-a-time dependency scan, it is the only package in this
+#     whole list that transitively pulls in
+#     bioconductor-bsgenome.hsapiens.ucsc.hg19 (confirmed blocked, see the
+#     SigMA note below) -- FACETS, ASCAT and Sequenza (r-facets, ascat,
+#     r-sequenza) do not, and satisfy the task's "two or more of
+#     FACETS/PureCN/ASCAT/Sequenza" on their own. ---
 RUN conda create -n bioenv -y \
     -c /opt/local_channel -c conda-forge -c bioconda \
     r-base=4.2 \
-    bioconductor-purecn \
     r-facets \
     ascat \
     r-sequenza \
