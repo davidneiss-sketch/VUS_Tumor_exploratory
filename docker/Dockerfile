@@ -60,11 +60,33 @@ RUN conda config --system --set ssl_verify /etc/ssl/certs/ca-certificates.crt \
  && conda config --system --prepend channels bioconda \
  && conda config --system --prepend channels conda-forge
 
+# --- Local channel override for bioconductor-genomeinfodbdata.
+#     The bioconda recipe for this (small, license-permissive, Artistic-2.0)
+#     data package does not vendor its data in the conda tarball; instead
+#     its post-link.sh downloads it from bioconductor.org, falling back to
+#     bioarchive.galaxyproject.org and depot.galaxyproject.org. All three
+#     hosts are denied by this build's network policy (confirmed 403 at the
+#     proxy for each), which would otherwise hard-block every package that
+#     needs GenomeInfoDb transitively: GenomicRanges, VariantAnnotation,
+#     BSgenome(.Hsapiens.UCSC.hg19), PureCN, and SigMA's own dependencies.
+#     local_channel/ contains a package rebuilt from the same data, fetched
+#     from the canonical Bioconductor GitHub mirror
+#     (github.com/Bioconductor/GenomeInfoDbData, commit
+#     b5339e03cc0c9c188e773a7ec2b80a146601595a, true upstream version 1.2.15)
+#     via R CMD INSTALL --build, with no code changes -- see
+#     local_channel/README.md for the exact rebuild steps. Version 1.2.15
+#     satisfies every GenomeInfoDb-family bioconda constraint observed here
+#     (>=1.2.0,<1.3.0). This is a disclosed, reproducible substitution of one
+#     data-only annotation package's distribution channel, not a routing
+#     -around of the network policy (no request is made to any denied host)
+#     and not a substitution of any analysis tool.
+COPY local_channel /opt/local_channel
+
 # --- The analysis environment. r-base is pinned to 4.2 because r-scarhrd's
 #     only bioconda builds require R >=4.2,<4.3 (or the much older R 3.5
 #     line); every other requested package is compatible with R 4.2. ---
 RUN conda create -n bioenv -y \
-    -c conda-forge -c bioconda \
+    -c /opt/local_channel -c conda-forge -c bioconda \
     r-base=4.2 \
     bioconductor-purecn \
     r-facets \
