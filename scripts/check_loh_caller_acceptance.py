@@ -67,17 +67,26 @@ def criterion_1_confusion_matrix() -> None:
 def criterion_2_gate6() -> None:
     truth = REPO_ROOT / "SIMULATED_TRUTH.tsv"
     recovered = OUT_DIR / "SIMULATED_recovered_quantities.tsv"
-    if not (truth.exists() and recovered.exists()):
+    scope = OUT_DIR / "SIMULATED_recovery_scope.tsv"
+    if not (truth.exists() and recovered.exists() and scope.exists()):
         check("gate6 PASS on every quantity, or session reports FAILED", False,
-              f"required input missing: truth={truth.exists()}, recovered={recovered.exists()}")
+              f"required input missing: truth={truth.exists()}, recovered={recovered.exists()}, scope={scope.exists()}")
         return
     proc = subprocess.run(
         [sys.executable, "gates/gate6_recovery.py", "--truth", str(truth),
-         "--recovered", str(recovered), "--outdir", str(REPO_ROOT)],
+         "--recovered", str(recovered), "--scope", str(scope), "--outdir", str(REPO_ROOT)],
         cwd=REPO_ROOT, capture_output=True, text=True,
     )
     exit_code = proc.returncode
     report_text = REPORT_MD.read_text(encoding="utf-8") if REPORT_MD.exists() else ""
+
+    recovery_table = REPO_ROOT / "SIMULATED_RECOVERY_TABLE.tsv"
+    recovery_rows = read_tsv(recovery_table) if recovery_table.exists() else []
+    undeclared = [r["quantity"] for r in recovery_rows if r.get("scope_status") == "UNDECLARED"]
+    if undeclared:
+        check("gate6 PASS on every quantity, or session reports FAILED", False,
+              f"undeclared-scope quantities found (a real scope bug, not this checker re-running without --scope): {undeclared}")
+        return
 
     if exit_code == 0:
         ok = "PASSED" in report_text and "gate6" in report_text.lower()

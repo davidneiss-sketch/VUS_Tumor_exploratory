@@ -1,0 +1,3 @@
+quantity	in_scope	reason
+IN_SCOPE_Q	TRUE	computed by this test fixture's component
+OUT_OF_SCOPE_Q	FALSE	requires a different feature extractor not built by this fixture's component

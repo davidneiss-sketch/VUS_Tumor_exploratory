@@ -1,0 +1,2 @@
+phase	command	exit_code	wall_clock_sec	peak_rss_mb	cpu_hours	bytes_read	n_samples
+signature_assignment	TRACK_B: cosmic_fit_real.py --wes	0	7200	900	1.5	5000000	10

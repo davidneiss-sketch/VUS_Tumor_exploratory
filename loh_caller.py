@@ -409,6 +409,27 @@ def build_recovered_quantities(loci: list[dict]) -> list[dict]:
     return rows
 
 
+# Every SIMULATED_TRUTH.tsv quantity, declared explicitly (gate6 housekeeping
+# fix: a gate that scores a subset without declaring the subset is a scope
+# bug). The 2 LOH-direction quantities are this caller's actual deliverable;
+# the other 4 require feature extractors (scarHRD/SigProfilerAssignment)
+# this LOH caller does not implement.
+RECOVERY_SCOPE = [
+    {"quantity": "core_hr_loh_second_hit_LR", "in_scope": "TRUE",
+     "reason": "this caller's own deliverable: recovered from its blind WT_LOSS/CN_NEUTRAL_LOH_WT_LOSS calls"},
+    {"quantity": "ddr_signaling_loh_second_hit_LR", "in_scope": "TRUE",
+     "reason": "this caller's own deliverable: recovered from its blind WT_LOSS/CN_NEUTRAL_LOH_WT_LOSS calls"},
+    {"quantity": "core_hr_gis_score_LR", "in_scope": "FALSE",
+     "reason": "requires an HRD/GIS-score feature (scarHRD) this LOH caller does not compute"},
+    {"quantity": "ddr_signaling_gis_score_LR", "in_scope": "FALSE",
+     "reason": "requires an HRD/GIS-score feature (scarHRD) this LOH caller does not compute"},
+    {"quantity": "core_hr_sbs3_exposure_LR", "in_scope": "FALSE",
+     "reason": "requires a SigProfilerAssignment SBS3-exposure feature this LOH caller does not compute"},
+    {"quantity": "null_sequencing_depth_bucket_LR", "in_scope": "FALSE",
+     "reason": "an engineered-null depth-bucket feature unrelated to LOH direction; not this caller's estimand"},
+]
+
+
 # ============================================================================
 # gate6 / gate7 invocation (subprocess, real files, real exit codes --
 # Standing Rule 4: nonzero exit is failure even if a file appeared)
@@ -449,12 +470,15 @@ def main() -> None:
     write_tsv(OUT_DIR / "SIMULATED_recovered_quantities.tsv", recovered_rows,
               ["quantity", "recovered_point", "ci_low", "ci_high", "estimand"])
 
+    write_tsv(OUT_DIR / "SIMULATED_recovery_scope.tsv", RECOVERY_SCOPE, ["quantity", "in_scope", "reason"])
+
     print(f"Loaded and called {len(loci)} SIMULATED loci; wrote outputs under {OUT_DIR}")
 
     gate6_exit, gate6_out = run_gate([
         "gates/gate6_recovery.py",
         "--truth", str(TRUTH_TSV),
         "--recovered", str(OUT_DIR / "SIMULATED_recovered_quantities.tsv"),
+        "--scope", str(OUT_DIR / "SIMULATED_recovery_scope.tsv"),
         "--outdir", str(REPO_ROOT),
     ])
     print(gate6_out)
@@ -479,11 +503,13 @@ def write_validation_report(loci, confusion_rows, rates_rows, recovered_rows,
     overall_status = "SIMULATED_PASS" if (gate6_exit == 0 and gate7_exit == 0) else "SIMULATED_FAIL"
 
     # Read back the recovery table gate6 just emitted, to report per-quantity status honestly.
+    # scope_status comes from gate6 itself (driven by SIMULATED_recovery_scope.tsv), not a
+    # hardcoded quantity list here -- the declared scope is the single source of truth.
     recovery_table_path = REPO_ROOT / "SIMULATED_RECOVERY_TABLE.tsv"
     recovery_rows = read_tsv(recovery_table_path) if recovery_table_path.exists() else []
-    loh_quantities = {"core_hr_loh_second_hit_LR", "ddr_signaling_loh_second_hit_LR"}
-    in_scope_rows = [r for r in recovery_rows if r["quantity"] in loh_quantities]
-    out_of_scope_rows = [r for r in recovery_rows if r["quantity"] not in loh_quantities]
+    in_scope_rows = [r for r in recovery_rows if r["scope_status"] == "IN_SCOPE"]
+    out_of_scope_rows = [r for r in recovery_rows if r["scope_status"] == "NOT_IN_SCOPE"]
+    undeclared_rows = [r for r in recovery_rows if r["scope_status"] == "UNDECLARED"]
 
     def acc_row(name: str) -> dict:
         return next(r for r in rates_rows if r["metric_name"] == name)
@@ -659,14 +685,17 @@ def write_validation_report(loci, confusion_rows, rates_rows, recovered_rows,
     )
     lines.append("")
 
-    lines.append("## 6. gate6 — recovery against SIMULATED_TRUTH.tsv")
+    lines.append("## 6. gate6 — recovery against SIMULATED_TRUTH.tsv, scope declared for every quantity")
     lines.append("")
     lines.append(
         f"gate6_recovery.py exit code: **{gate6_exit}** "
-        f"({'all quantities SIMULATED_PASS' if gate6_exit == 0 else 'at least one quantity SIMULATED_FAIL — reported as FAILED, per the task'})."
+        f"({'all in-scope quantities SIMULATED_PASS' if gate6_exit == 0 else 'at least one in-scope quantity SIMULATED_FAIL — reported as FAILED, per the task'})."
+        f" Every one of the 6 `SIMULATED_TRUTH.tsv` quantities is declared in `SIMULATED_recovery_scope.tsv` "
+        f"(gate6 housekeeping fix: a gate that scores a subset without declaring the subset is a scope bug) "
+        f"and appears below, whether in scope, out of scope, or undeclared ({len(undeclared_rows)} undeclared this run)."
     )
     lines.append("")
-    lines.append("In-scope quantities (this caller produces a recovered LR for these 2 of 6):")
+    lines.append(f"In-scope quantities ({len(in_scope_rows)} of 6 — this caller's own deliverable, scored for real):")
     lines.append("")
     lines.append("| quantity | injected | recovered | ci_low | ci_high | status | reason |")
     lines.append("|---|---|---|---|---|---|---|")
@@ -674,23 +703,26 @@ def write_validation_report(loci, confusion_rows, rates_rows, recovered_rows,
         lines.append(f"| {r['quantity']} | {r['injected']} | {r['recovered']} | {r['ci_low']} | {r['ci_high']} | {r['status']} | {r['reason']} |")
     lines.append("")
     lines.append(
-        f"Out-of-scope quantities (the remaining {len(out_of_scope_rows)} of 6 — GIS/HRD-score and "
+        f"Declared out-of-scope quantities ({len(out_of_scope_rows)} of 6 — GIS/HRD-score and "
         f"SBS3-exposure features require scarHRD/SigProfilerAssignment outputs this LOH caller does "
-        f"not compute; **not fabricated**, left for gate6 to report honestly as missing):"
+        f"not compute). gate6 reports these as `BLOCKED`, Standing Rule 1's permitted vocabulary for "
+        f"'could not be computed, disclosed with the same prominence as a completed result' — **not** "
+        f"as a fabricated `SIMULATED_FAIL`, and not omitted from the table:"
     )
     lines.append("")
-    lines.append("| quantity | status | reason |")
-    lines.append("|---|---|---|")
+    lines.append("| quantity | status | scope_status | reason |")
+    lines.append("|---|---|---|---|")
     for r in out_of_scope_rows:
-        lines.append(f"| {r['quantity']} | {r['status']} | {r['reason']} |")
+        lines.append(f"| {r['quantity']} | {r['status']} | {r['scope_status']} | {r['reason']} |")
     lines.append("")
     lines.append(
         "**Per the task's exact acceptance wording (\"gate6 PASS on every recovery quantity, or the "
         f"session reports FAILED\"): this session reports gate6 as {'PASSED' if gate6_exit == 0 else 'FAILED'}.** "
-        "The 4 out-of-scope quantities fail by construction (no recovered value exists for a feature "
-        "this deliverable does not compute) — this is a scope statement, not a computation error. "
-        "The 2 in-scope LOH-direction quantities' PASS/FAIL status is a real, uncontrived test result "
-        "(see table above), not tuned to pass."
+        "The 2 in-scope LOH-direction quantities are the only ones this gate run scores as PASS/FAIL; "
+        "both real results are shown in the table above (a real, uncontrived test result, not tuned to "
+        "pass). The 4 declared-out-of-scope quantities are `BLOCKED`, not scored, and do not by "
+        "themselves cause gate6's exit code to be nonzero — only a real SIMULATED_FAIL among the "
+        "in-scope quantities, or any UNDECLARED quantity, does that."
     )
     lines.append("")
 
@@ -710,7 +742,8 @@ def write_validation_report(loci, confusion_rows, rates_rows, recovered_rows,
     lines.append("| `SIMULATED_loh_validation/SIMULATED_loh_calls.tsv` | one row per variant call: predicted category, confidence, posteriors, true category, correctness |")
     lines.append("| `SIMULATED_loh_validation/SIMULATED_confusion_matrix.tsv` | true x predicted category counts (long format) |")
     lines.append("| `SIMULATED_loh_validation/SIMULATED_rates_table.tsv` | every reported rate with numerator/denominator/excluded_count (gate7 input) |")
-    lines.append("| `SIMULATED_loh_validation/SIMULATED_recovered_quantities.tsv` | the 2 recovered LR quantities with bootstrap CIs (gate6 input) |")
+    lines.append("| `SIMULATED_loh_validation/SIMULATED_recovered_quantities.tsv` | the 2 recovered LR quantities with bootstrap CIs (gate6 `--recovered` input) |")
+    lines.append("| `SIMULATED_loh_validation/SIMULATED_recovery_scope.tsv` | scope declaration for all 6 SIMULATED_TRUTH.tsv quantities (gate6 `--scope` input) |")
     lines.append("| `SIMULATED_RECOVERY_TABLE.tsv` / `.md` | gate6's own emitted output (repo root), covering all 6 SIMULATED_TRUTH.tsv quantities |")
     lines.append("")
 

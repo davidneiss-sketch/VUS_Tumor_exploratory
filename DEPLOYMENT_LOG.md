@@ -37,7 +37,7 @@ each gate *can* fail on bad input is the test suite's job
 | `production/SIMULATED_phase_log.tsv` | gate3 |
 | `production/SIMULATED_LR_TABLE.tsv` | gate4, gate5 |
 | `production/SIMULATED_metrics.tsv`, `production/SIMULATED_thresholds.tsv`, `production/SIMULATED_circularity.tsv`, `production/SIMULATED_LR_TABLE.tsv` | **gate5** |
-| `production/SIMULATED_TRUTH.tsv`, `production/SIMULATED_RECOVERED.tsv` → emits `production/SIMULATED_RECOVERY_TABLE.tsv` + `.md` | **gate6** |
+| `production/SIMULATED_TRUTH.tsv`, `production/SIMULATED_RECOVERED.tsv`, `production/SIMULATED_scope.tsv` → emits `production/SIMULATED_RECOVERY_TABLE.tsv` + `.md` | **gate6** |
 | `production/SIMULATED_rates_table.tsv` | gate7 |
 
 ## Run log (real commands, real output, this session)
@@ -70,29 +70,44 @@ EXIT_CODE=0
 
 ### gate3_runtime.py
 
+**Updated 2026-09-07 (gate housekeeping task): `--track` is now required** —
+see GATE3.json and GATE_HOUSEKEEPING.md. This repo's runs are all Track S
+(TRACK.md: Track A only, no germline access, so no real Track B run has
+ever happened here) — the command below reflects that explicitly rather
+than relying on a since-removed default.
+
 ```
-$ python3 gates/gate3_runtime.py --phase-log production/SIMULATED_phase_log.tsv
+$ python3 gates/gate3_runtime.py --phase-log production/SIMULATED_phase_log.tsv --track TRACK_S
 
 === gate3_runtime ===
-[PASS] phase log present — SIMULATED_phase_log.tsv, 5 phase(s)
+[PASS] phase log present — SIMULATED_phase_log.tsv, 5 phase(s), track=TRACK_S
 [PASS] every phase has all required runtime fields recorded — all 5 phase(s) have command/exit_code/wall_clock/peak_rss/cpu_hours/bytes_read
 [PASS] every phase exited 0 — all 5 phase(s) exited 0
-[PASS] every phase's per-sample runtime exceeds its floor — all 5 phase(s) at/above floor
+[PASS] every phase's per-sample runtime exceeds its floor — all 5 phase(s) at/above floor (track=TRACK_S, floors: {'copy_number_calling': 5.0, 'hrd_scoring': 1.0, 'signature_assignment': 2.0, 'loh_binomial_test': 0.02, 'second_hit_scan': 0.05})
+[PASS] no phase relies on an UNVERIFIED TRACK_S floor — every phase in this log has a verified floor for this track
 gate3_runtime OVERALL: PASS
 EXIT_CODE=0
 ```
 
 ### gate4_statistics.py
 
+**Updated 2026-09-07 (gate housekeeping task): the expected replicate
+count is now read live from PROTOCOL.md's own `B = <n>` text at run time**
+(`--expected-replicates` was previously a hardcoded default of 2000 —
+see GATE_HOUSEKEEPING.md for why that silently desynchronizes when the
+protocol changes). No `--protocol` override needed below; it defaults to
+the real repo `PROTOCOL.md`.
+
 ```
 $ python3 gates/gate4_statistics.py --lr-table production/SIMULATED_LR_TABLE.tsv
 
 === gate4_statistics ===
+[PASS] expected replicate count read from PROTOCOL.md — read B = 2000 from PROTOCOL.md
 [PASS] LR table present — SIMULATED_LR_TABLE.tsv, 6 stratum row(s)
 [PASS] every row's status is FITTED or INSUFFICIENT_N — all 6 row(s) have a valid status
 [PASS] every fitted row carries n_pathogenic and n_benign (non-negative) — all 6 row(s) carry valid denominators
 [PASS] every bootstrap CI contains its own point estimate — all 5 fitted row(s) OK
-[PASS] replicate count matches protocol (B=2000) — all 5 fitted row(s) OK
+[PASS] replicate count matches protocol (B=2000, read live from PROTOCOL.md) — all 5 fitted row(s) OK
 [PASS] CI widths vary across strata — 5 distinct CI width(s) across 5 fitted stratum/strata
 gate4_statistics OVERALL: PASS
 EXIT_CODE=0
@@ -120,10 +135,17 @@ EXIT_CODE=0
 
 ### gate6_recovery.py — **NEW, MANDATORY deploy-on-every-invocation gate**
 
+**Updated 2026-09-07 (gate housekeeping task): `--scope` is now required**
+to avoid a silent "scored a subset, subset undeclared" scope bug (see
+GATE_HOUSEKEEPING.md). `production/SIMULATED_scope.tsv` declares all 3 of
+this production run's quantities `in_scope=TRUE` (all 3 are computed by
+its own LR-fitting pipeline).
+
 ```
 $ python3 gates/gate6_recovery.py \
     --truth production/SIMULATED_TRUTH.tsv \
     --recovered production/SIMULATED_RECOVERED.tsv \
+    --scope production/SIMULATED_scope.tsv \
     --outdir production
 
 core_hr_lumA_LR: estimand truth=LR, recovered=LR (MATCH)
@@ -135,7 +157,8 @@ core_hr_basal_LR: estimand truth=LR, recovered=LR (MATCH)
 === gate6_recovery ===
 [PASS] truth and recovered files present — truth=SIMULATED_TRUTH.tsv (3 quantities), recovered=SIMULATED_RECOVERED.tsv (3 rows)
 [PASS] SIMULATED_RECOVERY_TABLE.tsv and .md emitted — production/SIMULATED_RECOVERY_TABLE.tsv (3 rows), production/SIMULATED_RECOVERY_TABLE.md
-[PASS] every quantity is SIMULATED_PASS (any single FAIL halts the pipeline) — all quantities passed
+[PASS] every truth quantity has a declared scope (no UNDECLARED quantities) — every quantity has a scope declaration
+[PASS] every quantity is SIMULATED_PASS or declared out of scope (any single FAIL halts the pipeline) — all quantities passed or were declared out of scope
 gate6_recovery OVERALL: PASS
 EXIT_CODE=0
 ```
@@ -177,25 +200,33 @@ above, and not the `production/` directory's earlier fixture set.
 
 | File | Used by |
 |---|---|
-| `SIMULATED_TRUTH.tsv` (repo root — the real simulator ground truth, 6 quantities), `SIMULATED_loh_validation/SIMULATED_recovered_quantities.tsv` (2 quantities this caller recovers) → emits `SIMULATED_RECOVERY_TABLE.tsv` + `.md` (repo root) | **gate6** |
+| `SIMULATED_TRUTH.tsv` (repo root — the real simulator ground truth, 6 quantities), `SIMULATED_loh_validation/SIMULATED_recovered_quantities.tsv` (2 quantities this caller recovers), `SIMULATED_loh_validation/SIMULATED_recovery_scope.tsv` (scope declaration for all 6) → emits `SIMULATED_RECOVERY_TABLE.tsv` + `.md` (repo root) | **gate6** |
 | `SIMULATED_loh_validation/SIMULATED_rates_table.tsv` | gate7 |
+
+**Updated 2026-09-07T22:32:43Z (gate housekeeping task): `--scope` is now
+required.** The 4 quantities this caller doesn't compute are now declared
+`NOT_IN_SCOPE` (reported as `BLOCKED`, not a fabricated `SIMULATED_FAIL`)
+instead of silently reading as "no recovered value found" with no scope
+statement — see GATE_HOUSEKEEPING.md.
 
 ```
 $ python3 gates/gate6_recovery.py --truth SIMULATED_TRUTH.tsv \
-    --recovered SIMULATED_loh_validation/SIMULATED_recovered_quantities.tsv --outdir .
+    --recovered SIMULATED_loh_validation/SIMULATED_recovered_quantities.tsv \
+    --scope SIMULATED_loh_validation/SIMULATED_recovery_scope.tsv --outdir .
 
 core_hr_loh_second_hit_LR: estimand truth=LR, recovered=LR (MATCH)
 [SIMULATED_FAIL] core_hr_loh_second_hit_LR: injected=6.999999999999999, recovered=4.6, CI=[1.9090909090909092, 25.0], relative_bias=0.3429 — relative bias 0.3429 exceeds tolerance 0.25
 ddr_signaling_loh_second_hit_LR: estimand truth=LR, recovered=LR (MATCH)
 [SIMULATED_FAIL] ddr_signaling_loh_second_hit_LR: injected=2.666666666666667, recovered=3.6666666666666665, CI=[1.0, 17.0], relative_bias=0.3750 — relative bias 0.3750 exceeds tolerance 0.25
-[SIMULATED_FAIL] core_hr_gis_score_LR: no recovered value found
-[SIMULATED_FAIL] ddr_signaling_gis_score_LR: no recovered value found
-[SIMULATED_FAIL] core_hr_sbs3_exposure_LR: no recovered value found
-[SIMULATED_FAIL] null_sequencing_depth_bucket_LR: no recovered value found
+[BLOCKED] core_hr_gis_score_LR: declared NOT_IN_SCOPE -- requires an HRD/GIS-score feature (scarHRD) this LOH caller does not compute
+[BLOCKED] ddr_signaling_gis_score_LR: declared NOT_IN_SCOPE -- requires an HRD/GIS-score feature (scarHRD) this LOH caller does not compute
+[BLOCKED] core_hr_sbs3_exposure_LR: declared NOT_IN_SCOPE -- requires a SigProfilerAssignment SBS3-exposure feature this LOH caller does not compute
+[BLOCKED] null_sequencing_depth_bucket_LR: declared NOT_IN_SCOPE -- an engineered-null depth-bucket feature unrelated to LOH direction; not this caller's estimand
 === gate6_recovery ===
 [PASS] truth and recovered files present — truth=SIMULATED_TRUTH.tsv (6 quantities), recovered=SIMULATED_recovered_quantities.tsv (2 rows)
 [PASS] SIMULATED_RECOVERY_TABLE.tsv and .md emitted — SIMULATED_RECOVERY_TABLE.tsv (6 rows), SIMULATED_RECOVERY_TABLE.md
-[FAIL] every quantity is SIMULATED_PASS (any single FAIL halts the pipeline) — at least one quantity is SIMULATED_FAIL
+[PASS] every truth quantity has a declared scope (no UNDECLARED quantities) — every quantity has a scope declaration
+[FAIL] every quantity is SIMULATED_PASS or declared out of scope (any single FAIL halts the pipeline) — at least one quantity is SIMULATED_FAIL — see SIMULATED_RECOVERY_TABLE.tsv for detail
 gate6_recovery OVERALL: FAIL
 EXIT_CODE=1
 ```

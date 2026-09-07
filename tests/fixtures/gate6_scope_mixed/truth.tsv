@@ -1,0 +1,4 @@
+quantity	injected_value	estimand	is_null
+IN_SCOPE_Q	4.0	LR	FALSE
+OUT_OF_SCOPE_Q	10.0	LR	FALSE
+UNDECLARED_Q	2.0	LR	FALSE

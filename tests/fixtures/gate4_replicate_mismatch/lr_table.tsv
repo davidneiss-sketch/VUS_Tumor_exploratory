@@ -1,0 +1,2 @@
+stratum	gene_group	status	point_estimate	ci_low	ci_high	n_replicates	n_pathogenic	n_benign
+STRATUM_STALE	CORE_HR	FITTED	8.0	3.0	18.0	500	20	20

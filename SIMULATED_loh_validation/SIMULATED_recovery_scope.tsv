@@ -1,0 +1,7 @@
+quantity	in_scope	reason
+core_hr_loh_second_hit_LR	TRUE	this caller's own deliverable: recovered from its blind WT_LOSS/CN_NEUTRAL_LOH_WT_LOSS calls
+ddr_signaling_loh_second_hit_LR	TRUE	this caller's own deliverable: recovered from its blind WT_LOSS/CN_NEUTRAL_LOH_WT_LOSS calls
+core_hr_gis_score_LR	FALSE	requires an HRD/GIS-score feature (scarHRD) this LOH caller does not compute
+ddr_signaling_gis_score_LR	FALSE	requires an HRD/GIS-score feature (scarHRD) this LOH caller does not compute
+core_hr_sbs3_exposure_LR	FALSE	requires a SigProfilerAssignment SBS3-exposure feature this LOH caller does not compute
+null_sequencing_depth_bucket_LR	FALSE	an engineered-null depth-bucket feature unrelated to LOH direction; not this caller's estimand

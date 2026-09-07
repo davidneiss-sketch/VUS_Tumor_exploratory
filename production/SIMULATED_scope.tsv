@@ -1,0 +1,4 @@
+quantity	in_scope	reason
+core_hr_lumA_LR	TRUE	primary Stage 2 deliverable quantity, computed by this production run's LR-fitting pipeline
+ddr_signaling_lumA_LR	TRUE	primary Stage 2 deliverable quantity, computed by this production run's LR-fitting pipeline
+core_hr_basal_LR	TRUE	primary Stage 2 deliverable quantity, computed by this production run's LR-fitting pipeline

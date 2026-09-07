@@ -88,12 +88,14 @@ def criterion_4_gate6_rejects_ci_and_or_vs_lr():
     d1 = FIXTURES / "gate6_bad_ci"
     r1 = run([sys.executable, "gates/gate6_recovery.py",
               "--truth", str(d1 / "truth.tsv"), "--recovered", str(d1 / "recovered.tsv"),
+              "--scope", str(d1 / "scope.tsv"),
               "--outdir", "/tmp/check_gates_acceptance_ci_out"])
     ci_ok = r1.returncode == 1 and "[7.47, 11.25]" in r1.stdout and "4.5" in r1.stdout
 
     d2 = FIXTURES / "gate6_bad_estimand"
     r2 = run([sys.executable, "gates/gate6_recovery.py",
               "--truth", str(d2 / "truth.tsv"), "--recovered", str(d2 / "recovered.tsv"),
+              "--scope", str(d2 / "scope.tsv"),
               "--outdir", "/tmp/check_gates_acceptance_estimand_out"])
     or_lr_ok = r2.returncode == 1 and "MISMATCH" in r2.stdout and "truth=LR, recovered=OR" in r2.stdout
 
@@ -137,6 +139,7 @@ def criterion_5_gate5_gate6_ran_against_named_production_files():
         r6 = run([sys.executable, "gates/gate6_recovery.py",
                   "--truth", str(PRODUCTION / "SIMULATED_TRUTH.tsv"),
                   "--recovered", str(PRODUCTION / "SIMULATED_RECOVERED.tsv"),
+                  "--scope", str(PRODUCTION / "SIMULATED_scope.tsv"),
                   "--outdir", str(PRODUCTION)])
         live_ok = r5.returncode == 0 and r6.returncode == 0
         live_detail.append(f"live re-run: gate5 exit={r5.returncode}, gate6 exit={r6.returncode}")

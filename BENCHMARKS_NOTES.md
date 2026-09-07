@@ -134,3 +134,27 @@ mutation counts, same primary paper as TP01/PAM01, with an exact
 arithmetic mean-per-tumor computed from the cited totals). Same
 retrieval method and caveats as every other row in this file apply;
 see each row's own note for specifics.
+
+## Addendum (2026-09-07, added during gate-housekeeping review)
+
+**CLINVAR01** was appended to correct a citation defect found while
+auditing PROTOCOL.md §4.1 for whether wording added to satisfy
+`scripts/check_protocol.py` still specifies exact values (Standing Rule
+6's exact concern — "rewording to pass a checker... including in good
+faith"). PROTOCOL.md §4.1's Snapshot pin rule stated that ClinVar's
+monthly archived release lands on "the first-Thursday-of-month release,
+per `BENCHMARKS_NOTES.md`" — but this file never actually contained that
+claim, or any mention of ClinVar at all, confirmed by grepping this file
+and `BENCHMARKS.tsv` for "ClinVar"/"Thursday" before this addendum was
+written (zero hits). The underlying factual claim turned out to be true
+and live-verifiable (NCBI's own "Release cycle" documentation states
+exactly this cadence), so this is a broken-citation defect, not a
+fabricated fact — but it is exactly the failure mode Standing Rule 3 (a
+number/claim without a live URL+timestamp) and Standing Rule 6 (checker
+satisfied by wording, not substance) both warn against: `check_protocol.py`
+never even checks this specific cadence claim, so nothing about passing
+that checker required this citation to be accurate, and it went
+unverified until this review. Row **CLINVAR01** now carries the real
+citation (URL + 2026-09-07 retrieval date); PROTOCOL.md §4.1 was
+corrected to cite it instead of the non-existent `BENCHMARKS_NOTES.md`
+claim.

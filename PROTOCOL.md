@@ -169,8 +169,13 @@ is purity-floor-sensitive.
   merged into the primary ≥2-star set.
 - **Snapshot pin rule:** the ClinVar release used is the most recent
   monthly archived release (first-Thursday-of-month release, per
-  `BENCHMARKS_NOTES.md`) confirmed live with a resolving URL and
-  timestamp within 7 days before Stage 0 execution begins (§10). If no
+  `BENCHMARKS.tsv` row `CLINVAR01` — NCBI ClinVar's own "Release cycle"
+  documentation, confirmed live 2026-09-07 at
+  https://www.ncbi.nlm.nih.gov/clinvar/docs/release_cycle/; this replaces
+  an earlier draft of this section that mis-cited `BENCHMARKS_NOTES.md`,
+  which never actually stated this cadence — corrected during this
+  project's gate-housekeeping review) confirmed live with a resolving URL
+  and timestamp within 7 days before Stage 0 execution begins (§10). If no
   such confirmation is obtainable, execution halts at Stage 0 and does not
   proceed with an unpinned or guessed release (Standing Rule 3). This is
   a fully specified *rule* rather than an open question — it does not

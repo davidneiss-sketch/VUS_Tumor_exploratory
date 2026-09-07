@@ -8,8 +8,12 @@ ci_high, n_replicates, n_pathogenic, n_benign) and asserts:
     point estimate indicates a broken bootstrap (e.g. percentile/point
     computed from different resamples, or a sign/transform bug) and is
     always a bug, never a legitimate result.
-  - replicate count matches PROTOCOL.md §7.3 (B = 2000) for every fitted
-    stratum.
+  - replicate count matches PROTOCOL.md §7.3's actual stated value for
+    every fitted stratum -- READ FROM PROTOCOL.md AT RUNTIME, not
+    hardcoded. A hardcoded expected value silently desynchronizes the
+    moment the protocol changes (this gate would keep enforcing a stale
+    number while claiming to check "the protocol"). See
+    read_protocol_replicate_count() below.
   - CI widths vary across strata (a pipeline that prints the same CI
     width everywhere is not actually bootstrapping per-stratum).
   - every row -- fitted or INSUFFICIENT_N -- carries n_pathogenic and
@@ -20,13 +24,21 @@ literal printed string for an under-powered stratum); any other value is
 itself a failure.
 
 Usage:
-  gate4_statistics.py --lr-table FILE [--expected-replicates 2000]
+  gate4_statistics.py --lr-table FILE [--protocol PROTOCOL.md] [--expected-replicates N]
+
+--expected-replicates is now an OPTIONAL OVERRIDE, not a default: with it
+omitted, the expected count is read live from --protocol (PROTOCOL.md's
+own "B = <n>" occurrences in §7.3/§11, which must all agree). Passing it
+explicitly and having it disagree with PROTOCOL.md's own value is itself
+a gate failure -- a caller cannot silently override the protocol's
+definition of B.
 
 Exit 0 = all checks pass. Exit 1 = at least one check failed.
 """
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -35,14 +47,54 @@ from gates_common import GateReport, read_tsv, to_float, to_int  # noqa: E402
 
 VALID_STATUSES = {"FITTED", "INSUFFICIENT_N"}
 
+DEFAULT_PROTOCOL_PATH = Path(__file__).resolve().parent.parent / "PROTOCOL.md"
+REPLICATE_COUNT_PATTERN = re.compile(r"\bB\s*=\s*(\d+)\b")
+
+
+def read_protocol_replicate_count(protocol_path: Path) -> tuple[int | None, str]:
+    """Reads every 'B = <n>' occurrence out of PROTOCOL.md and returns the
+    agreed-upon value, or (None, reason) if the file is missing, contains
+    no such occurrence, or contains disagreeing occurrences -- any of
+    which is a hard failure (Standing Rule 4: never substitute silently)."""
+    if not protocol_path.exists():
+        return None, f"PROTOCOL.md not found at {protocol_path} -- cannot read the replicate count it specifies"
+    text = protocol_path.read_text(encoding="utf-8")
+    matches = sorted({int(m.group(1)) for m in REPLICATE_COUNT_PATTERN.finditer(text)})
+    if not matches:
+        return None, f"no 'B = <n>' pattern found anywhere in {protocol_path.name} -- cannot derive an expected replicate count"
+    if len(matches) > 1:
+        return None, f"PROTOCOL.md itself disagrees about B: found values {matches} at different occurrences -- this is a protocol authoring bug, not a gate4 input problem"
+    return matches[0], f"read B = {matches[0]} from {protocol_path.name}"
+
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--lr-table", required=True, type=Path)
-    ap.add_argument("--expected-replicates", type=int, default=2000)
+    ap.add_argument("--protocol", type=Path, default=DEFAULT_PROTOCOL_PATH,
+                     help="PROTOCOL.md to read the expected replicate count from (default: repo root PROTOCOL.md).")
+    ap.add_argument("--expected-replicates", type=int, default=None,
+                     help="Override the count read from --protocol. Must agree with PROTOCOL.md's own value, or this gate fails.")
     args = ap.parse_args()
 
     report = GateReport("gate4_statistics")
+
+    protocol_b, protocol_detail = read_protocol_replicate_count(args.protocol)
+    if protocol_b is None:
+        report.check("expected replicate count read from PROTOCOL.md", False, protocol_detail)
+        report.print_and_exit()
+        return
+    report.check("expected replicate count read from PROTOCOL.md", True, protocol_detail)
+
+    if args.expected_replicates is not None and args.expected_replicates != protocol_b:
+        report.check(
+            "explicit --expected-replicates override agrees with PROTOCOL.md",
+            False,
+            f"--expected-replicates={args.expected_replicates} disagrees with PROTOCOL.md's B={protocol_b} "
+            f"-- a caller cannot silently override the protocol's own definition of B",
+        )
+        report.print_and_exit()
+        return
+    expected_replicates = protocol_b
 
     try:
         rows = read_tsv(args.lr_table)
@@ -91,8 +143,8 @@ def main() -> None:
                 f"{stratum}: CI [{ci_low}, {ci_high}] does not contain point estimate {point}"
             )
 
-        if n_rep != args.expected_replicates:
-            replicate_failures.append(f"{stratum}: n_replicates={n_rep} != expected {args.expected_replicates}")
+        if n_rep != expected_replicates:
+            replicate_failures.append(f"{stratum}: n_replicates={n_rep} != expected {expected_replicates}")
 
         widths.append((stratum, ci_high - ci_low))
 
@@ -112,7 +164,7 @@ def main() -> None:
         "; ".join(ci_contains_point_failures) if ci_contains_point_failures else f"all {len(widths)} fitted row(s) OK",
     )
     report.check(
-        f"replicate count matches protocol (B={args.expected_replicates})",
+        f"replicate count matches protocol (B={expected_replicates}, read live from {args.protocol.name})",
         len(replicate_failures) == 0,
         "; ".join(replicate_failures) if replicate_failures else f"all {len(widths)} fitted row(s) OK",
     )

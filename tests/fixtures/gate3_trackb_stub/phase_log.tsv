@@ -1,0 +1,3 @@
+phase	command	exit_code	wall_clock_sec	peak_rss_mb	cpu_hours	bytes_read	n_samples
+copy_number_calling	TRACK_B: facets_real.R --wes	0	60	400	0.02	1000	10
+hrd_scoring	TRACK_B: scarHRD_real.R --wes	0	15	200	0.005	1000	10

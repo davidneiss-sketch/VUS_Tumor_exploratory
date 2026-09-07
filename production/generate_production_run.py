@@ -171,6 +171,16 @@ def main() -> None:
     ]
     write_tsv(HERE / "SIMULATED_RECOVERED.tsv", recovered_rows, ["quantity", "recovered_point", "ci_low", "ci_high", "estimand"])
 
+    scope_rows = [
+        {"quantity": "core_hr_lumA_LR", "in_scope": "TRUE",
+         "reason": "primary Stage 2 deliverable quantity, computed by this production run's LR-fitting pipeline"},
+        {"quantity": "ddr_signaling_lumA_LR", "in_scope": "TRUE",
+         "reason": "primary Stage 2 deliverable quantity, computed by this production run's LR-fitting pipeline"},
+        {"quantity": "core_hr_basal_LR", "in_scope": "TRUE",
+         "reason": "primary Stage 2 deliverable quantity, computed by this production run's LR-fitting pipeline"},
+    ]
+    write_tsv(HERE / "SIMULATED_scope.tsv", scope_rows, ["quantity", "in_scope", "reason"])
+
     # --- 6. Rates table (gate7) ---
     def rate_row(name, num, den, excl, reason):
         return {"metric_name": name, "numerator": num, "denominator": den,

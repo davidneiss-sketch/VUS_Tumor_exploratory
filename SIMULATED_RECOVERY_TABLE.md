@@ -2,13 +2,13 @@ SIMULATED DATA — NOT A SCIENTIFIC RESULT
 
 # Stage 2 recovery table
 
-SIMULATED: recovered quantities vs their pre-specified injected targets. Status values are SIMULATED_PASS / SIMULATED_FAIL only, per Standing Rule 1.
+SIMULATED: recovered quantities vs their pre-specified injected targets, and the declared scope of every quantity in SIMULATED_TRUTH.tsv. Status values are SIMULATED_PASS / SIMULATED_FAIL / BLOCKED only, per Standing Rule 1.
 
-| quantity | injected | recovered | ci_low | ci_high | estimand (truth/recovered) | relative_bias | status | reason |
-|---|---|---|---|---|---|---|---|---|
-| core_hr_loh_second_hit_LR | 6.999999999999999 | 4.6 | 1.9090909090909092 | 25.0 | LR/LR | 0.342857 | SIMULATED_FAIL | relative bias 0.3429 exceeds tolerance 0.25 |
-| ddr_signaling_loh_second_hit_LR | 2.666666666666667 | 3.6666666666666665 | 1.0 | 17.0 | LR/LR | 0.375 | SIMULATED_FAIL | relative bias 0.3750 exceeds tolerance 0.25 |
-| core_hr_gis_score_LR | 75.01427608376818 |  |  |  | LR/ |  | SIMULATED_FAIL | no recovered value found for this quantity |
-| ddr_signaling_gis_score_LR | 1.7473606486524944 |  |  |  | LR/ |  | SIMULATED_FAIL | no recovered value found for this quantity |
-| core_hr_sbs3_exposure_LR | 105.6011169807864 |  |  |  | LR/ |  | SIMULATED_FAIL | no recovered value found for this quantity |
-| null_sequencing_depth_bucket_LR | 1.0 |  |  |  | LR/ |  | SIMULATED_FAIL | no recovered value found for this quantity |
+| quantity | injected | recovered | ci_low | ci_high | estimand (truth/recovered) | relative_bias | status | scope | reason |
+|---|---|---|---|---|---|---|---|---|---|
+| core_hr_loh_second_hit_LR | 6.999999999999999 | 4.6 | 1.9090909090909092 | 25.0 | LR/LR | 0.342857 | SIMULATED_FAIL | IN_SCOPE | relative bias 0.3429 exceeds tolerance 0.25 |
+| ddr_signaling_loh_second_hit_LR | 2.666666666666667 | 3.6666666666666665 | 1.0 | 17.0 | LR/LR | 0.375 | SIMULATED_FAIL | IN_SCOPE | relative bias 0.3750 exceeds tolerance 0.25 |
+| core_hr_gis_score_LR | 75.01427608376818 |  |  |  | LR/ |  | BLOCKED | NOT_IN_SCOPE | requires an HRD/GIS-score feature (scarHRD) this LOH caller does not compute |
+| ddr_signaling_gis_score_LR | 1.7473606486524944 |  |  |  | LR/ |  | BLOCKED | NOT_IN_SCOPE | requires an HRD/GIS-score feature (scarHRD) this LOH caller does not compute |
+| core_hr_sbs3_exposure_LR | 105.6011169807864 |  |  |  | LR/ |  | BLOCKED | NOT_IN_SCOPE | requires a SigProfilerAssignment SBS3-exposure feature this LOH caller does not compute |
+| null_sequencing_depth_bucket_LR | 1.0 |  |  |  | LR/ |  | BLOCKED | NOT_IN_SCOPE | an engineered-null depth-bucket feature unrelated to LOH direction; not this caller's estimand |

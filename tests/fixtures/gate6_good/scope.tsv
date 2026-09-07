@@ -1,0 +1,3 @@
+quantity	in_scope	reason
+GOOD_QUANTITY	TRUE	computed by this test fixture's component
+NULL_QUANTITY	TRUE	computed by this test fixture's component

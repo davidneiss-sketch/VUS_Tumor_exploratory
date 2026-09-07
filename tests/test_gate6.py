@@ -18,6 +18,7 @@ class TestGate6Recovery(unittest.TestCase):
             "gate6_recovery.py",
             "--truth", str(d / "truth.tsv"),
             "--recovered", str(d / "recovered.tsv"),
+            "--scope", str(d / "scope.tsv"),
             "--outdir", str(outdir),
         )
         self.assertEqual(r.returncode, 0, msg=r.stdout + r.stderr)
@@ -37,6 +38,7 @@ class TestGate6Recovery(unittest.TestCase):
             "gate6_recovery.py",
             "--truth", str(d / "truth.tsv"),
             "--recovered", str(d / "recovered.tsv"),
+            "--scope", str(d / "scope.tsv"),
             "--outdir", str(outdir),
         )
         self.assertEqual(r.returncode, 1, msg=r.stdout + r.stderr)
@@ -55,11 +57,64 @@ class TestGate6Recovery(unittest.TestCase):
             "gate6_recovery.py",
             "--truth", str(d / "truth.tsv"),
             "--recovered", str(d / "recovered.tsv"),
+            "--scope", str(d / "scope.tsv"),
             "--outdir", str(outdir),
         )
         self.assertEqual(r.returncode, 1, msg=r.stdout + r.stderr)
         self.assertIn("MISMATCH — AUTOMATIC FAIL", r.stdout)
         self.assertIn("truth=LR, recovered=OR", r.stdout)
+
+    def test_no_scope_file_means_every_quantity_undeclared_and_fails(self):
+        """Omitting --scope entirely must NOT silently pass -- every truth
+        quantity is treated as undeclared, a hard failure per quantity.
+        This is the exact scope bug the housekeeping fix targets: a gate
+        that scores (or skips) a subset without a declared reason."""
+        d = FIXTURES_DIR / "gate6_good"
+        outdir = Path(self._tmpdir) / "no_scope"
+        r = run_gate(
+            "gate6_recovery.py",
+            "--truth", str(d / "truth.tsv"),
+            "--recovered", str(d / "recovered.tsv"),
+            "--outdir", str(outdir),
+        )
+        self.assertEqual(r.returncode, 1, msg=r.stdout + r.stderr)
+        self.assertIn("gate6_recovery OVERALL: FAIL", r.stdout)
+        self.assertIn("UNDECLARED SCOPE", r.stdout)
+
+    def test_scope_mixed_in_scope_out_of_scope_and_undeclared(self):
+        """Every SIMULATED_TRUTH.tsv quantity must appear in the recovery
+        table with a scope status: IN_SCOPE+recovered scores normally,
+        declared NOT_IN_SCOPE is reported as BLOCKED (not a failure by
+        itself), and an UNDECLARED quantity is a hard failure that also
+        fails the whole gate -- exactly the task's three required
+        outcomes in one fixture."""
+        d = FIXTURES_DIR / "gate6_scope_mixed"
+        outdir = Path(self._tmpdir) / "scope_mixed"
+        r = run_gate(
+            "gate6_recovery.py",
+            "--truth", str(d / "truth.tsv"),
+            "--recovered", str(d / "recovered.tsv"),
+            "--scope", str(d / "scope.tsv"),
+            "--outdir", str(outdir),
+        )
+        self.assertEqual(r.returncode, 1, msg=r.stdout + r.stderr)
+        self.assertIn("gate6_recovery OVERALL: FAIL", r.stdout)
+        self.assertIn("UNDECLARED SCOPE", r.stdout)
+        self.assertIn("UNDECLARED_Q", r.stdout)
+
+        table_text = (outdir / "SIMULATED_RECOVERY_TABLE.tsv").read_text()
+        rows = {line.split("\t")[0]: line for line in table_text.splitlines()[1:] if line}
+        self.assertIn("IN_SCOPE_Q", rows)
+        self.assertIn("SIMULATED_PASS", rows["IN_SCOPE_Q"])
+        self.assertIn("IN_SCOPE", rows["IN_SCOPE_Q"])
+        self.assertIn("OUT_OF_SCOPE_Q", rows)
+        self.assertIn("BLOCKED", rows["OUT_OF_SCOPE_Q"])
+        self.assertIn("NOT_IN_SCOPE", rows["OUT_OF_SCOPE_Q"])
+        self.assertIn("UNDECLARED_Q", rows)
+        self.assertIn("SIMULATED_FAIL", rows["UNDECLARED_Q"])
+        self.assertIn("UNDECLARED", rows["UNDECLARED_Q"])
+        # A declared-out-of-scope row must never be silently omitted from the table.
+        self.assertEqual(len(rows), 3)
 
 
 if __name__ == "__main__":
