@@ -1,0 +1,17 @@
+scarHRD version: 0.1.1 
+Preprocessing started...
+Collecting GC information . done
+
+Processing chr1:
+   18 variant calls.
+   12 copy-number segments.
+   6290 heterozygous positions.
+   549112 homozygous positions.
+Preprocessing finished 
+Determining HRD-LOH, LST, TAI 
+Warning message:
+In mean.default(extract$gc$adj[, 2]) :
+  argument is not numeric or logical: returning NA
+     HRD Telomeric AI LST HRD-sum
+[1,]   2            2   2       6
+SCARHRD_TEST_OK

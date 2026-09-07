@@ -1,0 +1,147 @@
+# ENVIRONMENT.lock -- VUS_Tumor_exploratory GATE1
+
+Generated: 2026-09-07T16:50:00Z
+Full test results and per-tool PASS/FAIL: see GATE1.json (script-checked by
+scripts/check_gate1.py). This file records versions, provenance, and the
+container digest; it does not repeat the PASS/FAIL narrative.
+
+## 0. Retrieval-method limitation (Standing Rule 4)
+
+As in this project's prior data-access audit, direct `WebFetch` to primary
+documentation/data domains was confirmed **blocked** in this session's
+network policy (403 policy denial at the egress proxy, not a transient
+failure) for every one of the following, tested this session:
+`docs.gdc.cancer.gov`, `portal.gdc.cancer.gov`, `www.ncbi.nlm.nih.gov`,
+`ftp.ncbi.nlm.nih.gov`, `bioconductor.org`, `bioarchive.galaxyproject.org`,
+`depot.galaxyproject.org`, `bioconductorhubs.blob.core.windows.net`,
+`annotationhub.bioconductor.org`, `experimenthub.bioconductor.org`,
+`cran.r-project.org`, `quay.io`, `zenodo.org`, `hgdownload.soe.ucsc.edu`.
+Reachable and used in this session: `conda.anaconda.org` (bioconda,
+conda-forge), `repo.anaconda.com`, `archive.ubuntu.com` /
+`security.ubuntu.com` (https only -- the proxy does not tunnel plain HTTP,
+so `docker/Dockerfile` rewrites apt's sources to https), `pypi.org` /
+`files.pythonhosted.org` (bypass allowlist), `raw.githubusercontent.com`,
+`api.github.com`, `mcr.microsoft.com`, and this session's own git-clone
+proxy lane for public GitHub repos (`github.com/parklab/sigma`,
+`github.com/Bioconductor/GenomeInfoDbData` -- see §2).
+
+Reference-database version numbers below (§3) were therefore retrieved via
+live `WebSearch` (dated 2026-09-07, same session) rather than direct fetch,
+citing only URLs that were actually returned as links (never a prose
+summary claim with no backing link -- those are marked UNVERIFIED below,
+per Standing Rule 3).
+
+## 1. Container
+
+| Field | Value |
+|---|---|
+| Image | `vus-tumor-gate1:local` |
+| Digest (image ID / RepoDigest) | `sha256:2f344e8a456167eec8701db9581b07b0a4139ed2acdaecf23ab811fec354ca4c` |
+| Base image | `mcr.microsoft.com/devcontainers/base:ubuntu-24.04` |
+| Base image digest | `sha256:d94c97dd9cacf183d0a6fd12a8e87b526e9e928307674ae9c94139139c0c6eae` |
+| Dockerfile | `docker/Dockerfile` |
+| Not pushed to a registry | this environment has no registry-push egress; rebuild from the Dockerfile to reproduce (see docker/local_channel/README.md and .gitignore for the two local build prerequisites that must be (re)created first) |
+
+## 2. Tool inventory (name, version, install path, provenance)
+
+| Tool | Version | Install mechanism | Path |
+|---|---|---|---|
+| R | 4.2.3 (2023-03-15, "Shortstop Beagle") | conda, `r-base=4.2` (pinned -- see docker/Dockerfile, required by r-scarhrd's only R4.2-line bioconda build) | `/opt/conda/envs/bioenv/bin/R` |
+| FACETS | 0.6.2 | conda, `bioconda::r-facets-0.6.2-r42h1c9e865_3` | `/opt/conda/envs/bioenv/lib/R/library/facets` |
+| ASCAT | 3.1.1 | conda, `bioconda::ascat-3.1.1-r42hdfd78af_0` | `/opt/conda/envs/bioenv/lib/R/library/ASCAT` |
+| Sequenza (R) | 3.0.0 | conda, `bioconda::r-sequenza-3.0.0-r42h3342da4_5` | `/opt/conda/envs/bioenv/lib/R/library/sequenza` |
+| sequenza-utils (Python) | 3.0.0 | conda, `bioconda::sequenza-utils-3.0.0-py312h9c9b0c2_8` | `/opt/conda/envs/bioenv/bin/sequenza-utils` |
+| PureCN | -- NOT INSTALLED | n/a | n/a -- see §2a |
+| scarHRD | 0.1.1 | conda, `bioconda::r-scarhrd-0.1.1-r42hdfd78af_1` | `/opt/conda/envs/bioenv/lib/R/library/scarHRD` |
+| SigProfilerAssignment | 1.1.5 | conda, `bioconda::sigprofilerassignment-1.1.5-pyh106432d_0` | `/opt/conda/envs/bioenv/lib/python3.12/site-packages/SigProfilerAssignment` |
+| SigProfilerMatrixGenerator | 1.3.3 | conda (pulled in as SigProfilerAssignment's own dependency) | `/opt/conda/envs/bioenv/lib/python3.12/site-packages/SigProfilerMatrixGenerator` |
+| SigMA | -- NOT INSTALLED | n/a | n/a -- see §2b |
+| bcftools | 1.24 | conda, bioconda (also present via apt as 1.19-1build2, shadowed on PATH) | `/opt/conda/envs/bioenv/bin/bcftools` |
+| samtools | 1.24 | conda, bioconda (also present via apt as 1.19.2-1build2, shadowed on PATH) | `/opt/conda/envs/bioenv/bin/samtools` |
+| htslib | 1.24 | conda, bioconda (dependency of samtools/bcftools/tabix) | `/opt/conda/envs/bioenv/lib` |
+| tabix | 1.24 (htslib) | conda, bioconda | `/opt/conda/envs/bioenv/bin/tabix` |
+| vcftools | 0.1.17 | conda, bioconda | `/opt/conda/envs/bioenv/bin/vcftools` |
+| conda | 26.7.1 | Miniconda3 installer, `https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh`, sha256 `e8b25b92b262499141c5bd57a98d3c008024185fa951494b9cd9b6d94e72338b`, retrieved 2026-09-07 | `/opt/conda` |
+| r-iotools | **0.3_2** (pinned, not bioconda's unpinned default 0.3.5) | conda, conda-forge -- see docker/Dockerfile comment: fixes a `chunk.apply(parallel=)` vs `CH.PARALLEL` rename that broke Sequenza's `gc.sample.stats()` | `/opt/conda/envs/bioenv/lib/R/library/iotools` |
+| readr / vroom | 2.1.5 / 1.6.5 | conda, conda-forge (only two r42-compatible builds of each exist; both tried, neither avoids the scarHRD multi-chromosome connection-buffer bug noted in GATE1.json) | `/opt/conda/envs/bioenv/lib/R/library/{readr,vroom}` |
+
+### 2a. PureCN -- not installed, disclosed
+
+`bioconductor-purecn` transitively requires `bioconductor-bsgenome.hsapiens.ucsc.hg19`
+(confirmed by a one-package-at-a-time dependency scan against every other
+package in this environment -- it is the only one that does). Not needed:
+FACETS + ASCAT + Sequenza already satisfy the task's "two or more of
+FACETS/PureCN/ASCAT/Sequenza".
+
+### 2b. SigMA -- not installed, disclosed (blocks GATE1)
+
+- Source: `https://github.com/parklab/SigMA` (git clone, this session's
+  anonymous public-GitHub read lane -- `add_repo` confirmed "read access ...
+  already available", 2026-09-07)
+- Commit: `92cf09c49d2ef7f3f2a80691616381f65bd5a20e` (2024-08-07T10:42:36-04:00)
+- Package version per its own DESCRIPTION: 1.6
+- `R CMD INSTALL` fails: hard `Imports: BSgenome.Hsapiens.UCSC.hg19` (see
+  GATE1.json for the exact error text).
+- `BSgenome.Hsapiens.UCSC.hg19`'s bioconda recipe (`bioconductor-bsgenome.hsapiens.ucsc.hg19-1.4.3-r42hdfd78af_6`)
+  does not vendor its data; its `post-link.sh` fetches from, in order:
+  - `https://bioconductor.org/packages/3.22/data/annotation/src/contrib/BSgenome.Hsapiens.UCSC.hg19_1.4.3.tar.gz`
+  - (bioarchive.galaxyproject.org and depot.galaxyproject.org mirrors, same pattern as GenomeInfoDbData below)
+
+  All three confirmed blocked (403 at the proxy, tested 2026-09-07). Unlike
+  `bioconductor-genomeinfodbdata` (§2c), this package could not be rebuilt
+  from its canonical GitHub mirror (`github.com/Bioconductor/BSgenome.Hsapiens.UCSC.hg19`)
+  this session: `add_repo` returned `cross-tier adds are not supported in
+  v1: ... session already has repos from owner(s) [davidneiss-sketch]`
+  (this session's external-repo-attachment allowance was already used for
+  `parklab/sigma` and `Bioconductor/GenomeInfoDbData`); in any case that
+  repo's actual sequence data is very likely git-lfs-tracked at that size,
+  which this session's anonymous clone lane does not serve (confirmed
+  behavior on SigMA's own git-lfs-tracked `.bed` files, which arrived as
+  pointer stubs -- see the earlier data-access audit's `TRACK.md` history
+  for this project). A few plausible alternate Bioconductor data hosts were
+  also checked live and are also blocked: `bioconductorhubs.blob.core.windows.net`,
+  `annotationhub.bioconductor.org`, `experimenthub.bioconductor.org`.
+
+### 2c. bioconductor-genomeinfodbdata -- locally rebuilt (successfully unblocked)
+
+`bioconductor-genomeinfodbdata` hit the identical blocked-mirror pattern as
+BSgenome.Hsapiens.UCSC.hg19 above (its own post-link.sh mirrors are the same
+three hosts) and is a transitive dependency of `bioconductor-genomeinfodb`,
+which is required by GenomicRanges/VariantAnnotation/BSgenome and would
+otherwise have blocked essentially the whole R environment, not just PureCN
+and SigMA. Unlike BSgenome.Hsapiens.UCSC.hg19, this package's GitHub mirror
+(`github.com/Bioconductor/GenomeInfoDbData`) *was* reachable in time (before
+the session's repo-attachment allowance was spent) and its data is tiny
+(19 files, no git-lfs), so it was rebuilt locally and verified functional.
+Full provenance and exact reproduction steps: `docker/local_channel/README.md`.
+Summary:
+
+- Source commit: `b5339e03cc0c9c188e773a7ec2b80a146601595a`
+- True upstream version: `1.2.15` (bioconda's recipe wants `1.2.9`; every
+  observed bioconda `GenomeInfoDb`-family constraint on this package is
+  `>=1.2.0,<1.3.0`, satisfied by 1.2.15)
+- License: Artistic-2.0 (permits this repackaging; contrast with SigMA's
+  own license, which is why SigMA's source is not similarly vendored --
+  see the top-level `.gitignore`)
+- Wired into `docker/Dockerfile` as `-c /opt/local_channel`, the
+  highest-priority conda channel
+
+## 3. Reference data versions (retrieved live 2026-09-07, see §0 caveat)
+
+No reference data was downloaded in this GATE1 step (no analysis was run).
+These are the versions this environment should pin to when a future task
+does download/use them.
+
+| Item | Value | Confidence | Source (actual returned URL) |
+|---|---|---|---|
+| Reference genome build/patch | GRCh38.p14 (`GCA_000001405.29` / `GCF_000001405.40`) | Confirmed by a real, directly-returned URL, corroborated across 3 independent live searches this session; no later patch (e.g. p15) surfaced | https://www.ncbi.nlm.nih.gov/datasets/genome/GCF_000001405.40/ |
+| Latest RefSeq annotation for that assembly | `GCF_000001405.40-RS_2024_08` | From a search-summary sentence, not itself a returned link -- **UNVERIFIED**, do not treat as confirmed current without a direct fetch | (surfaced via WebSearch synthesis only) |
+| GENCODE (human) annotation release | Release 50 | Confirmed by a real, directly-returned URL (`gencodegenes.org/human/` resolves to Release 50); "released June 2026" is summary prose, **UNVERIFIED** detail | https://www.gencodegenes.org/human/ |
+| ClinVar release | **UNVERIFIED** -- access mechanism confirmed (weekly Monday updates + monthly first-Thursday archive at `ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/`, filename pattern `clinvar_YYYYMMDD.vcf.gz`), but `ftp.ncbi.nlm.nih.gov` is blocked (§0) and the only actual dated filename this session's live search surfaced was `clinvar_20251116.vcf.gz` (2025-11-16) -- ~10 months stale relative to this generation date and explicitly not asserted as current | https://www.ncbi.nlm.nih.gov/clinvar/docs/release_cycle/ ; https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/ (URL only, not fetchable) |
+| COSMIC version | v104 (released 2026-05-18) | Confirmed by 2 independent real, directly-returned URLs (a QIAGEN Digital Insights blog post title and a COSMIC-affiliated page); a later v105/v106 was searched for and not found -- possible but unconfirmed | https://digitalinsights.qiagen.com/news/blog/clinical/cosmic-v104-and-actionability-v20-now-available/ |
+| GDC data release | Data Release 46 (2026-08-10) per search-summary prose | **UNVERIFIED** -- the exact release-number/date pairing came from WebSearch synthesis rather than a directly-cited link; `docs.gdc.cancer.gov` itself is blocked (§0) | https://docs.gdc.cancer.gov/Data/Release_Notes/Data_Release_Notes/ (URL only, not fetchable) |
+
+A follow-up session with unblocked egress to `ncbi.nlm.nih.gov`,
+`bioconductor.org`, `cancer.sanger.ac.uk`, and `gdc.cancer.gov` should
+directly re-verify every UNVERIFIED row above before any of it gates a
+downstream decision.

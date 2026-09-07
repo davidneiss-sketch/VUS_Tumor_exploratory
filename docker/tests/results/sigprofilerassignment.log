@@ -1,0 +1,16 @@
+[Parallel(n_jobs=2)]: Using backend LokyBackend with 2 concurrent workers.
+SigProfilerAssignment version: 1.1.5
+Assigning COSMIC sigs or Signature Database ...... 
+[Parallel(n_jobs=2)]: Done   2 out of   2 | elapsed:    2.0s finished
+
+
+ 
+Your Job Is Successfully Completed! Thank You For Using SigProfilerAssignment.
+ 
+cosmic_fit produced 5 output file(s) under /tmp/spa_test_aageppzy/out
+ - /tmp/spa_test_aageppzy/out/Assignment_Solution/Activities/Assignment_Solution_Activities.txt
+ - /tmp/spa_test_aageppzy/out/Assignment_Solution/Signatures/Assignment_Solution_Signatures.txt
+ - /tmp/spa_test_aageppzy/out/Assignment_Solution/Solution_Stats/Assignment_Solution_Samples_Stats.txt
+ - /tmp/spa_test_aageppzy/out/Assignment_Solution/Solution_Stats/Assignment_Solution_Signature_Assignment_log.txt
+ - /tmp/spa_test_aageppzy/out/JOB_METADATA_SPA.txt
+SIGPROFILERASSIGNMENT_TEST_OK

@@ -1,0 +1,7 @@
+$ R CMD INSTALL of SigMA (build-time step, see docker/Dockerfile)
+install exit code: 1
+
+Warning: unknown option '--no-build-vignettes'
+* installing to library '/opt/conda/envs/bioenv/lib/R/library'
+ERROR: dependency 'BSgenome.Hsapiens.UCSC.hg19' is not available for package 'SigMA'
+* removing '/opt/conda/envs/bioenv/lib/R/library/SigMA'
