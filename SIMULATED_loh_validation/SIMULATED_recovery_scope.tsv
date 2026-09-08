@@ -1,7 +1,17 @@
 quantity	in_scope	reason
-core_hr_loh_second_hit_LR	TRUE	this caller's own deliverable: recovered from its blind WT_LOSS/CN_NEUTRAL_LOH_WT_LOSS calls
-ddr_signaling_loh_second_hit_LR	TRUE	this caller's own deliverable: recovered from its blind WT_LOSS/CN_NEUTRAL_LOH_WT_LOSS calls
+core_hr_wt_lost_direction_LR	TRUE	this caller's own deliverable: recovered from its blind WT_LOSS/CN_NEUTRAL_LOH_WT_LOSS calls
+ddr_signaling_wt_lost_direction_LR	TRUE	this caller's own deliverable: recovered from its blind WT_LOSS/CN_NEUTRAL_LOH_WT_LOSS calls
 core_hr_gis_score_LR	FALSE	requires an HRD/GIS-score feature (scarHRD) this LOH caller does not compute
 ddr_signaling_gis_score_LR	FALSE	requires an HRD/GIS-score feature (scarHRD) this LOH caller does not compute
 core_hr_sbs3_exposure_LR	FALSE	requires a SigProfilerAssignment SBS3-exposure feature this LOH caller does not compute
+ddr_signaling_sbs3_exposure_LR	FALSE	requires a SigProfilerAssignment SBS3-exposure feature this LOH caller does not compute
+core_hr_joint_LR	FALSE	a joint estimator over LOH+GIS+SBS3 evidence; this caller produces only a single-feature (LOH-direction) marginal recovery, not a joint density estimate
+core_hr_product_of_marginals_LR	FALSE	same reason as core_hr_joint_LR -- requires GIS/SBS3 features this caller does not compute, in addition to a product-of-marginals estimator this caller does not implement
+core_hr_joint_vs_marginal_inflation_ratio	FALSE	downstream of core_hr_joint_LR and core_hr_product_of_marginals_LR, both out of scope
+ddr_signaling_joint_LR	FALSE	a joint estimator over LOH+GIS+SBS3 evidence; this caller produces only a single-feature (LOH-direction) marginal recovery, not a joint density estimate
+ddr_signaling_product_of_marginals_LR	FALSE	same reason as ddr_signaling_joint_LR -- requires GIS/SBS3 features this caller does not compute, in addition to a product-of-marginals estimator this caller does not implement
+ddr_signaling_joint_vs_marginal_inflation_ratio	FALSE	downstream of ddr_signaling_joint_LR and ddr_signaling_product_of_marginals_LR, both out of scope
+null_arm_full_vector_joint_LR	FALSE	NULL_ARM has no marginal-only (LOH-direction-alone) truth quantity to recover against -- only full-feature-vector joint/product/ratio quantities, which require GIS/SBS3 features this caller does not compute
+null_arm_full_vector_product_of_marginals_LR	FALSE	same reason as null_arm_full_vector_joint_LR
+null_arm_full_vector_inflation_ratio	FALSE	downstream of the two null_arm quantities above, both out of scope
 null_sequencing_depth_bucket_LR	FALSE	an engineered-null depth-bucket feature unrelated to LOH direction; not this caller's estimand

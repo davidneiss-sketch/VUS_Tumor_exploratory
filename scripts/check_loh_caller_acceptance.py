@@ -183,6 +183,97 @@ def criterion_6_variant_loss_distinct() -> None:
     )
 
 
+def criterion_7_diagnosis_names_mechanism() -> None:
+    path = REPO_ROOT / "DIAGNOSIS.md"
+    if not path.exists():
+        check("DIAGNOSIS.md names a mechanism, with evidence", False, f"{path} missing")
+        return
+    text = path.read_text(encoding="utf-8")
+    starts_with_banner = text.startswith("SIMULATED DATA — NOT A SCIENTIFIC RESULT")
+    # The real check: a named, evidenced mechanism section exists, distinct from a bare "it's noise" dismissal.
+    has_mechanism_section = bool(re.search(r"##\s*Conclusion", text)) or "mechanism" in text.lower()
+    has_evidence_table = "|" in text and text.count("|") > 20  # markdown tables present, i.e. real data cited
+    explicitly_rejects_noise_only = "not an acceptable conclusion" in text.lower() or "not \"sampling noise, ignore it\"" in text.lower() or "not sampling noise" in text.lower() or "is not the dominant driver" in text.lower()
+    tested_all_four = all(f"## ({letter})" in text for letter in "abcd")
+    ok = starts_with_banner and has_mechanism_section and has_evidence_table and tested_all_four
+    check(
+        "DIAGNOSIS.md names a mechanism, with evidence",
+        ok,
+        f"starts_with_banner={starts_with_banner}, has_mechanism_conclusion_section={has_mechanism_section}, "
+        f"has_evidence_tables={has_evidence_table}, tests_all_4_subquestions_a_through_d={tested_all_four}",
+    )
+
+
+def criterion_8_wt_loss_accuracy_with_n() -> None:
+    rates_path = OUT_DIR / "SIMULATED_rates_table.tsv"
+    if not rates_path.exists():
+        check("WT_LOSS accuracy reported with n", False, f"{rates_path} missing")
+        return
+    rows = {r["metric_name"]: r for r in read_tsv(rates_path)}
+    wt_loss_rows = [k for k in rows if k.startswith("wt_loss_")]
+    ok = len(wt_loss_rows) >= 1 and all(
+        rows[k].get("n_total_cell", "").strip() not in ("", None) and int(rows[k]["n_total_cell"]) > 0
+        for k in wt_loss_rows
+    )
+    check(
+        "WT_LOSS accuracy reported with n",
+        ok,
+        f"wt_loss metric rows found: {wt_loss_rows}, "
+        f"n values: {[(k, rows[k].get('n_total_cell')) for k in wt_loss_rows]}",
+    )
+
+
+def criterion_9_every_stratified_cell_carries_n() -> None:
+    rates_path = OUT_DIR / "SIMULATED_rates_table.tsv"
+    if not rates_path.exists():
+        check("every stratified cell carries n", False, f"{rates_path} missing")
+        return
+    rows = read_tsv(rates_path)
+    if not rows or "n_total_cell" not in rows[0]:
+        check("every stratified cell carries n", False, "n_total_cell column missing from rates table")
+        return
+    missing_n = [r["metric_name"] for r in rows if not r.get("n_total_cell", "").strip()]
+    zero_n_with_nonzero_denominator = [
+        r["metric_name"] for r in rows
+        if r.get("n_total_cell", "").strip() and int(r["n_total_cell"]) == 0 and float(r.get("denominator") or 0) > 0
+    ]
+    # Cross-check a specific known small-n grid cell is distinguishable from a large one (the
+    # task's exact "a 0/4 cell and a 0/400 cell must not look alike" requirement).
+    grid_rows = [r for r in rows if "_x_depth_" in r["metric_name"]]
+    distinct_ns = {r["n_total_cell"] for r in grid_rows}
+    ok = (not missing_n) and (not zero_n_with_nonzero_denominator) and len(distinct_ns) > 1
+    check(
+        "every stratified cell carries n",
+        ok,
+        f"{len(rows)} row(s) checked; missing_n={missing_n}; zero_n_with_nonzero_denominator={zero_n_with_nonzero_denominator}; "
+        f"{len(grid_rows)} purity x depth grid cells with {len(distinct_ns)} distinct n values (not all identical)",
+    )
+
+
+def criterion_10_proposed_deviations_and_protocol_unmodified() -> None:
+    path = REPO_ROOT / "PROPOSED_DEVIATIONS.md"
+    if not path.exists():
+        check("proposed protocol deviations listed; PROTOCOL.md unmodified", False, f"{path} missing")
+        return
+    text = path.read_text(encoding="utf-8")
+    starts_with_banner = text.startswith("SIMULATED DATA — NOT A SCIENTIFIC RESULT")
+    has_purity_proposal = "purity" in text.lower() and ("propos" in text.lower())
+    has_depth_discussion = "depth" in text.lower()
+    mentions_010_arm = "0.10" in text
+    proc = subprocess.run(["git", "diff", "--stat", "PROTOCOL.md"], cwd=REPO_ROOT, capture_output=True, text=True)
+    protocol_unmodified = proc.stdout.strip() == "" and proc.returncode == 0
+    proc2 = subprocess.run(["git", "diff", "--cached", "--stat", "PROTOCOL.md"], cwd=REPO_ROOT, capture_output=True, text=True)
+    protocol_unmodified_staged = proc2.stdout.strip() == ""
+    ok = starts_with_banner and has_purity_proposal and has_depth_discussion and mentions_010_arm and protocol_unmodified and protocol_unmodified_staged
+    check(
+        "proposed protocol deviations listed; PROTOCOL.md unmodified",
+        ok,
+        f"starts_with_banner={starts_with_banner}, has_purity_proposal={has_purity_proposal}, "
+        f"has_depth_discussion={has_depth_discussion}, mentions_0.10_arm={mentions_010_arm}, "
+        f"PROTOCOL.md unmodified (working tree)={protocol_unmodified}, unmodified (staged)={protocol_unmodified_staged}",
+    )
+
+
 def main() -> None:
     criterion_1_confusion_matrix()
     criterion_2_gate6()
@@ -190,6 +281,10 @@ def main() -> None:
     criterion_4_denominator_requirement()
     criterion_5_unreliable_region_stated()
     criterion_6_variant_loss_distinct()
+    criterion_7_diagnosis_names_mechanism()
+    criterion_8_wt_loss_accuracy_with_n()
+    criterion_9_every_stratified_cell_carries_n()
+    criterion_10_proposed_deviations_and_protocol_unmodified()
 
     overall = True
     for name, passed, detail in results:

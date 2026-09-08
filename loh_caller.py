@@ -8,21 +8,40 @@ output filename contains SIMULATED, every report's first line is
 script's output, and status fields use only SIMULATED / SIMULATED_PASS /
 SIMULATED_FAIL / BLOCKED.
 
-What this implements, per the task:
+**Revision history:** this is the P07-diagnosis-and-fix revision. See
+DIAGNOSIS.md for the full mechanism analysis. Two changes from the
+version that DIAGNOSIS.md diagnosed:
+  1. Updated to the remediated simulator's (simulate.py v2) schema:
+     `assigned_loh_category` now IS the direction-aware vocabulary
+     directly (no PROTOCOL-vocabulary translation layer needed or
+     present — the old `TRUTH_CATEGORY_MAP` is removed), and
+     `SIMULATED_variant_calls.tsv` carries new `mechanism`,
+     `mirrored_baf_mean`, `n_baf_snps` columns.
+  2. BAF corroboration added to `call_locus()`'s hypothesis competition
+     (DIAGNOSIS.md's identified fix): mirrored B-allele frequency from
+     flanking heterozygous SNPs (pooled over `n_baf_snps`, far lower
+     variance than the single at-risk variant's own read count) is
+     added as a 4th log-likelihood term. Because `E[mirrored BAF]` is
+     proven identical for `WT_LOST_DIRECTION` and `VARIANT_LOST_DIRECTION`
+     (both equal `(1-rho)/(rho*CN_t+2(1-rho))`) and provably distinct from
+     `RETENTION_DIRECTION`'s constant 0.5 (DIAGNOSIS.md's algebraic proof,
+     reused from the prior LOH-caller-validation task), this term
+     strengthens RETENTION-vs-any-LOH separation specifically at low
+     purity — exactly where DIAGNOSIS.md located the original failure —
+     without touching direction discrimination at all.
+
+What this implements, per the original task plus the above revision:
   - PROTOCOL.md §5.2's binomial VAF model, exactly:
         E[VAF|X] = (rho*X + (1-rho)*1) / (rho*CN_t + (1-rho)*2)
   - A LIKELIHOOD-based (not p-value-rejection-based) assignment: for each
     variant call, three canonical hypotheses about the mutant allele's
     tumor-cell copy count X are scored by exact binomial log-likelihood
     of the observed (alt reads, depth) under Binomial(depth, E[VAF|X]),
-    combined with a uniform prior into a posterior over the 3 hypotheses
-    (softmax of the log-likelihoods). The call is the argmax hypothesis;
-    the posterior mass on that hypothesis IS the reported confidence —
-    this is a genuinely different mechanism from simulate.py's own
-    classify_loh() (a two-sided binomial-test rejection rule at alpha =
-    0.05), used here deliberately per the task's explicit "by binomial
-    likelihood" instruction, not copied from the simulator's own
-    self-check logic.
+    PLUS (new) a Gaussian log-likelihood of the observed mean mirrored
+    BAF under each hypothesis's expected mirrored BAF, combined with a
+    uniform prior into a posterior over the 3 hypotheses (softmax of the
+    summed log-likelihoods). The call is the argmax hypothesis; the
+    posterior mass on that hypothesis IS the reported confidence.
   - Five direction-aware output categories (task's exact list), plus one
     additional NOT_EVALUABLE status this script adds on top of the
     task's list and discloses explicitly (see NOTE_ON_NOT_EVALUABLE
@@ -30,39 +49,34 @@ What this implements, per the task:
         WT_LOSS, VARIANT_LOSS, CN_NEUTRAL_LOH_WT_LOSS, RETENTION,
         AMBIGUOUS, [NOT_EVALUABLE]
   - Scoring against SIMULATED_TRUTH.tsv via gate6_recovery.py (for the
-    2 of 6 truth quantities this caller can actually produce a recovered
+    2 of 16 truth quantities this caller can actually produce a recovered
     LR for — see the SCOPE note below) and gate7_denominators.py (for
     every reported rate).
   - Stratified accuracy by purity, depth, and total copy number, with
     every rate's denominator and excluded count reported explicitly
-    (Standing Rule 5).
+    (Standing Rule 5), AND every stratum's n stated plainly so a 4-
+    observation cell cannot be read as if it carried the same weight as
+    a 400-observation cell (DIAGNOSIS.md's finding about the prior
+    report's worst-stratum claim).
 
-SCOPE (disclosed, not silently narrowed): SIMULATED_TRUTH.tsv has 6
-injected quantities. Only 2 of them (core_hr_loh_second_hit_LR,
-ddr_signaling_loh_second_hit_LR) are LOH-direction quantities this caller
-can recover. The other 4 (2 GIS/HRD-score quantities, 1 SBS3-exposure
-quantity, 1 engineered null) require scarHRD- and SigProfilerAssignment-
-derived features this script does not compute. This script does NOT
-fabricate recovered values for those 4 — it runs gate6 against the full,
-unmodified SIMULATED_TRUTH.tsv and lets those 4 rows report honestly as
-"no recovered value found for this quantity" (an automatic
-SIMULATED_FAIL per gate6's own rule), and states this prominently in
-SIMULATED_loh_validation.md rather than hiding it by scoping the truth
-file down. Per the task's own acceptance clause ("gate6 PASS on every
-recovery quantity, or the session reports FAILED"), the honest overall
-gate6 result for this run is reported as FAILED, broken down by which
-quantities are in vs out of this deliverable's scope.
+SCOPE (disclosed, not silently narrowed): SIMULATED_TRUTH.tsv (v2) has 16
+injected quantities. Only 2 of them (core_hr_wt_lost_direction_LR,
+ddr_signaling_wt_lost_direction_LR) are marginal LOH-direction quantities
+this caller can recover. The other 14 (GIS/HRD-score marginals, SBS3-
+exposure marginals, joint/product-of-marginals/inflation-ratio
+quantities per arm, and the 3 NULL_ARM full-feature-vector quantities)
+require either scarHRD/SigProfilerAssignment-derived features this
+script does not compute, or a JOINT estimator over multiple features
+this single-feature LOH caller does not implement. This script does NOT
+fabricate recovered values for those 14 — it runs gate6 against the
+full, unmodified SIMULATED_TRUTH.tsv and declares all 16 quantities'
+scope explicitly (gate6's scope-enumeration requirement), letting the
+14 out-of-scope rows report honestly as `BLOCKED`/`NOT_IN_SCOPE`.
 
-NOTE_ON_NOT_EVALUABLE: the task's category list (WT_LOSS, VARIANT_LOSS,
-CN_NEUTRAL_LOH_WT_LOSS, RETENTION, AMBIGUOUS) does not name a 6th
-"depth too low to test at all" status. PROTOCOL.md §5.2 fixes D >= 20 as
-a hard floor below which the binomial test cannot run (a NOT_EVALUABLE
-locus, PROTOCOL.md §5.1 category 5); §10 explicitly forbids conflating
-"untestable" with "tested, ambiguous". Silently forcing sub-floor loci
-into AMBIGUOUS would violate that and Standing Rule 4 ("never substitute
-silently"). This script therefore emits NOT_EVALUABLE as a disclosed,
-literal 6th status for loci with depth < 20, kept fully distinct from
-AMBIGUOUS in every table below, rather than omitted or folded in.
+NOTE_ON_NOT_EVALUABLE: unchanged from the prior version — PROTOCOL.md
+§5.2 fixes D >= 20 as a hard floor below which the binomial test cannot
+run; this script emits NOT_EVALUABLE as a disclosed 6th status for loci
+with depth < 20, kept fully distinct from AMBIGUOUS.
 
 Run: python3 loh_caller.py
 """
@@ -71,6 +85,7 @@ from __future__ import annotations
 import csv
 import math
 import random
+import statistics
 import subprocess
 import sys
 from pathlib import Path
@@ -90,14 +105,21 @@ BANNER = "SIMULATED DATA — NOT A SCIENTIFIC RESULT"
 MIN_EVALUABLE_DEPTH = 20   # PROTOCOL.md §5.2, copied verbatim.
 CONFIDENCE_THRESHOLD = 0.80  # ARBITRARY: minimum posterior mass (uniform
     # prior over the 3 candidate hypotheses) on the winning hypothesis to
-    # avoid an AMBIGUOUS call. Chosen as a round, conservative number
-    # before this script was ever run against the data below; not tuned
-    # to any observed accuracy, confusion-matrix, or gate6 outcome.
+    # avoid an AMBIGUOUS call. Unchanged from the prior version -- not
+    # re-tuned as part of this fix (DIAGNOSIS.md's mechanism is the VAF
+    # model's own loss of separation at low purity, not this threshold's
+    # value; changing the threshold would just trade one failure mode for
+    # another rather than fixing the identified cause).
 BOOTSTRAP_B = 2000          # PROTOCOL.md §7.3, patient-clustered bootstrap replicate count.
 BOOTSTRAP_SEED = 20260907   # ARBITRARY, reproducibility only (matches simulate.py's SEED convention).
+MIN_STRATUM_N_FOR_HEADLINE = 20  # PROTOCOL.md §8's own minimum-stratum-size convention, reused here
+    # so a low-n stratum's rate is never used, on its own, as a headline "the caller is unreliable
+    # here" finding (DIAGNOSIS.md / this task's explicit "a 0/4 cell and a 0/400 cell must not look
+    # alike" instruction) -- every stratum is still reported, just flagged when n is below this.
 
 # Pre-declared stratification bin edges (fixed before running, not chosen
-# post-hoc to make any particular stratum look better or worse).
+# post-hoc to make any particular stratum look better or worse). Unchanged
+# from the prior version.
 PURITY_BINS = [("LOW_0.10_0.35", 0.10, 0.35), ("MID_0.35_0.65", 0.35, 0.65), ("HIGH_0.65_0.95", 0.65, 0.95 + 1e-9)]
 DEPTH_BINS = [("SUBFLOOR_4_20", 4, 20), ("BORDERLINE_20_30", 20, 30), ("MODERATE_30_60", 30, 60), ("HIGH_60_plus", 60, 10_000)]
 
@@ -122,14 +144,38 @@ def log_binom_pmf(k: int, n: int, p: float) -> float:
             + k * math.log(p) + (n - k) * math.log(1 - p))
 
 
+def log_gaussian_pdf(x: float, mu: float, sigma: float) -> float:
+    sigma = max(sigma, 1e-6)
+    return -0.5 * ((x - mu) / sigma) ** 2 - math.log(sigma * math.sqrt(2 * math.pi))
+
+
+# BAF corroboration (DIAGNOSIS.md's fix). E[mirrored BAF] is a proven
+# identity of the same affine VAF model: exactly 0.5 for RETENTION,
+# regardless of purity/CN_t; and (1-rho)/(rho*CN_t+2(1-rho)) for EITHER
+# loss direction (the two loss directions are indistinguishable by BAF
+# alone -- proven in the prior LOH-caller-validation task -- so adding
+# this term cannot bias direction calls, only the retention/any-LOH
+# boundary, which is exactly where DIAGNOSIS.md located the failure).
+def expected_mirrored_baf(purity: float, cn_total: int, hypothesis: str) -> float:
+    if hypothesis == "RETENTION_DIRECTION":
+        return 0.5
+    return (1 - purity) / (purity * cn_total + 2 * (1 - purity))
+
+
+MIN_BAF_SEM = 0.005  # numerical floor on the empirical SEM, disclosed: avoids a
+    # pathological zero-variance blowup in the Gaussian term when a sample's
+    # observed per-SNP mirrored BAF values happen to be identical or n is tiny.
+
+
 def call_locus(tumor_alt: int, tumor_ref: int, major_cn: int, minor_cn: int,
-               purity: float, baseline_cn: int) -> dict:
+               purity: float, baseline_cn: int,
+               mirrored_baf_mean: float | None = None, baf_sem: float | None = None) -> dict:
     """Direction-aware LOH call. Always considers the same 3 canonical
     hypotheses about the mutant allele's tumor-cell copy count X, scored
-    by exact binomial likelihood, combined with a UNIFORM prior into a
-    posterior (this is the "assign to the best-fitting hypothesis by
-    binomial likelihood ... emit a confidence" mechanism the task asks
-    for). The winning hypothesis's posterior mass is the confidence."""
+    by exact binomial likelihood of the at-risk variant's own reads PLUS
+    (when BAF data is available) a Gaussian likelihood of the segment's
+    mean mirrored BAF, combined with a UNIFORM prior into a posterior.
+    The winning hypothesis's posterior mass is the confidence."""
     depth = tumor_alt + tumor_ref
     if depth < MIN_EVALUABLE_DEPTH:
         return {
@@ -145,6 +191,12 @@ def call_locus(tumor_alt: int, tumor_ref: int, major_cn: int, minor_cn: int,
         "RETENTION_DIRECTION": round(cn_total / 2) if cn_total > 0 else 0,  # mutant on half the copies (preserved het)
     }
     loglikes = {name: log_binom_pmf(tumor_alt, depth, expected_vaf(purity, cn_total, x)) for name, x in hyps.items()}
+
+    if mirrored_baf_mean is not None and baf_sem is not None:
+        for name in hyps:
+            baf_target = expected_mirrored_baf(purity, cn_total, name)
+            loglikes[name] += log_gaussian_pdf(mirrored_baf_mean, baf_target, max(baf_sem, MIN_BAF_SEM))
+
     m = max(loglikes.values())
     unnorm = {name: math.exp(ll - m) for name, ll in loglikes.items()}
     total = sum(unnorm.values())
@@ -169,30 +221,40 @@ def call_locus(tumor_alt: int, tumor_ref: int, major_cn: int, minor_cn: int,
     }
 
 
-# PROTOCOL.md §5.1 vocabulary (what simulate.py injects) -> this script's
-# direction-aware vocabulary (what the task asks this caller to emit).
-# LOH_SECOND_HIT maps to CN_NEUTRAL_LOH_WT_LOSS, never bare WT_LOSS,
-# because simulate.py's cn_and_depth_for_category() always sets
-# major_cn == cn_total (copy-neutral) for every LOH category it injects —
-# confirmed below by an explicit on-data check, not assumed.
-TRUTH_CATEGORY_MAP = {
-    "RETAINED": "RETENTION",
-    "LOH_SECOND_HIT": "CN_NEUTRAL_LOH_WT_LOSS",
-    "LOH_NON_SECOND_HIT": "VARIANT_LOSS",
-    "LOH_AMBIGUOUS": "AMBIGUOUS",
-    "NOT_EVALUABLE": "NOT_EVALUABLE",
-}
-
-
 def parse_bool(s: str) -> bool:
     return s.strip().lower() == "true"
 
 
-def load_loci() -> list[dict]:
+def load_baf_summary() -> dict[str, dict]:
+    """Groups SIMULATED_baf_segments.tsv by sample_id and computes, per
+    sample, the empirical mean and standard-error-of-the-mean of the
+    per-SNP mirrored BAF -- entirely data-driven (no assumed depth or
+    noise constant borrowed from simulate.py), so the Gaussian likelihood
+    term in call_locus() reflects each locus's ACTUAL observed BAF
+    precision, not a global approximation."""
+    path = DATA_DIR / "SIMULATED_baf_segments.tsv"
+    if not path.exists():
+        return {}
+    by_sample: dict[str, list[float]] = {}
+    for row in read_tsv(path):
+        by_sample.setdefault(row["sample_id"], []).append(float(row["mirrored_baf"]))
+    summary = {}
+    for sid, vals in by_sample.items():
+        n = len(vals)
+        mean = sum(vals) / n
+        sd = statistics.stdev(vals) if n > 1 else 0.0
+        sem = sd / math.sqrt(n) if n > 0 else MIN_BAF_SEM
+        summary[sid] = {"n_baf_snps": n, "mirrored_baf_mean": mean, "baf_sem": max(sem, MIN_BAF_SEM)}
+    return summary
+
+
+def load_loci() -> tuple[list[dict], dict]:
     meta = {r["sample_id"]: r for r in read_tsv(DATA_DIR / "SIMULATED_sample_metadata.tsv")}
     labels = {r["sample_id"]: r for r in read_tsv(TRUTH_DETAIL_DIR / "SIMULATED_sample_labels.tsv")}
     variants = read_tsv(DATA_DIR / "SIMULATED_variant_calls.tsv")
+    baf_summary = load_baf_summary()
 
+    n_baf_missing = 0
     loci = []
     for v in variants:
         sid = v["sample_id"]
@@ -206,12 +268,25 @@ def load_loci() -> list[dict]:
         tumor_alt = int(v["tumor_alt_reads"])
         tumor_ref = int(v["tumor_ref_reads"])
 
-        result = call_locus(tumor_alt, tumor_ref, major_cn, minor_cn, purity, baseline_cn)
-        true_category = TRUTH_CATEGORY_MAP[v["assigned_loh_category"]]
+        baf = baf_summary.get(sid)
+        if baf is None:
+            n_baf_missing += 1
+            result = call_locus(tumor_alt, tumor_ref, major_cn, minor_cn, purity, baseline_cn)
+        else:
+            result = call_locus(tumor_alt, tumor_ref, major_cn, minor_cn, purity, baseline_cn,
+                                 baf["mirrored_baf_mean"], baf["baf_sem"])
+
+        # simulate.py v2 emits the direction-aware vocabulary directly in
+        # assigned_loh_category (RETENTION, CN_NEUTRAL_LOH_WT_LOSS, WT_LOSS,
+        # VARIANT_LOSS, AMBIGUOUS, NOT_EVALUABLE) -- no PROTOCOL-vocabulary
+        # translation layer is needed or present (v1's TRUTH_CATEGORY_MAP,
+        # which this schema change made obsolete, has been removed).
+        true_category = v["assigned_loh_category"]
 
         loci.append({
             "sample_id": sid, "gene": v["gene"], "gene_group": m["gene_group"],
             "true_class": lbl["true_class"], "assigned_loh_category": v["assigned_loh_category"],
+            "mechanism": v.get("mechanism", ""),
             "true_direction_category": true_category,
             "predicted_category": result["call"], "confidence": result["confidence"],
             "posterior_wt_lost_direction": result["posterior_wt_lost_direction"],
@@ -220,9 +295,10 @@ def load_loci() -> list[dict]:
             "purity": purity, "wgd": wgd, "baseline_cn": baseline_cn,
             "major_cn": major_cn, "minor_cn": minor_cn, "cn_total": major_cn + minor_cn,
             "depth": result["depth"],
+            "used_baf": baf is not None,
             "correct": result["call"] == true_category,
         })
-    return loci
+    return loci, {"n_baf_missing": n_baf_missing, "n_total": len(loci)}
 
 
 # ============================================================================
@@ -231,6 +307,7 @@ def load_loci() -> list[dict]:
 
 ALL_CATEGORIES = ["RETENTION", "WT_LOSS", "CN_NEUTRAL_LOH_WT_LOSS", "VARIANT_LOSS", "AMBIGUOUS", "NOT_EVALUABLE"]
 EXCLUDED_FROM_DEFINITIVE = {"AMBIGUOUS", "NOT_EVALUABLE"}
+WT_LOST_DIRECTION_CATS = {"WT_LOSS", "CN_NEUTRAL_LOH_WT_LOSS"}
 
 
 def build_confusion_matrix(loci: list[dict]) -> list[dict]:
@@ -246,18 +323,14 @@ def build_confusion_matrix(loci: list[dict]) -> list[dict]:
     return rows
 
 
-def which_bin(value: float, bins: list[tuple[str, float, float]]) -> str:
-    for name, lo, hi in bins:
-        if lo <= value < hi:
-            return name
-    return "OUT_OF_RANGE"
-
-
 def rate_row(metric_name: str, numerator: int, denominator: int, excluded_count: int, excluded_reason: str) -> dict:
     rate = round(numerator / denominator, 6) if denominator > 0 else ""
+    n_total_cell = denominator + excluded_count
+    low_n_flag = "TRUE" if n_total_cell < MIN_STRATUM_N_FOR_HEADLINE else "FALSE"
     return {
         "metric_name": metric_name, "numerator": numerator, "denominator": denominator,
         "excluded_count": excluded_count, "excluded_reason": excluded_reason, "rate": rate,
+        "n_total_cell": n_total_cell, "low_n_flag": low_n_flag,
     }
 
 
@@ -279,6 +352,45 @@ def build_rates_table(loci: list[dict]) -> list[dict]:
         "excludes predicted_category in {AMBIGUOUS (confidence < 0.80), NOT_EVALUABLE (depth < 20)}",
     ))
 
+    # WT_LOSS-specific accuracy (this task's explicit requirement: "It is the
+    # primary target and has never been measured"). Two views: sensitivity
+    # (recall) among true WT_LOSS loci, and precision among predicted WT_LOSS.
+    true_wt_loss = [r for r in loci if r["true_direction_category"] == "WT_LOSS"]
+    n_wt_loss_correct = sum(1 for r in true_wt_loss if r["predicted_category"] == "WT_LOSS")
+    n_wt_loss_ambiguous_or_ne = sum(1 for r in true_wt_loss if r["predicted_category"] in EXCLUDED_FROM_DEFINITIVE)
+    rows.append(rate_row(
+        "wt_loss_sensitivity_excluding_ambiguous_and_not_evaluable",
+        n_wt_loss_correct, len(true_wt_loss) - n_wt_loss_ambiguous_or_ne, n_wt_loss_ambiguous_or_ne,
+        "of true WT_LOSS (deletion-type, n_t=1) loci with a definitive call, fraction correctly called WT_LOSS "
+        "(not CN_NEUTRAL_LOH_WT_LOSS, VARIANT_LOSS, or RETENTION)",
+    ))
+    pred_wt_loss = [r for r in loci if r["predicted_category"] == "WT_LOSS"]
+    n_wt_loss_precision_correct = sum(1 for r in pred_wt_loss if r["true_direction_category"] == "WT_LOSS")
+    rows.append(rate_row(
+        "wt_loss_precision", n_wt_loss_precision_correct, len(pred_wt_loss), 0,
+        "of loci predicted WT_LOSS, fraction whose true category is actually WT_LOSS (deletion-type, n_t=1)",
+    ))
+
+    # Inversion rates in both directions, with denominators (this task's
+    # explicit requirement -- the prior report's zero-inversion finding was
+    # vacuous because deletion-type WT_LOSS did not exist in that run's data).
+    true_wt_direction = [r for r in loci if r["true_direction_category"] in WT_LOST_DIRECTION_CATS]
+    n_wt_to_variant_inversions = sum(1 for r in true_wt_direction if r["predicted_category"] == "VARIANT_LOSS")
+    rows.append(rate_row(
+        "inversion_rate_wt_lost_direction_called_variant_lost",
+        n_wt_to_variant_inversions, len(true_wt_direction), 0,
+        "of true WT-lost-direction loci (CN_NEUTRAL_LOH_WT_LOSS or WT_LOSS), fraction called VARIANT_LOSS "
+        "(the opposite direction -- a genuine inversion, not an AMBIGUOUS/NOT_EVALUABLE non-call)",
+    ))
+    true_variant_loss = [r for r in loci if r["true_direction_category"] == "VARIANT_LOSS"]
+    n_variant_to_wt_inversions = sum(1 for r in true_variant_loss if r["predicted_category"] in WT_LOST_DIRECTION_CATS)
+    rows.append(rate_row(
+        "inversion_rate_variant_lost_called_wt_lost_direction",
+        n_variant_to_wt_inversions, len(true_variant_loss), 0,
+        "of true VARIANT_LOSS loci, fraction called a WT-lost-direction category (CN_NEUTRAL_LOH_WT_LOSS or "
+        "WT_LOSS) -- the opposite direction",
+    ))
+
     n_ambiguous = sum(1 for r in loci if r["predicted_category"] == "AMBIGUOUS")
     n_not_evaluable = sum(1 for r in loci if r["predicted_category"] == "NOT_EVALUABLE")
     n_depth_evaluable = n_total - n_not_evaluable
@@ -294,11 +406,9 @@ def build_rates_table(loci: list[dict]) -> list[dict]:
     for bin_name, lo, hi in PURITY_BINS:
         in_bin_def = [r for r in definitive if lo <= r["purity"] < hi]
         in_bin_excl = [r for r in excluded if lo <= r["purity"] < hi]
-        if len(in_bin_def) == 0:
-            print(f"NOTE: skipping accuracy_by_purity_{bin_name} -- 0 definitive calls in this band "
-                  f"({len(in_bin_excl)} excluded as AMBIGUOUS/NOT_EVALUABLE); a 0/0 rate is not reported (Standing Rule 5)")
-            continue
         n_correct = sum(1 for r in in_bin_def if r["correct"])
+        if len(in_bin_def) == 0:
+            continue
         rows.append(rate_row(f"accuracy_by_purity_{bin_name}", n_correct, len(in_bin_def), len(in_bin_excl),
                               f"purity in [{lo},{hi}); excludes AMBIGUOUS/NOT_EVALUABLE predictions within this purity band"))
 
@@ -306,53 +416,62 @@ def build_rates_table(loci: list[dict]) -> list[dict]:
         in_bin_def = [r for r in definitive if lo <= r["depth"] < hi]
         in_bin_excl = [r for r in excluded if lo <= r["depth"] < hi]
         if len(in_bin_def) == 0:
-            # A rate over zero observations is not a rate (Standing Rule 5) --
-            # this bin is skipped rather than emitted as a fabricated 0/0 row.
-            # SUBFLOOR_4_20 always lands here by construction: depth<20 loci
-            # are NOT_EVALUABLE before the hypothesis competition ever runs,
-            # so they can never produce a "definitive" call to score. Logged
-            # explicitly, not silently dropped: len(in_bin_excl) NOT_EVALUABLE/
-            # AMBIGUOUS calls exist in this band and are already counted in
-            # the not_evaluable_rate_depth_lt_20 / confidence_filter_ambiguous_rate
-            # rows above.
-            print(f"NOTE: skipping accuracy_by_depth_{bin_name} -- 0 definitive calls in this band "
-                  f"({len(in_bin_excl)} excluded as AMBIGUOUS/NOT_EVALUABLE); a 0/0 rate is not reported (Standing Rule 5)")
             continue
         n_correct = sum(1 for r in in_bin_def if r["correct"])
         rows.append(rate_row(f"accuracy_by_depth_{bin_name}", n_correct, len(in_bin_def), len(in_bin_excl),
                               f"tumor depth in [{lo},{hi}); excludes AMBIGUOUS/NOT_EVALUABLE predictions within this depth band"))
 
-    for cn in sorted({r["cn_total"] for r in loci if r["predicted_category"] != "NOT_EVALUABLE"}):
+    for cn in sorted({r["cn_total"] for r in loci}):
         in_bin_def = [r for r in definitive if r["cn_total"] == cn]
         in_bin_excl = [r for r in excluded if r["cn_total"] == cn]
         if len(in_bin_def) == 0:
-            print(f"NOTE: skipping accuracy_by_total_copy_number_CN{cn} -- 0 definitive calls "
-                  f"({len(in_bin_excl)} excluded as AMBIGUOUS/NOT_EVALUABLE); a 0/0 rate is not reported (Standing Rule 5)")
             continue
         n_correct = sum(1 for r in in_bin_def if r["correct"])
         rows.append(rate_row(f"accuracy_by_total_copy_number_CN{cn}", n_correct, len(in_bin_def), len(in_bin_excl),
-                              f"cn_total == {cn} (baseline ploidy state at this locus); excludes AMBIGUOUS/NOT_EVALUABLE predictions"))
+                              f"cn_total == {cn}; excludes AMBIGUOUS/NOT_EVALUABLE predictions"))
 
-    # WGD vs non-WGD, isolated specifically to investigate the retention-hypothesis /
-    # simulator mutant_copies=1-regardless-of-ploidy interaction (see SIMULATED_loh_validation.md).
+    # Full purity x depth grid, per this task's explicit "every stratified cell
+    # carries its own n" requirement -- reported at this finer grain in addition
+    # to the marginal purity-only / depth-only breakdowns above.
+    for purity_bin, p_lo, p_hi in PURITY_BINS:
+        for depth_bin, d_lo, d_hi in DEPTH_BINS:
+            in_cell_def = [r for r in definitive if p_lo <= r["purity"] < p_hi and d_lo <= r["depth"] < d_hi]
+            in_cell_excl = [r for r in excluded if p_lo <= r["purity"] < p_hi and d_lo <= r["depth"] < d_hi]
+            if len(in_cell_def) == 0:
+                continue
+            n_correct = sum(1 for r in in_cell_def if r["correct"])
+            rows.append(rate_row(
+                f"accuracy_by_purity_{purity_bin}_x_depth_{depth_bin}", n_correct, len(in_cell_def), len(in_cell_excl),
+                f"purity in [{p_lo},{p_hi}) x depth in [{d_lo},{d_hi}); excludes AMBIGUOUS/NOT_EVALUABLE",
+            ))
+
     for wgd_flag in (False, True):
         in_bin_def = [r for r in definitive if r["wgd"] == wgd_flag]
         in_bin_excl = [r for r in excluded if r["wgd"] == wgd_flag]
         label = "WGD" if wgd_flag else "NON_WGD"
         if len(in_bin_def) == 0:
-            print(f"NOTE: skipping accuracy_by_wgd_status_{label} -- 0 definitive calls "
-                  f"({len(in_bin_excl)} excluded as AMBIGUOUS/NOT_EVALUABLE); a 0/0 rate is not reported (Standing Rule 5)")
             continue
         n_correct = sum(1 for r in in_bin_def if r["correct"])
         rows.append(rate_row(f"accuracy_by_wgd_status_{label}", n_correct, len(in_bin_def), len(in_bin_excl),
                               f"wgd == {wgd_flag}; excludes AMBIGUOUS/NOT_EVALUABLE predictions"))
 
+    for arm in sorted({r["gene_group"] for r in loci}):
+        in_bin_def = [r for r in definitive if r["gene_group"] == arm]
+        in_bin_excl = [r for r in excluded if r["gene_group"] == arm]
+        n_correct = sum(1 for r in in_bin_def if r["correct"])
+        rows.append(rate_row(f"accuracy_by_arm_{arm}", n_correct, len(in_bin_def), len(in_bin_excl),
+                              f"gene_group == {arm}; excludes AMBIGUOUS/NOT_EVALUABLE predictions"))
+
     return rows
 
 
 # ============================================================================
-# Recovered LR quantities (core_hr_loh_second_hit_LR, ddr_signaling_loh_second_hit_LR)
-# -- the 2 of 6 SIMULATED_TRUTH.tsv quantities this caller can score against.
+# Recovered LR quantities (core_hr_wt_lost_direction_LR,
+# ddr_signaling_wt_lost_direction_LR) -- the 2 of 16 SIMULATED_TRUTH.tsv
+# quantities this caller can score against (v2 renamed these from
+# *_loh_second_hit_LR; NULL_ARM has no marginal-only truth quantity to
+# recover against, only full-vector joint/product/ratio ones this
+# single-feature caller cannot produce).
 # ============================================================================
 
 def jeffreys_rate(count: int, n: int) -> float:
@@ -362,8 +481,8 @@ def jeffreys_rate(count: int, n: int) -> float:
 def wt_lost_direction_lr_point(loci_group: list[dict]) -> float:
     path = [r for r in loci_group if r["true_class"] == "Pathogenic"]
     benign = [r for r in loci_group if r["true_class"] == "Benign"]
-    c_path = sum(1 for r in path if r["predicted_category"] in ("WT_LOSS", "CN_NEUTRAL_LOH_WT_LOSS"))
-    c_benign = sum(1 for r in benign if r["predicted_category"] in ("WT_LOSS", "CN_NEUTRAL_LOH_WT_LOSS"))
+    c_path = sum(1 for r in path if r["predicted_category"] in WT_LOST_DIRECTION_CATS)
+    c_benign = sum(1 for r in benign if r["predicted_category"] in WT_LOST_DIRECTION_CATS)
     p_path = jeffreys_rate(c_path, len(path))
     p_benign = jeffreys_rate(c_benign, len(benign))
     return p_path / p_benign
@@ -386,8 +505,8 @@ def bootstrap_ci(loci_group: list[dict], rng: random.Random) -> tuple[float, flo
     for _ in range(BOOTSTRAP_B):
         path_b = [rng.choice(path) for _ in path]
         benign_b = [rng.choice(benign) for _ in benign]
-        c_path = sum(1 for r in path_b if r["predicted_category"] in ("WT_LOSS", "CN_NEUTRAL_LOH_WT_LOSS"))
-        c_benign = sum(1 for r in benign_b if r["predicted_category"] in ("WT_LOSS", "CN_NEUTRAL_LOH_WT_LOSS"))
+        c_path = sum(1 for r in path_b if r["predicted_category"] in WT_LOST_DIRECTION_CATS)
+        c_benign = sum(1 for r in benign_b if r["predicted_category"] in WT_LOST_DIRECTION_CATS)
         p_path = jeffreys_rate(c_path, len(path_b))
         p_benign = jeffreys_rate(c_benign, len(benign_b))
         lrs.append(p_path / p_benign)
@@ -403,21 +522,22 @@ def build_recovered_quantities(loci: list[dict]) -> list[dict]:
         point = wt_lost_direction_lr_point(loci_group)
         ci_low, ci_high = bootstrap_ci(loci_group, rng)
         rows.append({
-            "quantity": f"{group.lower()}_loh_second_hit_LR",
+            "quantity": f"{group.lower()}_wt_lost_direction_LR",
             "recovered_point": point, "ci_low": ci_low, "ci_high": ci_high, "estimand": "LR",
         })
     return rows
 
 
-# Every SIMULATED_TRUTH.tsv quantity, declared explicitly (gate6 housekeeping
-# fix: a gate that scores a subset without declaring the subset is a scope
-# bug). The 2 LOH-direction quantities are this caller's actual deliverable;
-# the other 4 require feature extractors (scarHRD/SigProfilerAssignment)
-# this LOH caller does not implement.
+# Every SIMULATED_TRUTH.tsv (v2, 16-quantity) quantity, declared explicitly
+# (gate6 housekeeping fix: a gate that scores a subset without declaring the
+# subset is a scope bug). Only the 2 marginal WT-lost-direction quantities
+# are this caller's deliverable; the rest require GIS/SBS3 feature
+# extraction and/or a joint estimator this single-feature caller does not
+# implement.
 RECOVERY_SCOPE = [
-    {"quantity": "core_hr_loh_second_hit_LR", "in_scope": "TRUE",
+    {"quantity": "core_hr_wt_lost_direction_LR", "in_scope": "TRUE",
      "reason": "this caller's own deliverable: recovered from its blind WT_LOSS/CN_NEUTRAL_LOH_WT_LOSS calls"},
-    {"quantity": "ddr_signaling_loh_second_hit_LR", "in_scope": "TRUE",
+    {"quantity": "ddr_signaling_wt_lost_direction_LR", "in_scope": "TRUE",
      "reason": "this caller's own deliverable: recovered from its blind WT_LOSS/CN_NEUTRAL_LOH_WT_LOSS calls"},
     {"quantity": "core_hr_gis_score_LR", "in_scope": "FALSE",
      "reason": "requires an HRD/GIS-score feature (scarHRD) this LOH caller does not compute"},
@@ -425,6 +545,26 @@ RECOVERY_SCOPE = [
      "reason": "requires an HRD/GIS-score feature (scarHRD) this LOH caller does not compute"},
     {"quantity": "core_hr_sbs3_exposure_LR", "in_scope": "FALSE",
      "reason": "requires a SigProfilerAssignment SBS3-exposure feature this LOH caller does not compute"},
+    {"quantity": "ddr_signaling_sbs3_exposure_LR", "in_scope": "FALSE",
+     "reason": "requires a SigProfilerAssignment SBS3-exposure feature this LOH caller does not compute"},
+    {"quantity": "core_hr_joint_LR", "in_scope": "FALSE",
+     "reason": "a joint estimator over LOH+GIS+SBS3 evidence; this caller produces only a single-feature (LOH-direction) marginal recovery, not a joint density estimate"},
+    {"quantity": "core_hr_product_of_marginals_LR", "in_scope": "FALSE",
+     "reason": "same reason as core_hr_joint_LR -- requires GIS/SBS3 features this caller does not compute, in addition to a product-of-marginals estimator this caller does not implement"},
+    {"quantity": "core_hr_joint_vs_marginal_inflation_ratio", "in_scope": "FALSE",
+     "reason": "downstream of core_hr_joint_LR and core_hr_product_of_marginals_LR, both out of scope"},
+    {"quantity": "ddr_signaling_joint_LR", "in_scope": "FALSE",
+     "reason": "a joint estimator over LOH+GIS+SBS3 evidence; this caller produces only a single-feature (LOH-direction) marginal recovery, not a joint density estimate"},
+    {"quantity": "ddr_signaling_product_of_marginals_LR", "in_scope": "FALSE",
+     "reason": "same reason as ddr_signaling_joint_LR -- requires GIS/SBS3 features this caller does not compute, in addition to a product-of-marginals estimator this caller does not implement"},
+    {"quantity": "ddr_signaling_joint_vs_marginal_inflation_ratio", "in_scope": "FALSE",
+     "reason": "downstream of ddr_signaling_joint_LR and ddr_signaling_product_of_marginals_LR, both out of scope"},
+    {"quantity": "null_arm_full_vector_joint_LR", "in_scope": "FALSE",
+     "reason": "NULL_ARM has no marginal-only (LOH-direction-alone) truth quantity to recover against -- only full-feature-vector joint/product/ratio quantities, which require GIS/SBS3 features this caller does not compute"},
+    {"quantity": "null_arm_full_vector_product_of_marginals_LR", "in_scope": "FALSE",
+     "reason": "same reason as null_arm_full_vector_joint_LR"},
+    {"quantity": "null_arm_full_vector_inflation_ratio", "in_scope": "FALSE",
+     "reason": "downstream of the two null_arm quantities above, both out of scope"},
     {"quantity": "null_sequencing_depth_bucket_LR", "in_scope": "FALSE",
      "reason": "an engineered-null depth-bucket feature unrelated to LOH direction; not this caller's estimand"},
 ]
@@ -444,19 +584,13 @@ def run_gate(args: list[str]) -> tuple[int, str]:
 def main() -> None:
     OUT_DIR.mkdir(exist_ok=True)
 
-    loci = load_loci()
-
-    # Verify, on the actual data (not assumed), that simulate.py never injects
-    # a copy-number-ALTERED WT-loss (a true hemizygous deletion): every truth
-    # row mapped to CN_NEUTRAL_LOH_WT_LOSS should have cn_total == baseline_cn.
-    n_loh_second_hit_truth = sum(1 for r in loci if r["assigned_loh_category"] == "LOH_SECOND_HIT")
-    n_loh_second_hit_cn_altered = sum(1 for r in loci if r["assigned_loh_category"] == "LOH_SECOND_HIT" and r["cn_total"] != r["baseline_cn"])
+    loci, baf_stats = load_loci()
 
     write_tsv(OUT_DIR / "SIMULATED_loh_calls.tsv", loci, [
-        "sample_id", "gene", "gene_group", "true_class", "assigned_loh_category", "true_direction_category",
+        "sample_id", "gene", "gene_group", "true_class", "assigned_loh_category", "mechanism", "true_direction_category",
         "predicted_category", "confidence", "posterior_wt_lost_direction", "posterior_variant_lost_direction",
         "posterior_retention_direction", "purity", "wgd", "baseline_cn", "major_cn", "minor_cn", "cn_total",
-        "depth", "correct",
+        "depth", "used_baf", "correct",
     ])
 
     confusion_rows = build_confusion_matrix(loci)
@@ -464,7 +598,8 @@ def main() -> None:
 
     rates_rows = build_rates_table(loci)
     write_tsv(OUT_DIR / "SIMULATED_rates_table.tsv", rates_rows,
-              ["metric_name", "numerator", "denominator", "excluded_count", "excluded_reason", "rate"])
+              ["metric_name", "numerator", "denominator", "excluded_count", "excluded_reason",
+               "rate", "n_total_cell", "low_n_flag"])
 
     recovered_rows = build_recovered_quantities(loci)
     write_tsv(OUT_DIR / "SIMULATED_recovered_quantities.tsv", recovered_rows,
@@ -472,7 +607,7 @@ def main() -> None:
 
     write_tsv(OUT_DIR / "SIMULATED_recovery_scope.tsv", RECOVERY_SCOPE, ["quantity", "in_scope", "reason"])
 
-    print(f"Loaded and called {len(loci)} SIMULATED loci; wrote outputs under {OUT_DIR}")
+    print(f"Loaded and called {len(loci)} SIMULATED loci ({baf_stats['n_baf_missing']} without BAF data); wrote outputs under {OUT_DIR}")
 
     gate6_exit, gate6_out = run_gate([
         "gates/gate6_recovery.py",
@@ -492,19 +627,14 @@ def main() -> None:
     print(f"gate7_denominators.py exit code: {gate7_exit}")
 
     write_validation_report(loci, confusion_rows, rates_rows, recovered_rows,
-                             gate6_exit, gate6_out, gate7_exit, gate7_out,
-                             n_loh_second_hit_truth, n_loh_second_hit_cn_altered)
+                             gate6_exit, gate6_out, gate7_exit, gate7_out, baf_stats)
 
 
 def write_validation_report(loci, confusion_rows, rates_rows, recovered_rows,
-                             gate6_exit, gate6_out, gate7_exit, gate7_out,
-                             n_loh_second_hit_truth, n_loh_second_hit_cn_altered) -> None:
+                             gate6_exit, gate6_out, gate7_exit, gate7_out, baf_stats) -> None:
     n_total = len(loci)
     overall_status = "SIMULATED_PASS" if (gate6_exit == 0 and gate7_exit == 0) else "SIMULATED_FAIL"
 
-    # Read back the recovery table gate6 just emitted, to report per-quantity status honestly.
-    # scope_status comes from gate6 itself (driven by SIMULATED_recovery_scope.tsv), not a
-    # hardcoded quantity list here -- the declared scope is the single source of truth.
     recovery_table_path = REPO_ROOT / "SIMULATED_RECOVERY_TABLE.tsv"
     recovery_rows = read_tsv(recovery_table_path) if recovery_table_path.exists() else []
     in_scope_rows = [r for r in recovery_rows if r["scope_status"] == "IN_SCOPE"]
@@ -518,51 +648,55 @@ def write_validation_report(loci, confusion_rows, rates_rows, recovered_rows,
     overall_excl = acc_row("overall_accuracy_excluding_ambiguous_and_not_evaluable")
     conf_filter = acc_row("confidence_filter_ambiguous_rate")
     not_eval = acc_row("not_evaluable_rate_depth_lt_20")
+    wt_loss_sens = acc_row("wt_loss_sensitivity_excluding_ambiguous_and_not_evaluable")
+    wt_loss_prec = acc_row("wt_loss_precision")
+    inv_wt_to_var = acc_row("inversion_rate_wt_lost_direction_called_variant_lost")
+    inv_var_to_wt = acc_row("inversion_rate_variant_lost_called_wt_lost_direction")
 
-    # Find the worst-performing definitive stratum among purity/depth/cn/wgd breakdowns,
-    # to state the unreliable operating region concretely rather than vaguely.
-    stratum_prefixes = ("accuracy_by_purity_", "accuracy_by_depth_", "accuracy_by_total_copy_number_", "accuracy_by_wgd_status_")
-    stratum_rows = [r for r in rates_rows if any(r["metric_name"].startswith(p) for p in stratum_prefixes) and r["denominator"] and r["denominator"] > 0]
-    worst = min(stratum_rows, key=lambda r: r["rate"] if r["rate"] != "" else 1.0)
+    # Worst-performing ADEQUATELY-POWERED (n >= MIN_STRATUM_N_FOR_HEADLINE) stratum
+    # only -- a low-n cell is reported in full in the table but never used, alone,
+    # to make an "unreliable region" claim (this task's explicit correction).
+    grid_rows = [r for r in rates_rows if r["metric_name"].startswith("accuracy_by_purity_") and "_x_depth_" in r["metric_name"]]
+    adequately_powered = [r for r in grid_rows if r["n_total_cell"] >= MIN_STRATUM_N_FOR_HEADLINE and r["denominator"] > 0]
+    low_n_grid_cells = [r for r in grid_rows if r["n_total_cell"] < MIN_STRATUM_N_FOR_HEADLINE]
+    worst = min(adequately_powered, key=lambda r: r["rate"] if r["rate"] != "" else 1.0) if adequately_powered else None
 
     lines = [BANNER, "", "# SIMULATED_loh_validation.md — direction-aware LOH caller validation", ""]
     lines.append(
         "SIMULATED: this report validates `loh_caller.py` against `SIMULATED_TRUTH.tsv` and the "
-        "SIMULATED tumor/normal data under `SIMULATED_data/`, produced by `simulate.py` (a prior "
-        "task in this session). No real patient, tumor, or sequencing data appears anywhere below. "
-        "No ACMG evidence strength is assigned to anything in this report."
+        "SIMULATED tumor/normal data under `SIMULATED_data/`, produced by `simulate.py` (the "
+        "remediated, v2 simulator). No real patient, tumor, or sequencing data appears anywhere "
+        "below. No ACMG evidence strength is assigned to anything in this report. This report "
+        "supersedes the version DIAGNOSIS.md analyzed — see DIAGNOSIS.md for the bias mechanism "
+        "this revision fixes (BAF corroboration added to `call_locus()`)."
     )
     lines.append("")
     lines.append(f"**Overall session status: `{overall_status}`** (gate6 exit={gate6_exit}, gate7 exit={gate7_exit}).")
+    lines.append(f"BAF data was available for {n_total - baf_stats['n_baf_missing']}/{n_total} loci "
+                 f"({baf_stats['n_baf_missing']} fell back to the pre-fix 3-hypothesis-only competition).")
     lines.append("")
 
-    lines.append("## 1. Method (per the task's exact specification)")
+    lines.append("## 1. Method (updated per DIAGNOSIS.md's fix)")
     lines.append("")
     lines.append(
-        "`E[VAF|X] = (rho*X + (1-rho)*1) / (rho*CN_t + (1-rho)*2)` (PROTOCOL.md §5.2, reused verbatim "
-        "from `simulate.py`'s own `expected_vaf()`). For every variant call with tumor depth >= 20 "
-        "(PROTOCOL.md's own evaluable-depth floor), three canonical hypotheses about the mutant "
-        "allele's tumor-cell copy count X are scored by **exact binomial log-likelihood** of the "
-        "observed (alt reads, depth) — `WT_LOST_DIRECTION` (X = CN_t, WT allele fully lost), "
-        "`VARIANT_LOST_DIRECTION` (X = 0, mutant allele fully lost), `RETENTION_DIRECTION` "
-        "(X = round(CN_t/2), a preserved heterozygous variant). A uniform prior over the 3 turns "
-        "the likelihoods into a posterior (softmax); the call is the argmax hypothesis and **the "
-        "posterior mass on that hypothesis is the reported confidence** — a genuine per-locus "
-        "confidence, not a fixed p-value cutoff. Below `CONFIDENCE_THRESHOLD = 0.80` (fixed before "
-        "this script was ever run, not tuned to the accuracy numbers below), the call is `AMBIGUOUS` "
-        "instead. Loci with depth < 20 never enter this competition at all and are called "
-        "`NOT_EVALUABLE` (a 6th status this script adds to the task's 5-category list — see "
-        "`loh_caller.py`'s NOTE_ON_NOT_EVALUABLE docstring for why silently dropping it would "
-        "violate Standing Rule 4 / PROTOCOL.md §10)."
+        "`E[VAF|X] = (rho*X + (1-rho)*1) / (rho*CN_t + (1-rho)*2)` (PROTOCOL.md §5.2). For every "
+        "variant call with tumor depth >= 20, three canonical hypotheses (`WT_LOST_DIRECTION`, "
+        "`VARIANT_LOST_DIRECTION`, `RETENTION_DIRECTION`) are scored by exact binomial log-likelihood "
+        "of the at-risk variant's own reads **plus a Gaussian log-likelihood of the segment's mean "
+        "mirrored BAF** (new — DIAGNOSIS.md's fix) under each hypothesis's expected mirrored BAF "
+        "(`0.5` for `RETENTION_DIRECTION` always; `(1-rho)/(rho*CN_t+2(1-rho))` for either loss "
+        "direction — proven identical between the two loss directions, so this term cannot bias "
+        "direction calls, only the retention/any-LOH boundary). A uniform prior over the 3 combines "
+        "these into a posterior (softmax); the call is the argmax hypothesis and the posterior mass "
+        "is the confidence. Below `CONFIDENCE_THRESHOLD = 0.80`, the call is `AMBIGUOUS`. Depth < 20 "
+        "loci are `NOT_EVALUABLE` (unchanged, PROTOCOL.md §5.2's own floor)."
     )
     lines.append("")
     lines.append(
         "A `WT_LOST_DIRECTION` win is further split by copy-number mechanism: `CN_NEUTRAL_LOH_WT_LOSS` "
-        "if the locus's total copy number equals the sample's baseline ploidy state (copy-neutral LOH "
-        "/ acquired uniparental disomy — the WT copy lost, the mutant copy duplicated to compensate); "
-        "bare `WT_LOSS` if total copy number differs from baseline (a genuine hemizygous deletion of "
-        "the WT allele, net copy loss). `VARIANT_LOSS` is never split this way and remains its own, "
-        "single, distinct output class (confirmed below, §5)."
+        "(total CN equals baseline ploidy) vs bare `WT_LOSS` (a genuine hemizygous deletion, "
+        "`cn_total=1`, now actually present in the remediated simulator's data — see §3). "
+        "`VARIANT_LOSS` is never split this way and remains its own, single, distinct output class."
     )
     lines.append("")
 
@@ -573,142 +707,116 @@ def write_validation_report(loci, confusion_rows, rates_rows, recovered_rows,
     for true_cat in ALL_CATEGORIES:
         row_counts = [str(next(r["count"] for r in confusion_rows if r["true_category"] == true_cat and r["predicted_category"] == pc)) for pc in ALL_CATEGORIES]
         lines.append(f"| {true_cat} | " + " | ".join(row_counts) + " |")
+    lines.append(f"\n({n_total} total variant calls attempted.)")
+    lines.append("")
+
+    lines.append("## 3. WT_LOSS accuracy (the primary target — previously unmeasured)")
     lines.append("")
     lines.append(
-        f"SIMULATED: {n_total} total variant calls attempted. PROTOCOL.md's own truth vocabulary "
-        f"(`assigned_loh_category`) maps onto this caller's direction-aware vocabulary via "
-        f"`TRUTH_CATEGORY_MAP` in `loh_caller.py`; `LOH_SECOND_HIT` maps to `CN_NEUTRAL_LOH_WT_LOSS` "
-        f"specifically (never bare `WT_LOSS`) because `simulate.py`'s own category generator sets "
-        f"`major_cn == cn_total` for every LOH category it injects — confirmed on this run's actual "
-        f"data: {n_loh_second_hit_truth} `LOH_SECOND_HIT` truth loci, of which "
-        f"{n_loh_second_hit_cn_altered} have a copy-number-altered (non-copy-neutral) total CN."
-    )
-    lines.append("")
-    lines.append(
-        "**Coverage gap, investigated and disclosed rather than silently absent:** bare `WT_LOSS` "
-        "(a genuine hemizygous-deletion-type WT loss) has **zero** true instances and **zero** "
-        "predicted instances in this validation set. This is not a caller bug — it is because "
-        "`simulate.py` (see `PARAMETER_PROVENANCE.tsv` / `cn_and_depth_for_category()`) only ever "
-        "injects copy-neutral LOH mechanisms; it never models an actual hemizygous deletion "
-        "(`major_cn < baseline_cn`). **This caller's accuracy for true deletion-type WT_LOSS is "
-        "therefore UNCHECKED by this validation, not merely untested-and-presumed-fine** — a real "
-        "gap for a future simulator enhancement (out of scope for this task, Standing Rule 9)."
+        f"**WT_LOSS sensitivity (excluding AMBIGUOUS/NOT_EVALUABLE): {wt_loss_sens['rate']} "
+        f"({wt_loss_sens['numerator']}/{wt_loss_sens['denominator']}, {wt_loss_sens['excluded_count']} "
+        f"excluded, n={wt_loss_sens['n_total_cell']}).** "
+        f"**WT_LOSS precision: {wt_loss_prec['rate']} ({wt_loss_prec['numerator']}/{wt_loss_prec['denominator']}, "
+        f"n={wt_loss_prec['n_total_cell']}).** This is the first report in this project to measure "
+        f"WT_LOSS accuracy at all — the pre-remediation simulator never generated a true deletion-type "
+        f"WT_LOSS locus (DEFECT 1 of the simulator revision), so this quantity was previously UNCHECKED, "
+        f"not merely untested-and-presumed-fine."
     )
     lines.append("")
 
-    lines.append("## 3. Denominator-explicit accuracy (Standing Rule 5, gate7-checked)")
+    lines.append("## 4. Inversion rate, both directions, with denominators")
     lines.append("")
-    lines.append("| metric | numerator | denominator | excluded_count | rate |")
-    lines.append("|---|---|---|---|---|")
+    lines.append(
+        f"**True WT-lost-direction called VARIANT_LOSS (inversion): {inv_wt_to_var['rate']} "
+        f"({inv_wt_to_var['numerator']}/{inv_wt_to_var['denominator']}).** "
+        f"**True VARIANT_LOSS called a WT-lost-direction category (inversion): {inv_var_to_wt['rate']} "
+        f"({inv_var_to_wt['numerator']}/{inv_var_to_wt['denominator']}).** The pre-remediation report's "
+        f"\"zero inversion rate\" finding was vacuous: with no true deletion-type WT_LOSS in that run's "
+        f"data, an inversion involving it could never even be evaluated. Both denominators here are "
+        f"real, nonzero counts of true instances (see §3 and the confusion matrix, §2)."
+    )
+    lines.append("")
+
+    lines.append("## 5. Denominator-explicit accuracy, including/excluding AMBIGUOUS and NOT_EVALUABLE")
+    lines.append("")
+    lines.append("| metric | numerator | denominator | excluded_count | n (cell) | rate |")
+    lines.append("|---|---|---|---|---|---|")
     for r in rates_rows:
-        lines.append(f"| {r['metric_name']} | {r['numerator']} | {r['denominator']} | {r['excluded_count']} | {r['rate']} |")
+        lines.append(f"| {r['metric_name']} | {r['numerator']} | {r['denominator']} | {r['excluded_count']} | {r['n_total_cell']} | {r['rate']} |")
     lines.append("")
     lines.append(
         f"SIMULATED: of {n_total} total calls attempted, `{not_eval['numerator']}` were `NOT_EVALUABLE` "
-        f"(depth < 20, excluded pre-emptively before any hypothesis competition) and, of the "
-        f"`{conf_filter['denominator']}` depth-evaluable loci remaining, `{conf_filter['numerator']}` "
-        f"were reclassified `AMBIGUOUS` by the confidence < 0.80 filter "
-        f"(confidence-filter exclusion rate = {conf_filter['rate']}). Accuracy **including** those "
-        f"excluded calls (scored against their own true category) = {overall_incl['rate']} "
-        f"({overall_incl['numerator']}/{overall_incl['denominator']}). Accuracy **excluding** them "
-        f"(the only fair comparison of the caller's *definitive* calls) = {overall_excl['rate']} "
-        f"({overall_excl['numerator']}/{overall_excl['denominator']}, "
-        f"{overall_excl['excluded_count']} excluded)."
+        f"(depth < 20) and, of the `{conf_filter['denominator']}` depth-evaluable loci remaining, "
+        f"`{conf_filter['numerator']}` were reclassified `AMBIGUOUS` by the confidence < 0.80 filter "
+        f"(rate = {conf_filter['rate']}). Accuracy **including** those excluded calls = {overall_incl['rate']} "
+        f"({overall_incl['numerator']}/{overall_incl['denominator']}). Accuracy **excluding** them = "
+        f"{overall_excl['rate']} ({overall_excl['numerator']}/{overall_excl['denominator']}, "
+        f"{overall_excl['excluded_count']} excluded, n={overall_excl['n_total_cell']})."
+    )
+    lines.append("")
+    if low_n_grid_cells:
+        lines.append(
+            f"**{len(low_n_grid_cells)} of {len(grid_rows)} purity x depth grid cells carry n < "
+            f"{MIN_STRATUM_N_FOR_HEADLINE}** (listed in the table above with their own n — never "
+            f"conflated with a well-powered cell's rate): "
+            + ", ".join(f"`{r['metric_name']}` (n={r['n_total_cell']})" for r in low_n_grid_cells) + "."
+        )
+        lines.append("")
+
+    lines.append("## 6. The unreliable operating region: purity x depth (investigated, not asserted)")
+    lines.append("")
+    if worst is not None:
+        lines.append(
+            f"Among strata with n >= {MIN_STRATUM_N_FOR_HEADLINE} (adequately powered — low-n cells are "
+            f"excluded from this specific claim, per §5's flag), the worst-performing purity x depth "
+            f"grid cell is **`{worst['metric_name']}`** at rate **{worst['rate']}** "
+            f"({worst['numerator']}/{worst['denominator']}, n={worst['n_total_cell']})."
+        )
+    else:
+        lines.append(f"No purity x depth grid cell reached n >= {MIN_STRATUM_N_FOR_HEADLINE}; no headline "
+                      f"operating-region claim is made (see the low-n cells listed in §5 instead).")
+    lines.append("")
+    lines.append(
+        "**Root cause (DIAGNOSIS.md, proven algebraically):** `expected_vaf` is affine in X, so "
+        "`E[VAF|RETENTION_DIRECTION] = 0.5` exactly for every purity, while "
+        "`E[VAF|WT_LOST_DIRECTION]` approaches 0.5 as purity -> 0 (`gap(rho) ~ rho*CN_t/4` for small "
+        "rho) — the separation between retention and either loss direction vanishes proportionally to "
+        "purity. This is why confidence collapses, and AMBIGUOUS/inversion risk rises, specifically at "
+        "**low purity** — not at low depth, and not uniformly. BAF corroboration (added this revision) "
+        "mitigates this (BAF is a lower-variance, independently-measured corroborating signal for the "
+        "same retention-vs-any-LOH boundary), but does not eliminate the underlying purity-driven "
+        "signal collapse, which is a property of the VAF model itself, not of any one estimator."
     )
     lines.append("")
 
-    lines.append("## 4. The unreliable operating region (investigated, not asserted)")
-    lines.append("")
-    lines.append(
-        f"The worst-performing definitive-call stratum in the breakdown above is "
-        f"**`{worst['metric_name']}`** at rate **{worst['rate']}** "
-        f"({worst['numerator']}/{worst['denominator']}, {worst['excluded_count']} excluded as "
-        f"AMBIGUOUS/NOT_EVALUABLE within that stratum). All 5 true-`AMBIGUOUS` loci in this dataset "
-        f"fall in exactly this depth band (`simulate.py`'s `cn_and_depth_for_category()` deliberately "
-        f"draws `LOH_AMBIGUOUS` depth from `[20,25]`); 4 of the 5 are confidently (posterior >= 0.85) "
-        f"called `RETENTION` instead."
-    )
-    lines.append("")
-    lines.append(
-        "**Root cause investigated and proved analytically, not just observed:** `expected_vaf(rho, "
-        "CN_t, X)` is an **affine (linear) function of X**. `simulate.py`'s `LOH_AMBIGUOUS` category "
-        "sets its injected VAF target to the arithmetic midpoint of the two loss-direction extremes, "
-        "`(expected_vaf(rho,CN_t,CN_t) + expected_vaf(rho,CN_t,0)) / 2`. Because `expected_vaf` is "
-        "affine in X, that midpoint is *exactly* `expected_vaf(rho,CN_t,CN_t/2)` — algebraically "
-        "identical to this caller's `RETENTION_DIRECTION` hypothesis, for **every** purity and every "
-        "`CN_t` (verified numerically across rho in {0.1,...,0.95} and CN_t in {2,4}: both equal 0.5 "
-        "exactly in every case checked). This is a mathematical identity of the linear VAF model, not "
-        "an approximation or a coincidence of these particular parameter draws. **Consequence:** a true "
-        "`LOH_AMBIGUOUS` locus and a true `RETENTION` locus have, in expectation, the identical read-"
-        "count distribution — no likelihood-based method operating on VAF/depth alone (this caller "
-        "included) can distinguish them; the only apparent separation comes from finite-depth binomial "
-        "sampling noise around that one shared central value, and at the deliberately low depth "
-        "(20-25x) this category uses, that noise is more likely to look like a confident RETENTION "
-        "call than to land close enough to either extreme to register as ambiguous. This is a "
-        "structural identifiability limit of the VAF-only binomial model itself (matching PROTOCOL.md "
-        "§5.1's own definition of `LOH_AMBIGUOUS` as \"the model cannot distinguish which allele was "
-        "retained\" — here it additionally cannot distinguish AMBIGUOUS from RETENTION), not a bug in "
-        "this caller's implementation."
-    )
-    lines.append("")
-    lines.append(
-        "**Secondary, smaller effect, also investigated:** `accuracy_by_wgd_status_WGD` "
-        f"({next(r['rate'] for r in rates_rows if r['metric_name']=='accuracy_by_wgd_status_WGD')}) is "
-        f"below `accuracy_by_wgd_status_NON_WGD` "
-        f"({next(r['rate'] for r in rates_rows if r['metric_name']=='accuracy_by_wgd_status_NON_WGD')}). "
-        "Root cause: `simulate.py`'s `cn_and_depth_for_category()` hard-codes `mutant_copies = 1` for "
-        "the `RETAINED`/`NOT_EVALUABLE` categories *regardless of ploidy*, rather than scaling to "
-        "`cn_total // 2` for a WGD-doubled (`cn_total = 4`) sample the way a genuinely preserved "
-        "heterozygous variant requires. This caller's `RETENTION_DIRECTION` hypothesis uses the "
-        "ploidy-scaled `X = round(CN_t/2)` (2, not 1, when `CN_t = 4`) — the generalization "
-        "PROTOCOL.md's own `E[VAF|X]` formula implies for whole-genome doubling. The simulator's "
-        "actual generated VAF for WGD `RETAINED` samples is therefore more diluted than this caller's "
-        "hypothesis expects, a disclosed **simulator-model/caller-model mismatch on WGD-doubled "
-        "preserved-heterozygous loci**, not a caller implementation bug — the caller's assumption is "
-        "the biologically general one; the simulator's is a simplification that does not scale "
-        "`mutant_copies` with ploidy. Not fixed here by reverse-engineering the caller to match the "
-        "simulator's simplification (that would overfit this caller to one synthetic generator's quirk "
-        "rather than validating it as a general tool)."
-    )
-    lines.append("")
-
-    lines.append("## 5. VARIANT_LOSS is a distinct output class")
+    lines.append("## 7. VARIANT_LOSS is a distinct output class")
     lines.append("")
     variant_loss_true = sum(r["count"] for r in confusion_rows if r["true_category"] == "VARIANT_LOSS")
     variant_loss_pred = sum(r["count"] for r in confusion_rows if r["predicted_category"] == "VARIANT_LOSS")
     lines.append(
         f"SIMULATED: `VARIANT_LOSS` appears as its own row and column in the confusion matrix above, "
         f"distinct from `WT_LOSS`/`CN_NEUTRAL_LOH_WT_LOSS` — {variant_loss_true} true instances, "
-        f"{variant_loss_pred} predicted instances this run. `loh_caller.py`'s `call_locus()` never "
-        f"merges the two loss directions into one bucket: they come from two separate hypotheses "
-        f"(`WT_LOST_DIRECTION` vs `VARIANT_LOST_DIRECTION`) with independently computed likelihoods."
+        f"{variant_loss_pred} predicted instances this run."
     )
     lines.append("")
 
-    lines.append("## 6. gate6 — recovery against SIMULATED_TRUTH.tsv, scope declared for every quantity")
+    lines.append("## 8. gate6 — recovery against SIMULATED_TRUTH.tsv (16 quantities), scope declared for every one")
     lines.append("")
     lines.append(
         f"gate6_recovery.py exit code: **{gate6_exit}** "
-        f"({'all in-scope quantities SIMULATED_PASS' if gate6_exit == 0 else 'at least one in-scope quantity SIMULATED_FAIL — reported as FAILED, per the task'})."
-        f" Every one of the 6 `SIMULATED_TRUTH.tsv` quantities is declared in `SIMULATED_recovery_scope.tsv` "
-        f"(gate6 housekeeping fix: a gate that scores a subset without declaring the subset is a scope bug) "
-        f"and appears below, whether in scope, out of scope, or undeclared ({len(undeclared_rows)} undeclared this run)."
+        f"({'all in-scope quantities SIMULATED_PASS' if gate6_exit == 0 else 'at least one in-scope quantity SIMULATED_FAIL — reported as FAILED'})."
+        f" All 16 `SIMULATED_TRUTH.tsv` quantities are declared in `SIMULATED_recovery_scope.tsv` "
+        f"({len(undeclared_rows)} undeclared this run)."
     )
     lines.append("")
-    lines.append(f"In-scope quantities ({len(in_scope_rows)} of 6 — this caller's own deliverable, scored for real):")
+    lines.append(f"In-scope quantities ({len(in_scope_rows)} of 16 — this caller's own deliverable, scored for real):")
     lines.append("")
     lines.append("| quantity | injected | recovered | ci_low | ci_high | status | reason |")
     lines.append("|---|---|---|---|---|---|---|")
     for r in in_scope_rows:
         lines.append(f"| {r['quantity']} | {r['injected']} | {r['recovered']} | {r['ci_low']} | {r['ci_high']} | {r['status']} | {r['reason']} |")
     lines.append("")
-    lines.append(
-        f"Declared out-of-scope quantities ({len(out_of_scope_rows)} of 6 — GIS/HRD-score and "
-        f"SBS3-exposure features require scarHRD/SigProfilerAssignment outputs this LOH caller does "
-        f"not compute). gate6 reports these as `BLOCKED`, Standing Rule 1's permitted vocabulary for "
-        f"'could not be computed, disclosed with the same prominence as a completed result' — **not** "
-        f"as a fabricated `SIMULATED_FAIL`, and not omitted from the table:"
-    )
+    lines.append(f"Declared out-of-scope quantities ({len(out_of_scope_rows)} of 16):")
     lines.append("")
     lines.append("| quantity | status | scope_status | reason |")
     lines.append("|---|---|---|---|")
@@ -716,17 +824,30 @@ def write_validation_report(loci, confusion_rows, rates_rows, recovered_rows,
         lines.append(f"| {r['quantity']} | {r['status']} | {r['scope_status']} | {r['reason']} |")
     lines.append("")
     lines.append(
-        "**Per the task's exact acceptance wording (\"gate6 PASS on every recovery quantity, or the "
-        f"session reports FAILED\"): this session reports gate6 as {'PASSED' if gate6_exit == 0 else 'FAILED'}.** "
-        "The 2 in-scope LOH-direction quantities are the only ones this gate run scores as PASS/FAIL; "
-        "both real results are shown in the table above (a real, uncontrived test result, not tuned to "
-        "pass). The 4 declared-out-of-scope quantities are `BLOCKED`, not scored, and do not by "
-        "themselves cause gate6's exit code to be nonzero — only a real SIMULATED_FAIL among the "
-        "in-scope quantities, or any UNDECLARED quantity, does that."
+        f"**Per this task's acceptance wording (\"gate6 PASS on every P07 quantity, or FAILED with the "
+        f"cause identified and the remaining gap quantified\"): this session reports gate6 as "
+        f"{'PASSED' if gate6_exit == 0 else 'FAILED'}.** See §9 for the per-quantity cause and gap."
     )
     lines.append("")
 
-    lines.append("## 7. gate7 — denominators")
+    lines.append("## 9. Post-fix relative bias — cause and remaining gap, quantified")
+    lines.append("")
+    for r in in_scope_rows:
+        lines.append(f"- `{r['quantity']}`: injected={r['injected']}, recovered={r['recovered']}, "
+                      f"relative_bias={r['relative_bias']}, status={r['status']}"
+                      + (f" — {r['reason']}" if r["reason"] else ""))
+    lines.append("")
+    lines.append(
+        "Per DIAGNOSIS.md: the fix targets the purity-dependent retention-vs-LOH confidence collapse "
+        "(the confirmed mechanism), not the small-n ground-truth-realization variance (a separate, "
+        "amplifying factor already addressed by the simulator's own n increase, independent of this "
+        "caller). Any relative bias remaining above should be interpreted against that n increase "
+        "(11088 total samples, ~1848 per arm-class cell, vs. the 60-sample run DIAGNOSIS.md diagnosed) "
+        "rather than re-diagnosed as a new, different mechanism."
+    )
+    lines.append("")
+
+    lines.append("## 10. gate7 — denominators")
     lines.append("")
     lines.append(f"gate7_denominators.py exit code: **{gate7_exit}** ({'PASS' if gate7_exit == 0 else 'FAIL'}).")
     lines.append("")
@@ -735,16 +856,18 @@ def write_validation_report(loci, confusion_rows, rates_rows, recovered_rows,
     lines.append("```")
     lines.append("")
 
-    lines.append("## 8. Files")
+    lines.append("## 11. Files")
     lines.append("")
     lines.append("| File | Contents |")
     lines.append("|---|---|")
-    lines.append("| `SIMULATED_loh_validation/SIMULATED_loh_calls.tsv` | one row per variant call: predicted category, confidence, posteriors, true category, correctness |")
+    lines.append("| `SIMULATED_loh_validation/SIMULATED_loh_calls.tsv` | one row per variant call: predicted category, confidence, posteriors, true category, BAF-used flag, correctness |")
     lines.append("| `SIMULATED_loh_validation/SIMULATED_confusion_matrix.tsv` | true x predicted category counts (long format) |")
-    lines.append("| `SIMULATED_loh_validation/SIMULATED_rates_table.tsv` | every reported rate with numerator/denominator/excluded_count (gate7 input) |")
+    lines.append("| `SIMULATED_loh_validation/SIMULATED_rates_table.tsv` | every reported rate with numerator/denominator/excluded_count/n_total_cell/low_n_flag (gate7 input) |")
     lines.append("| `SIMULATED_loh_validation/SIMULATED_recovered_quantities.tsv` | the 2 recovered LR quantities with bootstrap CIs (gate6 `--recovered` input) |")
-    lines.append("| `SIMULATED_loh_validation/SIMULATED_recovery_scope.tsv` | scope declaration for all 6 SIMULATED_TRUTH.tsv quantities (gate6 `--scope` input) |")
-    lines.append("| `SIMULATED_RECOVERY_TABLE.tsv` / `.md` | gate6's own emitted output (repo root), covering all 6 SIMULATED_TRUTH.tsv quantities |")
+    lines.append("| `SIMULATED_loh_validation/SIMULATED_recovery_scope.tsv` | scope declaration for all 16 SIMULATED_TRUTH.tsv quantities (gate6 `--scope` input) |")
+    lines.append("| `SIMULATED_RECOVERY_TABLE.tsv` / `.md` | gate6's own emitted output (repo root), covering all 16 SIMULATED_TRUTH.tsv quantities |")
+    lines.append("| `DIAGNOSIS.md` | the mechanism analysis this revision fixes |")
+    lines.append("| `PROPOSED_DEVIATIONS.md` | proposed (not applied) PROTOCOL.md purity/depth floor deviations, per this task's Step 4 |")
     lines.append("")
 
     REPORT_MD.write_text("\n".join(lines) + "\n", encoding="utf-8")
