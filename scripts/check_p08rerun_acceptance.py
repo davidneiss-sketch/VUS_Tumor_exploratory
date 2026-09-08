@@ -162,22 +162,33 @@ def criterion_4_proposed_deviations_and_gate1() -> None:
 
 
 def criterion_5_unauthorized_files_untouched() -> None:
-    # Scoped to THIS task's own commit range would require knowing the
-    # starting commit in advance; instead this checks the live working
-    # tree + staged changes, which is correct for THIS task (P08-RERUN's
-    # own DO NOT list explicitly forbids touching these three files, and
-    # no earlier task in this session's range legitimately modifies them
-    # either -- unlike P06R2 vs simulate.py, there is no later-authorized
-    # exception here).
-    result = subprocess.run(["git", "diff", "--name-only", "HEAD"], cwd=REPO_ROOT, capture_output=True, text=True)
-    result_staged = subprocess.run(["git", "diff", "--staged", "--name-only", "HEAD"], cwd=REPO_ROOT,
-                                    capture_output=True, text=True)
-    changed = set(result.stdout.splitlines()) | set(result_staged.stdout.splitlines())
+    # P06R3 fix: this was originally scoped to the LIVE working tree, on
+    # the stated assumption that "unlike P06R2 vs simulate.py, there is no
+    # later-authorized exception here." That assumption held only until a
+    # later task acquired legitimate authorization to modify simulate.py --
+    # which P06R3 (fix the SBS3 clipping-fidelity finding) now does. A
+    # live-working-tree check would then retroactively "fail" this
+    # already-completed, already-committed P08-RERUN task for a change a
+    # LATER task made after P08-RERUN's own commit -- exactly the false
+    # positive check_signatures_acceptance.py's equivalent check was fixed
+    # to avoid (see that script's own comment). Scoped to P08-RERUN's own
+    # commit range instead, the same precedent this script's own docstring
+    # cites: 230c127..b1d2bb0 was P08's range; P08-RERUN's is 80e56dd (the
+    # P06R2 commit it built on) .. 1c40a34 (P08-RERUN's own commit).
+    P08RERUN_RANGE = "80e56dd..1c40a34"
+    result = subprocess.run(["git", "diff", "--name-only", P08RERUN_RANGE], cwd=REPO_ROOT,
+                             capture_output=True, text=True)
+    if result.returncode != 0:
+        check("P08-RERUN's own commit range is resolvable in this repository", False,
+              f"git diff {P08RERUN_RANGE} failed: {result.stderr.strip()} -- cannot scope this check; "
+              f"falling back would risk exactly the stale-check false positive this fix exists to avoid")
+        return
+    changed = set(result.stdout.splitlines())
     for forbidden in ("PROTOCOL.md", "simulate.py", "loh_caller.py"):
-        check(f"{forbidden} not modified by this task", forbidden not in changed,
-              f"{forbidden} in changed files: {forbidden in changed}")
-    check("signatures.py not modified by this task (it is re-run, not edited)",
-          "signatures.py" not in changed, f"signatures.py in changed files: {'signatures.py' in changed}")
+        check(f"{forbidden} not modified within P08-RERUN's own commit range ({P08RERUN_RANGE})",
+              forbidden not in changed, f"{forbidden} in P08-RERUN's changed files: {forbidden in changed}")
+    check("signatures.py not modified within P08-RERUN's own commit range (it was re-run, not edited)",
+          "signatures.py" not in changed, f"signatures.py in P08-RERUN's changed files: {'signatures.py' in changed}")
 
 
 def main() -> None:

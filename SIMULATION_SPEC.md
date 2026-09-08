@@ -279,6 +279,42 @@ after this fix — confirmed by a real diff of a full before/after
 regeneration, not asserted from code-reading alone. See `TRUTH_DELTA.md`
 for the full before/after table and the diff evidence.
 
+## 3.2 SBS3's clipped-density fidelity fix (P06R3)
+
+§3.1's `*_sbs3_exposure_LR` marginal LR is derived from `SBS3_LINK`'s
+Gaussian model of `sbs3_raw = c + d*Z + Normal(0, sigma)` — but
+`_emit_sample()` actually draws `sbs3 = min(SBS3_CLIP_HI, max(SBS3_CLIP_LO,
+sbs3_raw))`, `SBS3_CLIP_LO=0.0`, `SBS3_CLIP_HI=0.95`. P08-RERUN's Step 3
+found an apparent mismatch between the analytic (unclipped) formula and
+this clipped generative distribution at `EVAL_POINT["sbs3"]=0.30`. P06R3's
+`FIDELITY_AUDIT.md` re-tested this rigorously (exact-CDF binomial testing
+across 4 window widths, instead of a narrow-window point-density
+approximation) and found **it does not replicate**: clipping is a
+measure-preserving identity map on the open interval between the clip
+bounds — for any interior point, `P(clip(raw) in [a,b)) == P(raw in
+[a,b))` exactly, since `clip(v)==v` there — so the continuous density on
+the interior is mathematically unchanged by clipping. `0.30` sits strictly
+interior to `[0, 0.95]` for every class in every arm (0.21–1.94 SD from the
+relevant class means), so the pre-existing formula was already exact there.
+
+`simulate.py` now makes this explicit and defensive rather than merely
+correct-by-luck: `sbs3_clipped_density(x, mean, sd)` returns the exact
+interior density (closed form, no numerical integration needed — the
+interior-identity argument above makes the closed form exact) for `x`
+strictly inside `(SBS3_CLIP_LO, SBS3_CLIP_HI)`, or the exact boundary
+point-mass probability at `x <= SBS3_CLIP_LO`/`x >= SBS3_CLIP_HI`, tagged
+by kind so a caller cannot silently divide a density by a point mass (or
+vice versa) if a future `EVAL_POINT` ever lands on a boundary.
+`compute_truth_quantities()`'s SBS3 rows, `product_of_marginals_lr()`, and
+`joint_density()`'s per-Z sbs3 term all now go through this function.
+**Every `SIMULATED_TRUTH.tsv` quantity is confirmed byte-identical before
+and after this fix** (see `TRUTH_DELTA.md` §1) — this is the expected,
+correct outcome given the interior-identity argument above, not something
+this fix engineered. See `FIDELITY_AUDIT.md` for the full per-feature audit
+(WT_LOST direction, GIS score, and the latent Z were also re-checked and
+confirmed to have no clip/floor/ceiling divergence at all) and
+`REVALIDATION_REQUIRED.md` for what this means for P07/P08.
+
 ## 4. LOH_AMBIGUOUS and the BAF channel (DEFECT 2)
 
 ### 4.1 AMBIGUOUS's new construction

@@ -114,7 +114,12 @@ GIS_LINK = {
     "DDR_SIGNALING": {"c": 25.0, "d": 8.0, "sigma": 10.0},
     "NULL_ARM": {"c": 25.0, "d": 8.0, "sigma": 10.0},
 }
-# SBS3 = c + d*Z + Normal(0, sigma), clipped to [0, 0.95]
+# SBS3 = c + d*Z + Normal(0, sigma), clipped to [SBS3_CLIP_LO, SBS3_CLIP_HI].
+# Named here (not left as inline magic numbers) so the analytic clipped-
+# density function below (sbs3_clipped_density) and the generative draw in
+# _emit_sample() cannot drift apart -- see P06R3 FIDELITY_AUDIT.md.
+SBS3_CLIP_LO = 0.0
+SBS3_CLIP_HI = 0.95
 SBS3_LINK = {
     "CORE_HR": {"c": 0.15, "d": 0.12, "sigma": 0.08},
     "DDR_SIGNALING": {"c": 0.12, "d": 0.08, "sigma": 0.08},
@@ -207,6 +212,51 @@ def marginal_gaussian_feature_params(link: dict, arm: str, cls: str) -> tuple[fl
     return mean, sd
 
 
+def sbs3_clipped_density(x: float, mean: float, sd: float) -> tuple[float, str]:
+    """P06R3: the analytic density of the CLIPPED SBS3 marginal (or of the
+    conditional-on-Z distribution, at whichever mean/sd is passed in), the
+    quantity _emit_sample() actually draws --
+    sbs3 = min(SBS3_CLIP_HI, max(SBS3_CLIP_LO, raw)), raw ~ Normal(mean, sd).
+
+    Clipping is a MEASURE-PRESERVING IDENTITY MAP on the open interval
+    (SBS3_CLIP_LO, SBS3_CLIP_HI): for any [a, b) strictly inside that
+    interval, P(clip(raw) in [a, b)) == P(raw in [a, b)) exactly, because
+    clip(v) == v there. So the continuous density on the interior is
+    UNCHANGED by clipping -- phi_pdf(x, mean, sd) is already the exact
+    density there, not an approximation. Only the two boundary points
+    x == SBS3_CLIP_LO and x == SBS3_CLIP_HI carry additional discrete point
+    mass (P(raw <= lo) and P(raw >= hi) respectively), which a plain
+    continuous-density evaluation cannot represent and which a caller must
+    not silently divide as if it were a Lebesgue density. See
+    FIDELITY_AUDIT.md for the derivation and the empirical (exact-CDF,
+    binomial z-test) confirmation against the real generated data.
+
+    Returns (value, kind); kind is "density" on the interior or
+    "point_mass" at a boundary, so a caller cannot conflate the two without
+    the tuple unpacking telling it which one it got."""
+    if x <= SBS3_CLIP_LO:
+        return Phi((SBS3_CLIP_LO - mean) / sd), "point_mass"
+    if x >= SBS3_CLIP_HI:
+        return 1.0 - Phi((SBS3_CLIP_HI - mean) / sd), "point_mass"
+    return phi_pdf(x, mean, sd), "density"
+
+
+def sbs3_clipped_lr(x_sbs3: float, mean1: float, sd1: float, mean0: float, sd0: float) -> float:
+    """LR of the CLIPPED SBS3 marginal at x_sbs3 between two class-
+    conditional Normal(mean, sd) raw distributions. Requires both classes'
+    evaluation to be the SAME kind (both interior densities, or both
+    boundary point masses) -- a density-over-point-mass ratio is not a
+    meaningful likelihood ratio, so this raises rather than silently
+    returning a nonsense number if that ever happens (it does not at the
+    current EVAL_POINT: see FIDELITY_AUDIT.md)."""
+    v1, kind1 = sbs3_clipped_density(x_sbs3, mean1, sd1)
+    v0, kind0 = sbs3_clipped_density(x_sbs3, mean0, sd0)
+    if kind1 != kind0:
+        raise ValueError(f"sbs3_clipped_lr: mismatched evaluation kinds at x={x_sbs3} "
+                          f"({kind1} vs {kind0}) -- LR undefined between a density and a point mass")
+    return v1 / v0
+
+
 def product_of_marginals_lr(arm: str, x: dict) -> float:
     p1 = marginal_wt_lost_prob(arm, "Pathogenic")
     p0 = marginal_wt_lost_prob(arm, "Benign")
@@ -218,7 +268,7 @@ def product_of_marginals_lr(arm: str, x: dict) -> float:
 
     sbs3_mean1, sbs3_sd1 = marginal_gaussian_feature_params(SBS3_LINK[arm], arm, "Pathogenic")
     sbs3_mean0, sbs3_sd0 = marginal_gaussian_feature_params(SBS3_LINK[arm], arm, "Benign")
-    lr_sbs3 = phi_pdf(x["sbs3"], sbs3_mean1, sbs3_sd1) / phi_pdf(x["sbs3"], sbs3_mean0, sbs3_sd0)
+    lr_sbs3 = sbs3_clipped_lr(x["sbs3"], sbs3_mean1, sbs3_sd1, sbs3_mean0, sbs3_sd0)
 
     return lr_wt * lr_gis * lr_sbs3
 
@@ -226,7 +276,11 @@ def product_of_marginals_lr(arm: str, x: dict) -> float:
 def joint_density(arm: str, cls: str, x: dict, z_lo: float = -8.0, z_hi: float = 8.0, n_steps: int = 4000) -> float:
     """The TRUE joint density of (wt_lost, gis, sbs3) given class,
     integrating out the shared latent Z -- 1D numerical integration
-    (Simpson's rule), not a product of marginals."""
+    (Simpson's rule), not a product of marginals. The sbs3 term uses
+    sbs3_clipped_density (P06R3) against the CONDITIONAL-ON-Z mean/sd
+    (c + d*z, sigma), since the same clip-is-identity-on-the-interior
+    argument applies pointwise for every fixed z, not only to the
+    Z-marginalized distribution."""
     wt_link = WT_LOST_LINK[arm]
     gis_link = GIS_LINK[arm]
     sbs3_link = SBS3_LINK[arm]
@@ -236,7 +290,7 @@ def joint_density(arm: str, cls: str, x: dict, z_lo: float = -8.0, z_hi: float =
         p_wt = Phi(wt_link["a"] + wt_link["b"] * z)
         wt_term = p_wt if x["wt_lost"] == 1 else (1 - p_wt)
         gis_term = phi_pdf(x["gis"], gis_link["c"] + gis_link["d"] * z, gis_link["sigma"])
-        sbs3_term = phi_pdf(x["sbs3"], sbs3_link["c"] + sbs3_link["d"] * z, sbs3_link["sigma"])
+        sbs3_term, _kind = sbs3_clipped_density(x["sbs3"], sbs3_link["c"] + sbs3_link["d"] * z, sbs3_link["sigma"])
         z_term = phi_pdf(z, muZ, Z_SD)
         return wt_term * gis_term * sbs3_term * z_term
 
@@ -288,12 +342,20 @@ def compute_truth_quantities() -> list[dict]:
         sbs3_mean1, sbs3_sd1 = marginal_gaussian_feature_params(SBS3_LINK[arm], arm, "Pathogenic")
         sbs3_mean0, sbs3_sd0 = marginal_gaussian_feature_params(SBS3_LINK[arm], arm, "Benign")
         x_sbs3 = EVAL_POINT["sbs3"]
+        sbs3_dens1, sbs3_kind1 = sbs3_clipped_density(x_sbs3, sbs3_mean1, sbs3_sd1)
+        sbs3_dens0, sbs3_kind0 = sbs3_clipped_density(x_sbs3, sbs3_mean0, sbs3_sd0)
         rows.append({
             "quantity": f"{arm.lower()}_sbs3_exposure_LR",
-            "injected_value": phi_pdf(x_sbs3, sbs3_mean1, sbs3_sd1) / phi_pdf(x_sbs3, sbs3_mean0, sbs3_sd0),
+            "injected_value": sbs3_dens1 / sbs3_dens0,
             "estimand": "LR", "is_null": "FALSE", "feature_type": "continuous_gaussian_marginal",
-            "derivation": f"f(SBS3={x_sbs3}|Pathogenic~N({sbs3_mean1:.4f},{sbs3_sd1:.4f})) / "
-                           f"f(SBS3={x_sbs3}|Benign~N({sbs3_mean0:.4f},{sbs3_sd0:.4f})), marginal over Z",
+            "derivation": f"P06R3: f_clipped(SBS3={x_sbs3}|Pathogenic~N({sbs3_mean1:.4f},{sbs3_sd1:.4f})"
+                           f"|clip[{SBS3_CLIP_LO},{SBS3_CLIP_HI}])={sbs3_dens1:.6f} ({sbs3_kind1}) / "
+                           f"f_clipped(SBS3={x_sbs3}|Benign~N({sbs3_mean0:.4f},{sbs3_sd0:.4f})"
+                           f"|clip[{SBS3_CLIP_LO},{SBS3_CLIP_HI}])={sbs3_dens0:.6f} ({sbs3_kind0}), marginal "
+                           f"over Z. x_sbs3 is interior to the clip range for both classes (kind='density' "
+                           f"both sides), so this equals the pre-P06R3 unclipped-Gaussian formula exactly -- "
+                           f"clipping is a measure-preserving identity map on the open interval, it cannot "
+                           f"change the density there; see FIDELITY_AUDIT.md.",
         })
 
         jlr = joint_lr(arm, EVAL_POINT)
@@ -631,7 +693,7 @@ def _emit_sample(state: dict, arm: str, cls: str, purity_bin: str, p_lo: float, 
     normal_ref = normal_depth - normal_alt
 
     gis = GIS_LINK[arm]["c"] + GIS_LINK[arm]["d"] * z + rng.gauss(0, GIS_LINK[arm]["sigma"])
-    sbs3 = min(0.95, max(0.0, SBS3_LINK[arm]["c"] + SBS3_LINK[arm]["d"] * z + rng.gauss(0, SBS3_LINK[arm]["sigma"])))
+    sbs3 = min(SBS3_CLIP_HI, max(SBS3_CLIP_LO, SBS3_LINK[arm]["c"] + SBS3_LINK[arm]["d"] * z + rng.gauss(0, SBS3_LINK[arm]["sigma"])))
 
     state["sample_rows"].append({
         "sample_id": sample_id, "gene": gene, "gene_group": arm, "pam50_subtype": subtype,

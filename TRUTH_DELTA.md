@@ -246,3 +246,201 @@ EXPECTED to now report a difference for exactly this reason — that is not
 a regression introduced by P06R2, it is the correct, honest consequence of
 fixing an upstream input the downstream report was scored against. A future
 task authorized to re-run P08 against the fixed catalog should do so.
+
+---
+
+# P06R3 addendum: clipping-fidelity fix (before/after unchanged)
+
+SIMULATED: the section above is P06R2's own before/after report, preserved unmodified as the historical record (cited by P08-RERUN's own task text, TRUTH_DELTA.md §7). Everything below is P06R3's addition, appended rather than replacing the above.
+
+SIMULATED: this is the before/after comparison required by this task's Step
+3. Read FIDELITY_AUDIT.md first — its headline finding (the SBS3 clip
+mismatch P08-RERUN reported does not replicate under a rigorous re-test) is
+why every number below is unchanged.
+
+## 1. Every SIMULATED_TRUTH.tsv quantity, before → after
+
+"Before" = the value committed at HEAD (`80e56dd`, P06R2). "After" = the
+value produced by the current `simulate.py`, which includes the
+`sbs3_clipped_density()`/`sbs3_clipped_lr()` fix (FIDELITY_AUDIT.md §4).
+
+| quantity | before | after | changed? |
+|---|---|---|---|
+| core_hr_wt_lost_direction_LR | 4.480411981797967 | 4.480411981797967 | no |
+| core_hr_gis_score_LR | 3.6622471084686548 | 3.6622471084686548 | no |
+| core_hr_sbs3_exposure_LR | 5.644994542233774 | 5.644994542233774 | no (derivation text updated, see §2) |
+| core_hr_joint_LR | 7.243192150573085 | 7.243192150573085 | no |
+| core_hr_product_of_marginals_LR | 92.6251919795419 | 92.6251919795419 | no |
+| core_hr_joint_vs_marginal_inflation_ratio | 0.07819894345992705 | 0.07819894345992705 | no |
+| ddr_signaling_wt_lost_direction_LR | 2.137348544853484 | 2.137348544853484 | no |
+| ddr_signaling_gis_score_LR | 2.7235909709691692 | 2.7235909709691692 | no |
+| ddr_signaling_sbs3_exposure_LR | 3.9157230519927206 | 3.9157230519927206 | no (derivation text updated, see §2) |
+| ddr_signaling_joint_LR | 6.204176316151221 | 6.204176316151221 | no |
+| ddr_signaling_product_of_marginals_LR | 22.794454498384997 | 22.794454498384997 | no |
+| ddr_signaling_joint_vs_marginal_inflation_ratio | 0.2721791967687049 | 0.2721791967687049 | no |
+| null_arm_full_vector_joint_LR | 1.0 | 1.0 | no (exact both before and after) |
+| null_arm_full_vector_product_of_marginals_LR | 1.0 | 1.0 | no (exact both before and after) |
+| null_arm_full_vector_inflation_ratio | 1.0 | 1.0 | no (exact both before and after) |
+| null_sequencing_depth_bucket_LR | 1.0 | 1.0 | no |
+
+**Every quantity is byte-identical.** This is the expected, correct outcome
+given FIDELITY_AUDIT.md's finding: `EVAL_POINT["sbs3"]=0.30` is interior to
+`[0, 0.95]` for every class in every arm, where clipping cannot alter the
+density (§"Headline finding" of FIDELITY_AUDIT.md). Confirmed directly by
+`diff` between the pre-fix and post-fix `SIMULATED_TRUTH.tsv`: the only
+lines that differ are the two SBS3 exposure LR rows' free-text `derivation`
+column (now spelling out the clipped-density computation and its kind —
+`density`, not `point_mass` — explicitly); the `injected_value` column is
+untouched on every row. `SIMULATED_data/`, `SIMULATED_TRUTH_detail/`, and
+`V1_NUMERIC_SCAN.tsv` are also byte-identical before/after (the fix does not
+touch any RNG-consuming code path — `_emit_sample()`'s clip line changed
+only from the literals `0.95`/`0.0` to the equal-valued named constants
+`SBS3_CLIP_HI`/`SBS3_CLIP_LO`).
+
+## 2. What actually changed in `simulate.py`
+
+- Added `SBS3_CLIP_LO`/`SBS3_CLIP_HI` named constants (previously inline
+  literals `0.0`/`0.95`, duplicated between `_emit_sample()`'s draw and
+  nowhere else — now used by both the draw and the new analytic function,
+  so they cannot drift apart).
+- Added `sbs3_clipped_density(x, mean, sd) -> (value, kind)`: returns the
+  exact closed-form interior density for x strictly inside the clip range,
+  or the exact point-mass probability at a boundary, tagged so a density
+  can never be silently divided against a point mass.
+- Added `sbs3_clipped_lr(...)`: the SBS3 term of `product_of_marginals_lr()`,
+  now via `sbs3_clipped_density`, raising if the two classes' evaluations
+  are of different kinds (defends against a future `EVAL_POINT` change
+  landing on one class's boundary but not the other's).
+- `compute_truth_quantities()`'s SBS3 exposure LR rows and `joint_density()`'s
+  per-Z sbs3 term now call `sbs3_clipped_density`/`sbs3_clipped_lr` instead
+  of a bare `phi_pdf`. `product_of_marginals_lr()` likewise.
+- `_emit_sample()`'s clip call now references the named constants instead of
+  the bare literals (behaviorally identical, same numeric bounds).
+
+No change to `WT_LOST_LINK`, `GIS_LINK`, `Z_MEAN`, `SBS3_LINK`, `EVAL_POINT`,
+or any RNG-consuming code path. `PROTOCOL.md`, `signatures.py`, and
+`loh_caller.py` are unmodified (verified live by
+`scripts/check_p06r3_acceptance.py`).
+
+## 3. Joint / product-of-marginals / inflation ratio — reconciling "12.8x/3.7x"
+
+This task's own text anticipated these three quantities might move and
+explicitly warned against reporting a stale prior figure: *"The 12.8x and
+3.7x will move if the audit finds divergence beyond SBS3. Report what they
+become; do not engineer them."* Re-deriving them directly from the values
+committed at HEAD (`80e56dd`, P06R2) — i.e., **before** P06R3's own fix, so
+these are not a consequence of anything this task did:
+
+| arm | joint_LR | product_of_marginals_LR | joint_vs_marginal_inflation_ratio |
+|---|---|---|---|
+| CORE_HR | 7.243 | 92.625 | **0.0782** |
+| DDR_SIGNALING | 6.204 | 22.794 | **0.2722** |
+
+**These reconcile exactly with "12.8x and 3.7x" — they are the same numbers,
+not a discrepancy.** P06R2's own `TRUTH_DELTA.md §1` (the original section
+preserved above, unedited by this addendum) already reports these same two
+ratios as *"0.07819894345992705 (~12.79x deflation of joint vs. naive)"* and
+*"0.2721791967687049 (~3.67x)"* — i.e. it describes the ratio via its
+reciprocal (`naive/joint`, "how many times bigger the naive estimate is"),
+not the ratio itself (`joint/naive`, the value `SIMULATED_TRUTH.tsv` actually
+stores under `..._inflation_ratio`). `1/0.0782 = 12.79` and `1/0.2722 = 3.67`.
+P06R3's task text inherited that "12.8x/3.7x" framing directly from P06R2's
+report — this audit's first read of it (an earlier draft of this document)
+mistook it for the `injected_value` itself and wrongly flagged an
+unexplained mismatch; correcting that here. **Confirmed: these three
+quantities did not move at all, under either fix (P06R2's shape fix, per the
+original §1 above, or P06R3's clipping-density fix, per §1 of this
+addendum)** — both are exactly 0.0782 (CORE_HR) / 0.2722 (DDR_SIGNALING),
+unchanged to full float precision across both sessions.
+
+At `EVAL_POINT`, the naive product-of-marginals estimator *overstates* the
+evidence relative to the true joint model for both arms (ratio < 1 — the
+naive estimate is ~12.8x/~3.7x too large, not too small — "deflation of
+joint vs. naive" in P06R2's phrasing). This is consistent with the
+shared-latent-factor mechanism: `EVAL_POINT` (`wt_lost=1, gis=42, sbs3=0.30`)
+is a *jointly moderate* combination of evidence for both arms — under a
+model where a single latent Z drives all three features in the same
+direction, a moderate, mutually-consistent elevation across all three
+features is comparatively unsurprising under *either* class (a single
+moderate Z draw explains all three at once), so treating the three features
+as independent and multiplying their individually-supportive marginal LRs
+overstates how surprising that joint combination really is — a textbook
+consequence of ignoring positive correlation among features sharing a
+common cause.
+
+## 4. NULL_ARM re-proven at exactly 1.0 under clipping
+
+`null_arm_full_vector_joint_LR`, `null_arm_full_vector_product_of_marginals_LR`,
+and `null_arm_full_vector_inflation_ratio` are all **exactly** `1.0`
+(Python float repr `1.0`, not `0.999...` or `1.000...1`), both before and
+after the fix. This holds under clipping because NULL_ARM's `Z_MEAN` is
+identical (`0.0`) between Pathogenic and Benign, so `sbs3_mean1 == sbs3_mean0`
+and `sbs3_sd1 == sbs3_sd0` exactly (same formula, same inputs) —
+`sbs3_clipped_density` therefore returns identical `(value, kind)` tuples for
+both classes, giving `lr_sbs3 = v/v = 1.0` exactly, not approximately. The
+same holds for the `wt_lost` and `gis` terms (unaffected by this fix, already
+exact) and for `joint_density()`'s Z-integral (integrand functions are
+identical between classes pointwise, so the integrals are identical). Proof
+by construction, not by numerical coincidence — see FIDELITY_AUDIT.md §2/§4.
+
+## 5. P08-RERUN's "achievable LR" figures: do they now agree with injected?
+
+This task's Step 3 asks: do P08-RERUN's achievable-LR figures (CORE_HR: 8.15
+vs. injected 5.64) now agree with the injected values, and if not, is the
+fix incomplete or is there a second mismatch?
+
+**Neither.** The fix is complete (§1: the analytic formula was already exact
+at `EVAL_POINT`), and there is no second mismatch — but "achievable LR," as
+P08-RERUN computed it (a windowed point-density approximation from a finite
+sample), is not a quantity that *should* exactly equal the injected value at
+any single window width; it is a noisy, width-dependent *estimator* of the
+true density ratio, and it converges toward the injected value only as the
+window shrinks and the sample size grows, same as any kernel density
+estimator. To make this concrete, recomputing the empirical ratio using the
+*exact* window probability (not the point-density approximation) at a sweep
+of widths, for CORE_HR (injected LR = 5.6450):
+
+| w | achievable LR (exact window-probability ratio) | ratio to injected |
+|---|---|---|
+| 0.30 | 0.9653 | 0.171 |
+| 0.20 | 2.7274 | 0.483 |
+| 0.10 | 4.8469 | 0.859 |
+| 0.05 | 6.7922 | 1.203 |
+| 0.02 | 8.1538 | 1.444 |
+| 0.01 | 6.6471 | 1.178 |
+
+and for DDR_SIGNALING (injected LR = 3.9157):
+
+| w | achievable LR (exact window-probability ratio) | ratio to injected |
+|---|---|---|
+| 0.30 | 1.0000 | 0.255 |
+| 0.20 | 1.8316 | 0.468 |
+| 0.10 | 2.9216 | 0.746 |
+| 0.05 | 3.2522 | 0.831 |
+| 0.02 | 3.9487 | 1.008 |
+| 0.01 | 4.3529 | 1.112 |
+
+There is a clear, monotone **windowing bias** at wide w (the empirical ratio
+undershoots badly at w≥0.10 for both arms — this is a real, well-understood
+approximation artifact of averaging a nonlinear density ratio over a wide
+window, distinct from any clip effect) and **sampling noise** at narrow w
+(no monotone trend below w=0.05; the ratio-to-injected bounces both above
+and below 1.0 — 1.44, 1.18, 1.20, 1.01, 1.11 — with no persistent direction).
+Neither pattern indicates a truth-definition defect: they are exactly what a
+finite-sample windowed density estimator does when estimating a genuinely
+correct target. **The true density ratio — the quantity that actually
+matters, computed exactly rather than estimated from a window — already
+equals the injected value, by construction** (`injected_value` *is* the
+output of the exact formula). P08-RERUN's specific number (8.15 at w=0.02)
+sits inside the noise band shown above, not outside it.
+
+## 6. Conclusion
+
+No re-derivation of any truth quantity was needed; the fix is a code-hygiene
+/ correctness-by-construction change (FIDELITY_AUDIT.md §4) that happens to
+leave every number unchanged, and the audit that produced this delta is
+itself the substantive finding: **P08-RERUN's Step 3 conclusion — that
+CORE_HR's gate6 FAIL stems partly from a truth-definition defect — does not
+hold up**, and both arms' gate6 FAILs should now be attributed to the same
+estimator-instability mechanism. See REVALIDATION_REQUIRED.md for what this
+means for P07 and P08.
