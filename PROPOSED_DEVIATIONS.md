@@ -298,3 +298,54 @@ P09**, and does not fix either finding from this prompt. `simulate.py`
 (the P06 truth-definition fix `ANALYTIC_VS_OBSERVED.md` §7 recommends) and
 `PROTOCOL.md` (the tool-ordering change §5.3 above recommends) are both
 left unmodified, per this task's DO NOT list.
+
+*Note (P06R3, later): finding 1 above (`core_hr_sbs3_exposure_LR`'s truth
+"not achievable") did not survive a more rigorous re-test — see
+`FIDELITY_AUDIT.md` and `REVALIDATION_REQUIRED.md`. Left unedited here as
+the historical record of what P08-RERUN itself found and concluded at the
+time; the correction is documented in those later files, not by rewriting
+this one.*
+
+---
+
+## 7. PROTOCOL.md is silent on feature-level (not stage-level) uninformativeness (STAKE_ANALYSIS.md addendum)
+
+SIMULATED: `STAKE_ANALYSIS.md` Step 0 found that `PROTOCOL.md` §10 pre-
+specifies what happens when Stage 2 is *mostly* uncalibrated (blocks Stage
+1 reporting entirely) and what vocabulary to print for an individual
+out-of-scope/untestable/blocked *outcome*, but nowhere specifies what
+should happen to the joint LR, or to Stage 1 reporting, when **one named
+feature inside an otherwise-computable joint vector** (SBS3) is
+specifically and consistently hard to recover with the chosen estimator,
+while the truth is confirmed faithful (`FIDELITY_AUDIT.md`) and another
+named feature in the same vector (LOH/WT_LOST direction) recovers cleanly.
+§7.1 commits structurally to always reporting every per-feature LR *and*
+the joint feature vector's LR together, with no described mechanism for
+excluding, downweighting, or flagging one feature within that vector based
+on its own individual recovery performance.
+
+**Proposed (not applied): a future protocol revision could add a §10 rule
+along these lines** — e.g., "if a single feature's Stage 2 recovery
+consistently fails while its analytic truth is confirmed faithful (ruling
+out a truth-definition defect as the cause), the joint LR is reported both
+with and without that feature, with the feature-dropped ACMG tier reported
+alongside the full-vector tier rather than only the latter." `STAKE_ANALYSIS.md`'s
+ablation shows this choice is not academic: at synthetic n it changes
+CORE_HR's ACMG tier by 2 points and leaves DDR_SIGNALING's unchanged; at
+subtype-stratified synthetic n it changes DDR_SIGNALING's tier too; at
+realistic n the picture is dominated by estimator instability rather than
+by SBS3's presence or absence per se (see `STAKE_ANALYSIS.md` Step 2). This
+is a proposal only — `PROTOCOL.md` is not modified by this task, per
+Standing Rule 10 ("An agent may PROPOSE a protocol amendment. It may never
+APPLY one").
+
+**Second, smaller finding logged here for completeness:** `simulate.py`'s
+`PAM50_PROPORTIONS` implements only 4 of the 5 PAM50 categories
+`PROTOCOL.md` §8 names for stratification (Luminal A, Luminal B,
+HER2-enriched, Basal-like) — it never generates a "Normal-like" sample.
+Every `SYNTHETIC_SUBTYPE_Normal-like` cell in `ABLATION_TABLE.tsv` has n=0,
+a simulator/protocol stratification-scheme mismatch rather than a power
+limitation. Proposed (not applied): either add Normal-like to
+`PAM50_PROPORTIONS` in a future simulator revision, or narrow
+`PROTOCOL.md` §8's stratification list to the 4 categories the simulator
+actually generates, with the discrepancy disclosed either way.

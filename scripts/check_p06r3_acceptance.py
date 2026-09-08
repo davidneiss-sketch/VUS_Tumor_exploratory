@@ -198,15 +198,29 @@ def criterion_5_reversion_diagnosis_and_guard() -> None:
 
 
 def criterion_6_unauthorized_files_untouched() -> None:
-    result = subprocess.run(["git", "diff", "--name-only", "HEAD"], cwd=REPO_ROOT, capture_output=True, text=True)
-    result_staged = subprocess.run(["git", "diff", "--staged", "--name-only", "HEAD"], cwd=REPO_ROOT,
-                                    capture_output=True, text=True)
-    changed = set(result.stdout.splitlines()) | set(result_staged.stdout.splitlines())
+    # STAKE addendum: originally scoped to the live working tree, which
+    # only stays meaningful until P06R3's own commit lands -- after that,
+    # simulate.py no longer differs from HEAD (it IS HEAD), so a live-tree
+    # check would spuriously FAIL the "simulate.py IS modified" assertion
+    # forever after, for any later session that re-runs this script as
+    # part of its own regression pass. Same false-positive/false-negative
+    # class of bug check_p08rerun_acceptance.py's own equivalent check hit
+    # and was fixed for (see that script's comment) -- scoped here to
+    # P06R3's own commit range instead: 1c40a34 (P08-RERUN's commit, what
+    # P06R3 built on) .. be73148 (P06R3's own commit).
+    P06R3_RANGE = "1c40a34..be73148"
+    result = subprocess.run(["git", "diff", "--name-only", P06R3_RANGE], cwd=REPO_ROOT,
+                             capture_output=True, text=True)
+    if result.returncode != 0:
+        check("P06R3's own commit range is resolvable in this repository", False,
+              f"git diff {P06R3_RANGE} failed: {result.stderr.strip()}")
+        return
+    changed = set(result.stdout.splitlines())
     for forbidden in ("PROTOCOL.md", "signatures.py", "loh_caller.py"):
-        check(f"{forbidden} not modified by this task", forbidden not in changed,
-              f"{forbidden} in changed files: {forbidden in changed}")
-    check("simulate.py IS modified (it is this task's own fix target, not forbidden)",
-          "simulate.py" in changed, f"simulate.py in changed files: {'simulate.py' in changed}")
+        check(f"{forbidden} not modified within P06R3's own commit range ({P06R3_RANGE})",
+              forbidden not in changed, f"{forbidden} in P06R3's changed files: {forbidden in changed}")
+    check("simulate.py WAS modified within P06R3's own commit range (it was this task's own fix target, not forbidden)",
+          "simulate.py" in changed, f"simulate.py in P06R3's changed files: {'simulate.py' in changed}")
 
 
 def criterion_7_v1_scan_rerun() -> None:
