@@ -1,10 +1,12 @@
 SIMULATED DATA — NOT A SCIENTIFIC RESULT
 
-# PROPOSED_DEVIATIONS.md — proposed purity/depth floors for P07
+# PROPOSED_DEVIATIONS.md — proposed protocol deviations (P07 purity/depth
+# floors; P08 SBS3 feature-informativeness addendum, §4)
 
 SIMULATED: this document PROPOSES protocol deviations for human review. It
 does not apply them. **`PROTOCOL.md` is not modified by this task.** No
-ACMG evidence strength is assigned anywhere below.
+ACMG evidence strength is assigned anywhere below. §1-3 are P07's original
+proposals (unchanged); §4 is a P08 addendum.
 
 Per this task's Step 4: "P07 should set the purity and depth floors, not
 inherit them." Evidence below is from the remediated simulator's full
@@ -111,3 +113,70 @@ detection power at that depth.
 weigh these findings against PROTOCOL.md §3's broader rationale (the
 three purity arms exist to test purity-floor sensitivity across the WHOLE
 pipeline, not P07 alone) before any change is made to PROTOCOL.md itself.
+
+## 4. SBS3's informativeness for the joint model and Track B power (P08 addendum)
+
+SIMULATED: this section is a P08 addendum to the P07 proposals above (§1-3,
+unchanged, still open). Evidence: `DIAGNOSIS_P08.md`,
+`SIMULATED_signature_validation.md` §4-7 (Mechanism 2).
+
+**Finding.** PROTOCOL.md's joint model (`simulate.py`'s `joint_lr`/
+`product_of_marginals_lr`, `EVAL_POINT`) treats LOH direction, GIS/HRD score,
+and SBS3 exposure as three informative features combining multiplicatively
+via a shared latent HR-deficiency variable. This session found that **SBS3
+exposure, as actually recovered by real SigProfilerAssignment 1.1.5 at
+exome-scale mutation counts (5-115 mutations, the realistic TCGA-BRCA range
+per BENCHMARKS.tsv TMB01), is near-uninformative across most of the tested
+range** — not because the injected signal was absent (a real COSMIC SBS3
+vector was used for this specific test, ruling out the simulator-shape
+defect in §8 above), but because of a genuine NNLS decomposition-instability
+limitation of the tool itself (`DIAGNOSIS_P08.md` §5, Mechanism 2, confirmed
+by two targeted experiments). Concretely: even restricting to samples with a
+clearly non-trivial expected SBS3 signal (>=5 expected SBS3-attributable
+mutations, up to a mean of ~15-16 in the highest-count bins tested),
+SigProfilerAssignment recovered **exactly zero** SBS3 exposure for 89-100%
+of samples in every bin below the top of the tested range.
+
+**Implication.** If this finding holds after P06's shape fix (§8 above) is
+applied and re-tested — which this task does not do, since `simulate.py` is
+out of scope here — then **SBS3-via-SigProfilerAssignment contributes
+essentially no usable evidence for the large majority of exome-scale
+samples this study's Track B is designed around.** A three-feature joint
+model in which one feature is null (returns the same value, ~0, regardless
+of true class) for most of the cohort does not behave like a three-feature
+model for most samples — it behaves like a two-feature model (LOH direction
++ GIS) with an occasional third data point, and any power calculation for
+Track B that assumed SBS3's full contribution across the cohort is
+optimistic for the majority of samples in the realistic mutation-count
+range.
+
+**Proposed (not applied):**
+
+1. **Re-run this session's Mechanism-2 test after P06's shape fix lands**,
+   to confirm the near-null finding is not itself confounded by the
+   simulator defect (it should not be, since §4-7's catalog already used
+   the real COSMIC vector — but an independent re-confirmation against the
+   corrected `simulate.py` catalog would remove any remaining doubt).
+2. **If confirmed, treat SBS3-via-SigProfilerAssignment as a
+   low-mutation-count-conditional feature in the joint model**, not a
+   uniformly-available third feature — e.g., only counted with full weight
+   above some minimum total-mutation-count / expected-SBS3-count threshold
+   (this session's data did not identify a clean threshold within 5-115;
+   see `SIMULATED_signature_validation.md` §6), with the LOW_CONFIDENCE /
+   COMPUTED_ZERO distinction (§7) carried through rather than treating a
+   zero point estimate as equally informative as a well-supported one.
+3. **Resolve SigMA** (a tool purpose-built for this exact low-SNV-count
+   regime, per its own `DESCRIPTION`) before finalizing any power
+   calculation that depends on SBS3's contribution — this session's
+   resolution attempts (`GATE1.json` `resolution_attempts_p08`) were
+   unsuccessful but identified a partial, promising avenue (SigMA's core
+   analysis functions are not themselves BSgenome-dependent, only its
+   VCF-to-matrix step is) that a future session could pursue further.
+4. **Track B's power justification (SIMULATION_SPEC.md §6) should be
+   revisited** if it assumed SBS3's full three-feature contribution
+   uniformly across the cohort, once (1) is confirmed.
+
+**This document proposes; it does not decide.** A human reviewer should
+weigh this against the study's overall design goals — a two-feature model
+with an occasional third data point may still be adequate for Track B's
+purposes, depending on what margin the original power calculation assumed.

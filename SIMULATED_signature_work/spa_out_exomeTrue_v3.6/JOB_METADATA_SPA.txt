@@ -3,7 +3,7 @@ THIS FILE CONTAINS THE METADATA ABOUT SYSTEM AND RUNTIME
 
 -------System Info-------
 Operating System Name: Linux
-Nodename: 3722e8c6995a
+Nodename: 073f953e9c19
 Release: 6.18.44-fc-v24
 Version: #1 SMP PREEMPT_DYNAMIC @0
 
@@ -37,15 +37,15 @@ COSMIC MATCH
 	cosmic_fit_option: True
 
 -------Analysis Progress------- 
-[2026-09-08 07:10:13] Analysis started: 
+[2026-09-08 15:20:45] Analysis started: 
 
  Assigning COSMIC sigs or Signature Database ...... 
  Finished Cosmic fitting! 
-Execution time:0:00:20.063671
+Execution time:0:00:21.125534
 
-[2026-09-08 07:10:33] Analysis ended: 
+[2026-09-08 15:21:06] Analysis ended: 
 
 -------Job Status------- 
 Assignment of mutational signatures completed successfully! 
-Total execution time: 0:00:20 
+Total execution time: 0:00:21 
 Results can be found in:  /home/user/VUS_Tumor_exploratory/SIMULATED_signature_work/spa_out_exomeTrue_v3.6  folder

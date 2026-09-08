@@ -14,6 +14,8 @@ Exit 0 = every criterion PASS. Exit 1 = at least one criterion FAIL.
 from __future__ import annotations
 
 import csv
+import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -231,10 +233,120 @@ def criterion_6_cosmic_version_pin() -> None:
     if misassign_path.exists():
         rows = read_tsv(misassign_path)
         versions = {r["cosmic_version"] for r in rows}
-        check("misassignment quantified across multiple real COSMIC versions (not just one)",
-              len(versions) >= 5, f"versions tested: {sorted(versions)}")
+        # P08 Step 4 restricted the sweep to exactly the versions with a genuine textual mandate
+        # (3.6 -- PROTOCOL.md §5.4's explicitly-named bundled default -- and 2 -- this task
+        # series' own "v2-equivalent" pinning requirement): {"2", "3.6"}. A wider sweep would
+        # itself be an ACCEPTANCE violation per P08's explicit instruction, so this checks for
+        # exactly that set, not merely ">= N".
+        check("misassignment quantified across exactly the COSMIC versions with a textual mandate "
+              "(P08 Step 4 restriction: no unauthorized sweep)",
+              versions == {"2", "3.6"}, f"versions tested: {sorted(versions)} (expected {{'2', '3.6'}})")
     else:
         check("misassignment-by-version artifact present", False, f"{misassign_path} missing")
+
+
+def criterion_7_reproducibility_regenerate_and_diff() -> None:
+    """P08 Step 3: the committed report must be the actual output of the
+    committed pipeline, not a hand-patched artifact. This re-runs the full
+    signatures.py pipeline fresh (real SigProfilerAssignment, ~10-15 minutes)
+    and diffs the freshly-generated report byte-for-byte against the
+    committed copy. Set SKIP_REPRO_CHECK=1 to skip during fast iteration --
+    it is NOT skipped by default, since reproducibility is the thing being
+    checked."""
+    if os.environ.get("SKIP_REPRO_CHECK") == "1":
+        check("committed report is byte-identical to a fresh pipeline run",
+              True, "SKIPPED (SKIP_REPRO_CHECK=1) -- not a real pass, only for fast iteration")
+        return
+    if not REPORT_MD.exists():
+        check("committed report is byte-identical to a fresh pipeline run", False, f"{REPORT_MD} missing")
+        return
+    committed_bytes = REPORT_MD.read_bytes()
+    backup_dir = WORK_DIR.parent / "SIMULATED_signature_work_repro_check_backup"
+    if backup_dir.exists():
+        shutil.rmtree(backup_dir)
+    if WORK_DIR.exists():
+        shutil.copytree(WORK_DIR, backup_dir)
+
+    result = subprocess.run([sys.executable, str(SIGNATURES_PY)], cwd=REPO_ROOT,
+                             capture_output=True, text=True, timeout=1800)
+    fresh_bytes = REPORT_MD.read_bytes() if REPORT_MD.exists() else b""
+    identical = fresh_bytes == committed_bytes
+
+    if not identical:
+        import difflib
+        diff = list(difflib.unified_diff(
+            committed_bytes.decode("utf-8", errors="replace").splitlines(keepends=True),
+            fresh_bytes.decode("utf-8", errors="replace").splitlines(keepends=True),
+            "committed", "fresh_regenerated", n=1,
+        ))
+        detail = f"pipeline exit={result.returncode}; {len(diff)} diff line(s), first few: {''.join(diff[:20])!r}"
+    else:
+        detail = f"pipeline exit={result.returncode}; fresh output byte-identical to committed report ({len(fresh_bytes)} bytes)"
+    check("committed report is byte-identical to a fresh pipeline run (P08 Step 3 -- "
+          "the deliverable is generated output, never hand-patched)", identical, detail)
+
+    if backup_dir.exists():
+        if WORK_DIR.exists():
+            shutil.rmtree(WORK_DIR)
+        shutil.move(str(backup_dir), str(WORK_DIR))
+        check("SIMULATED_signature_work/ restored to its pre-check (freshly regenerated) state after the repro check",
+              True, "backup restored")
+
+
+def criterion_8_diagnosis_p08() -> None:
+    diag = REPO_ROOT / "DIAGNOSIS_P08.md"
+    if not diag.exists():
+        check("DIAGNOSIS_P08.md present and names a mechanism", False, f"{diag} missing")
+        return
+    text = diag.read_text(encoding="utf-8")
+    checks = {
+        "hypothesis (a) tested with injected SBS3 mutation-count distribution": "expected SBS3" in text and "TMB01" in text,
+        "hypothesis (b) tested with side-by-side injected/recovered definitions": "cosine similarity" in text and "Units check" in text,
+        "hypothesis (c) latent-leakage check present": "latent leakage" in text.lower() or "CLEARED" in text,
+        "hypothesis (d) structural-zero-vs-declined-to-fit counts present": "NOT_COMPUTED" in text and "COMPUTED_ZERO" in text,
+        "a named mechanism with evidence is stated (not just 'inconclusive')": "Named mechanism" in text or "mechanism" in text.lower(),
+        "banner present": text.startswith("SIMULATED DATA"),
+    }
+    for name, passed in checks.items():
+        check(f"DIAGNOSIS_P08.md: {name}", passed, "checked DIAGNOSIS_P08.md text")
+
+    tmb01_row = None
+    bench_path = REPO_ROOT / "BENCHMARKS.tsv"
+    if bench_path.exists():
+        rows = read_tsv(bench_path)
+        tmb01_row = next((r for r in rows if r.get("benchmark_id") == "TMB01"), None)
+    check("TMB01 benchmark row actually exists in BENCHMARKS.tsv (cross-check is against a real row)",
+          tmb01_row is not None, f"TMB01 row found: {tmb01_row is not None}")
+
+
+def criterion_9_required_p06_and_no_unauthorized_edits() -> None:
+    p06 = REPO_ROOT / "REQUIRED_P06_CHANGES.md"
+    check("REQUIRED_P06_CHANGES.md present (diagnosis pointed at the simulator -- HALT deliverable)",
+          p06.exists(), f"{p06} {'exists' if p06.exists() else 'missing'}")
+    if p06.exists():
+        text = p06.read_text(encoding="utf-8")
+        check("REQUIRED_P06_CHANGES.md starts with the SIMULATED banner", text.startswith("SIMULATED DATA"),
+              "checked first line")
+
+    result = subprocess.run(["git", "diff", "--name-only", "HEAD"], cwd=REPO_ROOT,
+                             capture_output=True, text=True)
+    result_staged = subprocess.run(["git", "diff", "--staged", "--name-only", "HEAD"], cwd=REPO_ROOT,
+                                    capture_output=True, text=True)
+    changed = set(result.stdout.splitlines()) | set(result_staged.stdout.splitlines())
+    protocol_touched = "PROTOCOL.md" in changed
+    simulate_touched = "simulate.py" in changed
+    check("PROTOCOL.md not modified by this task (working tree + staged)", not protocol_touched,
+          f"PROTOCOL.md in changed files: {protocol_touched}")
+    check("simulate.py not modified by this task (working tree + staged)", not simulate_touched,
+          f"simulate.py in changed files: {simulate_touched}")
+
+    deviations = REPO_ROOT / "PROPOSED_DEVIATIONS.md"
+    if deviations.exists():
+        text = deviations.read_text(encoding="utf-8")
+        check("PROPOSED_DEVIATIONS.md has a P08 SBS3-informativeness addendum",
+              "SBS3" in text and "P08" in text, "checked for P08/SBS3 section")
+    else:
+        check("PROPOSED_DEVIATIONS.md present", False, f"{deviations} missing")
 
 
 def main() -> None:
@@ -244,6 +356,9 @@ def main() -> None:
     criterion_4_gates_run_and_reported()
     criterion_5_real_tool_environment()
     criterion_6_cosmic_version_pin()
+    criterion_8_diagnosis_p08()
+    criterion_9_required_p06_and_no_unauthorized_edits()
+    criterion_7_reproducibility_regenerate_and_diff()
 
     overall = True
     for name, passed, detail in results:

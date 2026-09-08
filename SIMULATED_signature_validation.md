@@ -7,6 +7,33 @@ SIMULATED: every number below comes from SIMULATED data (injected exposures,
 run through the REAL SigProfilerAssignment 1.1.5 tool. No ACMG evidence
 strength is assigned anywhere in this document.
 
+## 0. P08 diagnosis addendum — two distinct mechanisms, not one
+
+A prior pass reported this document's §4-8 findings as a single, unexplained
+"structural failure." `DIAGNOSIS_P08.md` (full evidence, four hypotheses
+tested) found **two distinct, independently-verified mechanisms**:
+
+- **Mechanism 1 (drives §8's gate6 FAIL):** the mutation catalog
+  `core_hr_sbs3_exposure_LR`/`ddr_signaling_sbs3_exposure_LR` are scored
+  against was built by `simulate.py` from an ARBITRARY 96-context shape that
+  is, by real cosine similarity, LESS like real COSMIC SBS3 (0.688) than
+  like SBS5 (0.802) — a **simulator (P06) defect**, not a signature-recovery
+  finding. See `REQUIRED_P06_CHANGES.md`. `simulate.py` is not modified by
+  this task; §8 below is expected to keep failing until P06 lands that fix.
+- **Mechanism 2 (drives §4-7's near-total exact-zero recovery, where the
+  REAL COSMIC SBS3 vector WAS used for injection):** SigProfilerAssignment's
+  NNLS decomposition is genuinely unstable at exome-scale mutation counts
+  given SBS3's real cosine similarity to SBS5/SBS39 (~0.79) — confirmed by
+  two targeted experiments (pruning-penalty tuning made it no better;
+  restricting the reference basis to just the two true signatures produced
+  near-binary, frequently-wrong solutions instead of proportional recovery).
+  This is a genuine tool-behavior finding, not a simulator defect.
+
+§4-7's headline claims below are Mechanism 2's real finding and are
+unaffected by the simulator defect. §8's gate6 FAIL is Mechanism 1, and is
+**not** evidence about SigProfilerAssignment's recovery ability — it is
+evidence that the quantity it was scored against was mislabeled.
+
 ## 1. Environment
 
 - SigProfilerAssignment: **1.1.5** (expected 1.1.5 per
@@ -21,6 +48,26 @@ strength is assigned anywhere in this document.
   SigMA `FAIL`. Per PROTOCOL.md §5.4: **no Stage of this task that would depend on a SigMA feature
   runs; the SigMA-derived feature (likelihood-based Signature-3 match score + `Signature_3_mva`) is
   reported as the literal string `BLOCKED`, not omitted or substituted with another tool's output.**
+  **Resolution attempts this session (`GATE1.json`'s `resolution_attempts_p08`, full detail there):**
+  (1) CRAN/BiocManager install — FAILED, cran.r-project.org network-blocked; (2) conda/bioconda
+  install — FAILED with a NEW reason (genuine r-base version conflict, independent of the network
+  block); (3) hg38 BSgenome substitute — INCONCLUSIVE (solver did not return in time), and moot
+  regardless since SigMA's `DESCRIPTION` hard-names hg19 specifically; (4) source-level bypass
+  (skip package install, `source()` the 20 non-BSgenome R files directly) — PARTIAL SUCCESS: SigMA's
+  actual analysis entrypoints (`run()`, NNLS/likelihood/gbm scoring against a pre-built matrix) are
+  not themselves BSgenome-dependent — only its VCF-to-matrix conversion utility is — but running it
+  against this study's data was not completed (context-label mapping and tumor-type model lookup
+  both remain unresolved). **SigMA is genuinely untested against this study's data. Every claim in
+  this document about SBS3 recovery is a claim about SigProfilerAssignment specifically, never a
+  general claim about SBS3 recoverability** — see §0 and §11. If SigMA were fully resolved, §4-7's
+  Mechanism 2 finding (NNLS instability at exome-scale, cosine-similar signatures) is exactly the
+  regime SigMA was purpose-built for (its own `DESCRIPTION`: "optimized to detect... Signature 3...
+  from... exomes," "for panels with low SNV counts, conventional signature analysis tools do not
+  perform well") — a working SigMA run could plausibly show materially better low-count recovery
+  than SigProfilerAssignment does here, which would change §4-7's "unrecoverable in this range"
+  finding from a statement about SBS3 itself to one about SigProfilerAssignment specifically (which
+  is already how it is scoped, but a working SigMA comparison would make that scoping load-bearing
+  rather than precautionary).
 - Genome build used for every `cosmic_fit` call in this document: **GRCh38**
   (PROTOCOL.md's pinned reference build; the package's own bundled *default*
   is `GRCh37` — logged, not silently assumed to match).
@@ -73,16 +120,11 @@ and the recovery error is dominated by the SBS3/SBS5 shape-similarity confound (
 sparse low-count noise (§6), not by the exome/genome trinucleotide-frequency mismatch this
 normalization corrects. Per-sample detail: `SIMULATED_signature_work/SIMULATED_sbs3_exome_compare.tsv`.
 
-## 5. SBS3 misassignment to SBS5/SBS40 across COSMIC versions — REAL, 7 versions run
+## 5. SBS3 misassignment to SBS5/SBS40 across COSMIC versions — REAL, 2 versions run
 
 | cosmic_version | HRD column | n | excluded (true_exp=0) | mean true | mean recovered | mean gap | mean bg frac of true signal | mean SBS40 frac of true signal |
 |---|---|---|---|---|---|---|---|---|
 | 2 | Signature_3 | 382 | 64 | 0.149267 | 0.096693 | 0.052574 | 0.043478 | 0.0 |
-| 3 | SBS3 | 382 | 64 | 0.149267 | 0.042519 | 0.106748 | 0.902747 | 0.051903 |
-| 3.1 | SBS3 | 382 | 64 | 0.149267 | 0.040878 | 0.108388 | 0.890824 | 0.048443 |
-| 3.2 | SBS3 | 382 | 64 | 0.149267 | 0.041966 | 0.1073 | 0.881839 | 0.045139 |
-| 3.3 | SBS3 | 382 | 64 | 0.149267 | 0.041966 | 0.1073 | 0.881839 | 0.045139 |
-| 3.4 | SBS3 | 382 | 64 | 0.149267 | 0.024823 | 0.124444 | 0.892713 | 0.073463 |
 | 3.6 | SBS3 | 382 | 64 | 0.149267 | 0.020457 | 0.12881 | 0.876444 | 0.056177 |
 
 Detail per sample per version: `SIMULATED_signature_work/SIMULATED_sbs3_by_cosmic_version_detail.tsv`.
@@ -155,6 +197,17 @@ table: `SIMULATED_signature_work/gate6_out/SIMULATED_RECOVERY_TABLE.tsv`). All 1
 product-of-marginals/null-arm estimators this script does not compute — see
 `SIMULATED_signature_work/SIMULATED_sbs3_gate6_scope.tsv` for the full per-quantity reasons).
 
+**Mechanism, per `DIAGNOSIS_P08.md` §2 (Mechanism 1):** this FAIL is a
+**simulator (P06) defect**, not a SigProfilerAssignment recovery failure. The
+catalog these two quantities are scored against was built from a shape real
+cosine similarity shows is not actually SBS3-shaped (0.688 to real SBS3 vs.
+0.802 to real SBS5 — closer to the alternative than to the thing it is named
+after). The remaining gap (recovered LR 0.31/0.48 vs. injected 5.64/3.92) is
+consistent with real SigProfilerAssignment correctly finding little real-SBS3
+signal in a catalog that mostly does not contain any. `simulate.py` is not
+modified by this task (see `REQUIRED_P06_CHANGES.md`); this FAIL is expected
+to persist until P06 lands the fix.
+
 ## 9. gate7: every rate reported here with its denominator and excluded count
 
 | metric | numerator | denominator | excluded | rate | excluded reason |
@@ -181,13 +234,29 @@ raw population (bin [5,15): only 7 available; bin [105,116): only 15 available) 
 at their true, smaller n rather than padded. This is a disclosed, documented substitution of a
 representative subset for the full population — not a silent one (Standing Rule 4) — and is
 distinct from §8's gate6 recovery, which DID run against the full relevant population
-(3696 samples per arm, split 1848 Pathogenic / 1848 Benign).
+(3696
+samples per arm, split 1848 Pathogenic /
+1848 Benign).
 
 ## 11. Overall
 
-- gate6_recovery.py: **FAIL**
+- gate6_recovery.py: **FAIL** — mechanism identified (`DIAGNOSIS_P08.md` §2,
+  Mechanism 1): a simulator (P06) defect in the catalog these two quantities are scored
+  against, not a SigProfilerAssignment recovery failure. `REQUIRED_P06_CHANGES.md` specifies
+  the fix; `simulate.py` is not modified by this task.
 - gate7_denominators.py: **PASS**
-- SigMA: **BLOCKED** (PROTOCOL.md §5.4 permitted status; re-confirmed FAIL fresh this session, matches `GATE1.json`)
-- Headline validation result, stated per Standing Rule 2: SBS3 exposure recovery by real
-  SigProfilerAssignment is **substantially compromised** throughout the realistic exome-scale
-  mutation-count range tested here — this is reported as the actual finding, not softened.
+- SigMA: **BLOCKED** (PROTOCOL.md §5.4 permitted status; re-confirmed FAIL fresh this session,
+  matches `GATE1.json`). Resolution attempted this session (§1, `GATE1.json`
+  `resolution_attempts_p08`) — still unresolved. **SigMA is untested against this study's data.**
+- **Headline validation result, precisely scoped (per this session's Step 2 instruction, never
+  as a general claim about SBS3 recoverability):** SBS3 exposure recovery **by
+  SigProfilerAssignment specifically** is substantially compromised throughout the realistic
+  exome-scale mutation-count range tested in §4-7 (Mechanism 2 — a genuine NNLS
+  decomposition-instability finding about this one tool, confirmed by two targeted experiments,
+  not an absent signal, not an estimand mismatch, not the tool declining to fit).
+  **SigMA — the tool literature-described as purpose-built for exactly this low-count regime —
+  was never run against this study's data; if it were, and performed as its own documentation
+  claims for low-SNV-count panels, §4-7's finding could change from "SBS3 is unrecoverable in
+  this range" to "SBS3 is unrecoverable BY SIGPROFILERASSIGNMENT in this range, but recoverable
+  by a purpose-built tool."** §8's separate gate6 FAIL is Mechanism 1 (simulator defect) and is
+  not part of this headline claim at all.
