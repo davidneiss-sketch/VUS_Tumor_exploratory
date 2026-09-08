@@ -349,3 +349,56 @@ limitation. Proposed (not applied): either add Normal-like to
 `PAM50_PROPORTIONS` in a future simulator revision, or narrow
 `PROTOCOL.md` §8's stratification list to the 4 categories the simulator
 actually generates, with the discrepancy disclosed either way.
+
+---
+
+## 8. PROTOCOL.md §7.1's KDE-based estimator: evidence bearing on the model choice (gate8 addendum)
+
+SIMULATED: `INTERVAL_INSTABILITY.md` (full data:
+`SIMULATED_INTERVAL_INSTABILITY_SWEEP.tsv`) characterizes, empirically, the
+class sizes at which `PROTOCOL.md` §7.1's estimator — Gaussian KDE for
+continuous features, Jeffreys-corrected empirical proportion for the
+categorical feature, joint LR as the product of per-feature ratios —
+produces intervals `gate8_interval_informativeness.py` rejects, or in some
+trials no computable interval at all (`ZERO_DENSITY_UNDEFINED`, a
+class-conditional kernel density underflowing to exactly `0.0` in floating
+point). This is raised as evidence bearing on the model choice, per this
+task's explicit instruction — **not fixed, and `PROTOCOL.md` is not
+modified**, per Standing Rule 10.
+
+**Summary of the evidence** (full detail, including the finding that the
+result does NOT cleanly follow "more dimensions = worse" the way this
+task's own framing hypothesized, is in `INTERVAL_INSTABILITY.md`):
+
+- No single class size cleanly separates "unstable" from "stable" — the
+  gate8-rejection rate is **non-monotonic** in n (worst in the *middle* of
+  the tested range for CORE_HR's SBS3-alone marginal, not at the smallest
+  n), because the smallest n instead triggers a more severe,
+  undefined-estimate failure mode gate8 cannot even see.
+- **DDR_SIGNALING's SBS3-alone marginal LR — the same quantity
+  `SIMULATED_RECOVERY_TABLE.tsv` reports as `core_hr_sbs3_exposure_LR`'s
+  DDR_SIGNALING counterpart — is still `UNINFORMATIVE` in roughly half of
+  independent trials even at n=160/class**, a class size already well
+  above the ~25–35 realistic DDR_SIGNALING Track B figure
+  `SIMULATION_SPEC.md` §6 derives from `BENCHMARKS.tsv`, and far above the
+  low-tens figures this task names for PALB2/RAD51C/RAD51D.
+- The full 3-feature vector is the least-bad of the three dimensions
+  tested, but that is because PROTOCOL's LOH feature (bounded,
+  Jeffreys-corrected) and GIS feature (a clip-free, well-separated
+  Gaussian marginal) are individually stable and dilute the *composite*
+  estimate's sensitivity to SBS3's own instability — SBS3's own marginal
+  is not fixed by this, and a future task using only SBS3 (e.g., a
+  signature-only screening step) would inherit the worse, single-feature
+  numbers directly.
+
+**Proposed (not applied): a future protocol revision could adopt penalized
+logistic regression (PROTOCOL's own originally-considered alternative,
+per this task's framing) or a regularized/shrinkage density estimator in
+place of, or as a fallback below some class-size threshold for, the
+current KDE-based estimator** — this document does not decide between
+them, does not pick a threshold, and does not modify `PROTOCOL.md`. A
+future task authorized to revise the model choice should weigh this
+evidence alongside `STAKE_ANALYSIS.md`'s separate finding (dropping SBS3
+entirely changes the ACMG tier for some but not all strata) when deciding
+whether the fix belongs in the estimator, in a class-size floor, or in a
+feature-inclusion rule.

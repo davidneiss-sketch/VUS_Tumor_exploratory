@@ -256,3 +256,54 @@ $ python3 gates/gate7_denominators.py --rates-table SIMULATED_loh_validation/SIM
 gate7_denominators OVERALL: PASS
 EXIT_CODE=0
 ```
+
+## Invocation 3 — gate8_interval_informativeness.py, NEW MANDATORY gate, run against real production output alongside gate5/gate6
+
+`gate8_interval_informativeness.py` (P-DEC-1 task: an ACMG-mapping rule
+that only checks which side of a threshold a CI's lower bound falls on
+will assign a strength to ANY interval, however wide or numerically
+degenerate — see the gate's own docstring and `INTERVAL_INSTABILITY.md`
+for the full rationale and the two pre-specified, cited thresholds). Run
+here against `ABLATION_TABLE.tsv` — the real, on-disk, already-committed
+production output that contains the row this gate exists to catch
+(`STAKE_ANALYSIS.md`'s DDR_SIGNALING n=35 full-feature-set row, CI upper
+bound 3.65 billion) — not only against `tests/fixtures/gate8_*`.
+
+| File | Used by |
+|---|---|
+| `ABLATION_TABLE.tsv` (repo root) → emits `SIMULATED_GATE8_INTERVAL_REPORT.tsv` (repo root) | **gate8** |
+
+```
+$ python3 gates/gate8_interval_informativeness.py \
+    --table ABLATION_TABLE.tsv \
+    --id-cols arm,feature_subset,n_scenario \
+    --point-col point_estimate --ci-low-col ci_low --ci-high-col ci_high \
+    --outdir .
+
+=== gate8_interval_informativeness ===
+[PASS] input table present — ABLATION_TABLE.tsv (64 rows)
+[PASS] SIMULATED_GATE8_INTERVAL_REPORT.tsv emitted — SIMULATED_GATE8_INTERVAL_REPORT.tsv (64 rows: 46 INFORMATIVE, 10 UNINFORMATIVE, 8 NOT_APPLICABLE)
+[FAIL] every row with a computable interval is INFORMATIVE — 10 row(s) UNINFORMATIVE — see SIMULATED_GATE8_INTERVAL_REPORT.tsv for detail
+gate8_interval_informativeness OVERALL: FAIL
+EXIT_CODE=1
+```
+
+**This FAIL is genuine and expected, reported per Standing Rule 2, not
+spun.** All 10 `UNINFORMATIVE` rows are `REALISTIC_N_*` rows — exactly the
+class-size regime `STAKE_ANALYSIS.md` Step 2 already flagged as producing
+estimator instability, now caught by a script rather than left to manual
+inspection. The flagged row itself
+(`DDR_SIGNALING/LOH_GIS_SBS3/REALISTIC_N_35`, CI=[759.6, 3.65e9]) is
+confirmed present and rejected, with both violated thresholds named in its
+`reason` field (`upper_point_ratio` ≈330901, and the interval's upper
+bound exceeds `ABSOLUTE_UPPER_CEILING`). The 46 `INFORMATIVE` rows include
+every `SYNTHETIC_FULL_N` row and most subtype-stratified rows, confirming
+gate8 does not indiscriminately fail a whole table once one row is bad —
+it evaluates each row independently, exactly as designed and unit-tested
+(`tests/test_gate8.py`). Emitted artifact:
+`SIMULATED_GATE8_INTERVAL_REPORT.tsv` (repo root).
+
+Per the task's deploy clause (see "Summary" above): gate8 is now part of
+the standard invocation set alongside gate5 and gate6, and this entry is
+the record of it running against real, on-disk production output, by file
+name, this session.
