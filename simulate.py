@@ -522,22 +522,70 @@ SBS_CONTEXTS = [
 ]
 assert len(SBS_CONTEXTS) == 96
 
+# P06R2: hrd_shape/background_shape were previously an ARBITRARY, stylized
+# C>T-favored construction (v1/v2's _make_shape) never checked for
+# resemblance to real COSMIC SBS3. P08 found it was, by real cosine
+# similarity, LESS like SBS3 (0.688) than like SBS5 (0.802) -- the
+# recovery target this whole feature is named after was never actually
+# injected. Fixed here: hrd_shape/background_shape are now the REAL COSMIC
+# v3.6 SBS3/SBS5 weight vectors, read from a committed reference file
+# extracted live from the installed, gate-verified SigProfilerAssignment
+# package (see SIMULATED_data/COSMIC_SBS3_SBS5_v3.6_reference_PROVENANCE.md
+# for exact source/digest). No randomization, no hand-tuning: this file's
+# SBS3/SBS5 columns are used exactly as COSMIC defines them.
+COSMIC_REFERENCE_TSV = REPO_ROOT / "COSMIC_SBS3_SBS5_v3.6_reference.tsv"  # real reference DATA, not a
+# simulated output -- lives at repo root (like BENCHMARKS.tsv/PROTOCOL.md), not under SIMULATED_data/,
+# so Standing Rule 1's "every output filename carries SIMULATED" rule (about synthetic/simulated
+# INPUTS, which this file is not) is not misapplied to it.
 
-def _make_shape(rng: random.Random, favored_substr: str, favored_weight: float) -> list[float]:
-    # ARBITRARY, stylized shapes -- NOT real COSMIC SBS3 weights; see
-    # PARAMETER_PROVENANCE.tsv (cancer.sanger.ac.uk is blocked this session).
-    weights = []
-    for ctx in SBS_CONTEXTS:
-        w = favored_weight if favored_substr in ctx else 1.0
-        w *= rng.uniform(0.7, 1.3)
-        weights.append(w)
-    total = sum(weights)
-    return [w / total for w in weights]
+# Floors/bands for the acceptance assertion (REQUIRED_P06_CHANGES.md /
+# P06R2's task text: "cited, not chosen to pass"). Both numbers ARE the
+# real COSMIC v3.6 values themselves (there is no independent literature
+# "realistic band" beyond COSMIC's own reference matrix -- that census IS
+# the authority on what real cosine similarity between these two
+# signatures is). COSINE_SIM_TO_REAL_SBS3_FLOOR is checked by
+# scripts/check_p06r2_acceptance.py (a fresh live docker-side extraction
+# vs. this committed reference file -- the meaningful version of that
+# check, since hrd_shape is trivially identical to itself); the band below
+# IS checked at runtime in build_signature_shapes(), since it compares two
+# vectors already loaded from this same file to each other.
+COSINE_SIM_TO_REAL_SBS3_FLOOR = 0.999  # hrd_shape IS real SBS3; floor allows only float round-trip noise
+COSINE_SIM_TO_REAL_SBS5_BAND = (0.78, 0.81)  # real COSMIC v3.6 SBS3-vs-SBS5 = 0.7928 (computed from this file)
 
 
-def build_signature_shapes(rng: random.Random) -> tuple[list[float], list[float]]:
-    hrd_shape = _make_shape(rng, "C>T", 4.0)
-    background_shape = _make_shape(rng, "", 1.0)
+def cosine_similarity(a: list[float], b: list[float]) -> float:
+    dot = sum(x * y for x, y in zip(a, b))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(y * y for y in b))
+    return dot / (na * nb) if na > 0 and nb > 0 else float("nan")
+
+
+def build_signature_shapes() -> tuple[list[float], list[float]]:
+    with open(COSMIC_REFERENCE_TSV, newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f, delimiter="\t"))
+    sbs3_by_ctx = {r["Type"]: float(r["SBS3"]) for r in rows}
+    sbs5_by_ctx = {r["Type"]: float(r["SBS5"]) for r in rows}
+    if set(sbs3_by_ctx) != set(SBS_CONTEXTS):
+        raise ValueError(f"{COSMIC_REFERENCE_TSV} context labels do not match SBS_CONTEXTS exactly")
+    hrd_shape_raw = [sbs3_by_ctx[c] for c in SBS_CONTEXTS]
+    background_shape_raw = [sbs5_by_ctx[c] for c in SBS_CONTEXTS]
+    hrd_total = sum(hrd_shape_raw)
+    bg_total = sum(background_shape_raw)
+    hrd_shape = [w / hrd_total for w in hrd_shape_raw]
+    background_shape = [w / bg_total for w in background_shape_raw]
+
+    # This file-internal check catches loading/normalization bugs (wrong
+    # column, wrong context order, a corrupted committed file) -- it cannot
+    # by itself prove the committed file's SBS3 column really IS live COSMIC
+    # data (that requires comparing against a fresh docker-side extraction,
+    # which simulate.py does not depend on at runtime; see
+    # scripts/check_p06r2_acceptance.py, which does exactly that live
+    # re-extraction and diffs it against this same committed file).
+    sim_to_sbs5 = cosine_similarity(hrd_shape, background_shape)
+    if not (COSINE_SIM_TO_REAL_SBS5_BAND[0] <= sim_to_sbs5 <= COSINE_SIM_TO_REAL_SBS5_BAND[1]):
+        raise ValueError(f"hrd_shape-vs-background_shape cosine similarity ({sim_to_sbs5:.6f}) is outside the "
+                          f"realistic band {COSINE_SIM_TO_REAL_SBS5_BAND} -- either the shapes are wrong, or the "
+                          f"target has become unrealistically easy/hard to separate")
     return hrd_shape, background_shape
 
 
@@ -687,7 +735,7 @@ def generate() -> dict:
     DATA_DIR.mkdir(exist_ok=True)
     TRUTH_DETAIL_DIR.mkdir(exist_ok=True)
 
-    hrd_shape, background_shape = build_signature_shapes(random.Random(SEED + 1))
+    hrd_shape, background_shape = build_signature_shapes()
 
     truth_rows = compute_truth_quantities()
     write_simulated_tsv(TRUTH_TSV, truth_rows,

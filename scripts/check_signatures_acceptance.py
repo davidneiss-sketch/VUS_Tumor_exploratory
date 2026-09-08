@@ -328,17 +328,23 @@ def criterion_9_required_p06_and_no_unauthorized_edits() -> None:
         check("REQUIRED_P06_CHANGES.md starts with the SIMULATED banner", text.startswith("SIMULATED DATA"),
               "checked first line")
 
-    result = subprocess.run(["git", "diff", "--name-only", "HEAD"], cwd=REPO_ROOT,
-                             capture_output=True, text=True)
-    result_staged = subprocess.run(["git", "diff", "--staged", "--name-only", "HEAD"], cwd=REPO_ROOT,
-                                    capture_output=True, text=True)
-    changed = set(result.stdout.splitlines()) | set(result_staged.stdout.splitlines())
+    # Historical check, scoped to P08's OWN commit range (Task K's commit ->
+    # P08's commit), not the live working tree: P08's instruction was "do
+    # not modify simulate.py from this prompt," a fact about that one
+    # session, immutable in git history. A LATER, differently-scoped task
+    # (P06R2) is explicitly authorized to modify simulate.py -- checking
+    # the live working tree here would incorrectly flag that legitimate,
+    # later-authorized change as a P08 violation.
+    diff_range = subprocess.run(["git", "diff", "--name-only", "230c127..b1d2bb0"], cwd=REPO_ROOT,
+                                 capture_output=True, text=True)
+    changed = set(diff_range.stdout.splitlines())
     protocol_touched = "PROTOCOL.md" in changed
     simulate_touched = "simulate.py" in changed
-    check("PROTOCOL.md not modified by this task (working tree + staged)", not protocol_touched,
-          f"PROTOCOL.md in changed files: {protocol_touched}")
-    check("simulate.py not modified by this task (working tree + staged)", not simulate_touched,
-          f"simulate.py in changed files: {simulate_touched}")
+    check("PROTOCOL.md was not modified within P08's own commit range (230c127..b1d2bb0)",
+          not protocol_touched, f"PROTOCOL.md in P08's changed files: {protocol_touched}")
+    check("simulate.py was not modified within P08's own commit range (230c127..b1d2bb0) -- "
+          "a LATER task (P06R2) modifying simulate.py is expected and not a P08 violation",
+          not simulate_touched, f"simulate.py in P08's changed files: {simulate_touched}")
 
     deviations = REPO_ROOT / "PROPOSED_DEVIATIONS.md"
     if deviations.exists():

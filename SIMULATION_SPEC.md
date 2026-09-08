@@ -220,6 +220,65 @@ non-trivial this run (§0's DEFECT 3 entry has the exact numbers): the
 naive product overstates `CORE_HR`'s true joint LR by ~12.8x and
 `DDR_SIGNALING`'s by ~3.7x.
 
+## 3.1 The SBS3 mutation catalog: real COSMIC shape (P06R2 fix)
+
+`SIMULATED_TRUTH.tsv`'s `*_sbs3_exposure_LR`/`*_joint_LR`/etc. above are
+derived entirely from `SBS3_LINK`'s analytic Gaussian model of the
+**exposure fraction** (a scalar per sample, e.g. the value compared against
+`EVAL_POINT["sbs3"]=0.30`) — they have no dependence on the shape of the
+96-trinucleotide-context mutation catalog a signature-calling tool would
+actually decompose. That catalog (`SIMULATED_data/SIMULATED_mutation_catalogs.tsv`)
+is a SEPARATE, downstream data product: `_emit_sample()` takes the sample's
+already-drawn exposure fraction and total mutation count, splits them into
+`n_hrd`/`n_bg` integer read counts, then distributes those reads across the
+96 contexts using two FIXED 96-context weight vectors, `hrd_shape` and
+`background_shape` (identical for every sample in the population).
+
+**P08 found `hrd_shape` was, until this fix, an ARBITRARY, stylized
+C>T-favored construction with real cosine similarity 0.688 to real COSMIC
+SBS3 and 0.802 to real COSMIC SBS5 — closer to the alternative signature
+than to the one it was named after** (`DIAGNOSIS_P08.md` §2,
+`REQUIRED_P06_CHANGES.md`). Any tool decomposing the resulting catalog
+against real COSMIC references would correctly find little real SBS3 signal
+in it, because there mostly wasn't any.
+
+**Fix (P06R2):** `hrd_shape` and `background_shape` are now the REAL COSMIC
+v3.6 `SBS3` and `SBS5` weight vectors respectively, read from
+`COSMIC_SBS3_SBS5_v3.6_reference.tsv` — extracted live from
+the same installed, GATE1.json-verified SigProfilerAssignment 1.1.5 package
+Task K used, no hand-tuning, no approximation (see that file's companion
+`_PROVENANCE.md` for the exact source path/digest). Real cosine
+similarities, computed from that same file:
+
+| pair | cosine similarity |
+|---|---|
+| SBS3 vs SBS3 (self) | 1.0 |
+| SBS3 vs SBS5 (`hrd_shape` vs `background_shape` — the property that must survive this fix) | **0.7928** |
+| SBS3 vs SBS39 (an HRD-associated real signature flagged in Task K's own WebSearch) | 0.7909 |
+| SBS3 vs (SBS40a+SBS40b+SBS40c, summed — the OLD arbitrary shape's closest real match) | 0.8498 |
+
+This 0.7928 similarity between `hrd_shape` and `background_shape` is a real,
+fixed, unavoidable property of these two actual biological signatures — it
+is asserted at runtime (`build_signature_shapes()`'s `COSINE_SIM_TO_REAL_SBS5_BAND`
+check) to guard against ever "fixing" this defect in the opposite direction
+(an unrealistically easy-to-separate target, which would be the same defect
+wearing different clothes — P08's own framing).
+
+**Blast radius (verified, not merely reasoned about):** because
+`compute_truth_quantities()` never reads `hrd_shape`/`background_shape` (it
+only reads `SBS3_LINK`, `GIS_LINK`, `WT_LOST_LINK`, `Z_MEAN`), and because
+`build_signature_shapes()` uses its own dedicated RNG stream entirely
+separate from each sample's per-sample stream, AND `random.choices()`
+consumes exactly `k` draws regardless of the weights it is given (so
+swapping `hrd_shape`/`background_shape` does not shift any other draw in a
+sample's RNG sequence either) — replacing the shape changes **only**
+`SIMULATED_mutation_catalogs.tsv`. Every other output file, including
+`SIMULATED_TRUTH.tsv` and `SIMULATED_data/SIMULATED_signature_exposures.tsv`'s
+`sbs3_relative_exposure_true` column, is **byte-identical** before and
+after this fix — confirmed by a real diff of a full before/after
+regeneration, not asserted from code-reading alone. See `TRUTH_DELTA.md`
+for the full before/after table and the diff evidence.
+
 ## 4. LOH_AMBIGUOUS and the BAF channel (DEFECT 2)
 
 ### 4.1 AMBIGUOUS's new construction

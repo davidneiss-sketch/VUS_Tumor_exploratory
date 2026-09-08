@@ -140,7 +140,7 @@ def criterion_5_parameter_provenance_complete():
     rows = read_tsv(PARAMETER_PROVENANCE)
     required_cols = {"parameter_name", "value", "source_type", "source_reference", "rationale"}
     missing_columns = required_cols - set(rows[0].keys()) if rows else required_cols
-    valid_source_types = {"BENCHMARKS_ROW", "ARBITRARY", "PROVIDED_BY_TASK"}
+    valid_source_types = {"BENCHMARKS_ROW", "ARBITRARY", "PROVIDED_BY_TASK", "INSTALLED_PACKAGE_DATA"}
     bad_source_type = [r["parameter_name"] for r in rows if r["source_type"] not in valid_source_types]
     arbitrary_no_rationale = [r["parameter_name"] for r in rows if r["source_type"] == "ARBITRARY" and not r["rationale"].strip()]
 
@@ -154,7 +154,8 @@ def criterion_5_parameter_provenance_complete():
     source_text = SIMULATE_PY.read_text(encoding="utf-8")
     top_level_consts = set(re.findall(r"^([A-Z][A-Z0-9_]*)\s*=", source_text, re.MULTILINE))
     structural_exempt = {"REPO_ROOT", "DATA_DIR", "TRUTH_DETAIL_DIR", "TRUTH_TSV", "V1_SCAN_TSV", "BANNER",
-                         "GRID_CATEGORIES", "DIRECTION_OF_PROTOCOL_CATEGORY", "SBS_CONTEXTS"}
+                         "GRID_CATEGORIES", "DIRECTION_OF_PROTOCOL_CATEGORY", "SBS_CONTEXTS",
+                         "COSMIC_REFERENCE_TSV"}
     provenance_prefixes = {r["parameter_name"].split(".")[0] for r in rows}
     unaccounted = sorted(c for c in top_level_consts if c not in structural_exempt and c not in provenance_prefixes)
 
