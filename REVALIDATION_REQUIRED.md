@@ -104,3 +104,81 @@ and report."* TRUTH_DELTA.md §1/§3 confirms `core_hr_joint_vs_marginal_inflati
 (0.0782) and `ddr_signaling_joint_vs_marginal_inflation_ratio` (0.2722) are
 unchanged by P06R3's fix — neither collapsed toward 1 (neither was ever
 close to 1 to begin with). **This HALT condition does not trigger.**
+
+---
+
+# Subtype fix addendum: does making `pam50_subtype` a genuine generative input invalidate P07 or P08?
+
+SIMULATED: this section answers, with evidence, whether `loh_caller.py`
+(P07) or `signatures.py` (P08 / P08-RERUN) need to be re-run against the
+subtype fix (`SUBTYPE_MODEL.md`, `TRUTH_DELTA.md`'s subtype-fix addendum).
+Per this task's explicit instruction, **neither is re-run from this
+prompt** — this only determines whether either must be.
+
+## Answer: YES for both — the presumption this task itself stated is confirmed correct
+
+Unlike the P06R3 addendum above (where every target both P07 and P08 read
+turned out byte-identical, so NO re-run was needed despite `simulate.py`
+changing), **this fix genuinely moves the targets both P07 and P08 are
+scored against**:
+
+## 1. P07 (`loh_caller.py`)
+
+`loh_caller.py`'s two in-scope quantities, `core_hr_wt_lost_direction_LR`
+and `ddr_signaling_wt_lost_direction_LR`, are now the subtype-COLLAPSED
+(prevalence-weighted mixture) values, not the old Z-only marginal.
+`TRUTH_DELTA.md`'s subtype-fix addendum §1 confirms both moved:
+`core_hr_wt_lost_direction_LR`: 4.480412 → 4.194289 (−6.39%);
+`ddr_signaling_wt_lost_direction_LR`: 2.137349 → 2.084178 (−2.49%). Both
+targets moved because `SUBTYPE_Z_SHIFT["Basal"] = 0.4` shifts Z for 18.28%
+of the population, and `marginal_wt_lost_prob_collapsed()` is now a
+genuine prevalence-weighted mixture over 5 subtype-conditional
+probabilities rather than a single Z-only value. **P07's own gate6-scored
+report (`SIMULATED_loh_validation.md`, `SIMULATED_RECOVERY_TABLE.tsv`)
+was built and committed against the OLD targets — a fresh gate6 run
+against the current `SIMULATED_TRUTH.tsv` would score against DIFFERENT
+numbers than the ones that report describes.** `loh_caller.py`'s own
+MECHANICS do not need to change (it never reads `pam50_subtype`, and
+nothing about how it classifies LOH direction from read counts is
+affected) — but its recovery SCORE against the new targets is unverified
+until re-run.
+
+## 2. P08 (`signatures.py`)
+
+`signatures.py`'s gate6 targets, `core_hr_sbs3_exposure_LR` and
+`ddr_signaling_sbs3_exposure_LR`, also moved: 5.644995 → 4.846995
+(−14.14%) and 3.915723 → 3.672406 (−6.21%) respectively (`TRUTH_DELTA.md`
+subtype-fix addendum §1). `SIMULATED_data/SIMULATED_signature_exposures.tsv`
+and `SIMULATED_data/SIMULATED_mutation_catalogs.tsv` (the files
+`signatures.py` reads as input) also changed on this run — subtype now
+feeds `z` before the SBS3 draw (`_emit_sample()`), so every sample's
+`sbs3_relative_exposure_true` value is regenerated with a (small, since
+SBS3 has no direct subtype term) but real shift for Basal-like samples,
+and the RNG stream order is unaffected (subtype was already drawn before
+`z` in the pre-existing code, so no other draw shifted). **P08's own
+committed report was built and committed against the OLD catalogue and
+OLD targets — re-running would both regenerate different input data and
+score against different numbers.**
+
+## 3. Summary table
+
+| downstream task | re-run needed? | reasoning |
+|---|---|---|
+| P07 (`loh_caller.py`) | **YES** | both in-scope targets moved (−6.39%, −2.49%); mechanics unaffected, but the SCORE against the new targets is unverified |
+| P08 (`signatures.py`) | **YES** | both gate6 targets moved (−14.14%, −6.21%), AND the input catalogue/exposure files it reads also regenerated with real (if modest) changes |
+
+## 4. HALT condition (this task's own)
+
+*"If the joint-vs-naive ratio collapses toward 1 under the subtype-aware
+model, stop and report."* `TRUTH_DELTA.md` subtype-fix addendum §3 confirms
+`core_hr_joint_vs_marginal_inflation_ratio` moved 0.0782 → 0.1246 and
+`ddr_signaling_joint_vs_marginal_inflation_ratio` moved 0.2722 → 0.3236 —
+both move modestly AWAY from, not toward, 1 in absolute distance-from-1
+terms is ambiguous to state cleanly since both are on the same side of 1
+throughout (always < 1, moving from ~0.08/0.27 to ~0.12/0.32 — closer to 1
+in raw distance, but still an order of magnitude away, not a collapse in
+any practically meaningful sense: the naive estimator still overstates the
+true joint LR by 8.0x and 3.1x respectively, down from 12.8x and 3.7x).
+**This HALT condition does not trigger** — neither ratio approaches 1
+closely enough to call the correlation structure this project's joint
+model depends on "gone."

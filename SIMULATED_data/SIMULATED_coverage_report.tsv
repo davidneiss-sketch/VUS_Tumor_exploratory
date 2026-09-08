@@ -1,61 +1,61 @@
 category	arm	class	purity_bin	depth_regime	count	min_required	meets_minimum	scope_status	scope_reason
-RETENTION	CORE_HR	Pathogenic	LOW	LOW	27	5	True	IN_SCOPE	
-RETENTION	CORE_HR	Pathogenic	LOW	MID	21	5	True	IN_SCOPE	
+RETENTION	CORE_HR	Pathogenic	LOW	LOW	24	5	True	IN_SCOPE	
+RETENTION	CORE_HR	Pathogenic	LOW	MID	19	5	True	IN_SCOPE	
 RETENTION	CORE_HR	Pathogenic	LOW	HIGH	23	5	True	IN_SCOPE	
 RETENTION	CORE_HR	Pathogenic	LOW	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 RETENTION	CORE_HR	Pathogenic	LOW	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-RETENTION	CORE_HR	Pathogenic	MID	LOW	22	5	True	IN_SCOPE	
-RETENTION	CORE_HR	Pathogenic	MID	MID	24	5	True	IN_SCOPE	
-RETENTION	CORE_HR	Pathogenic	MID	HIGH	32	5	True	IN_SCOPE	
+RETENTION	CORE_HR	Pathogenic	MID	LOW	20	5	True	IN_SCOPE	
+RETENTION	CORE_HR	Pathogenic	MID	MID	23	5	True	IN_SCOPE	
+RETENTION	CORE_HR	Pathogenic	MID	HIGH	31	5	True	IN_SCOPE	
 RETENTION	CORE_HR	Pathogenic	MID	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 RETENTION	CORE_HR	Pathogenic	MID	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-RETENTION	CORE_HR	Pathogenic	HIGH	LOW	21	5	True	IN_SCOPE	
-RETENTION	CORE_HR	Pathogenic	HIGH	MID	28	5	True	IN_SCOPE	
+RETENTION	CORE_HR	Pathogenic	HIGH	LOW	20	5	True	IN_SCOPE	
+RETENTION	CORE_HR	Pathogenic	HIGH	MID	27	5	True	IN_SCOPE	
 RETENTION	CORE_HR	Pathogenic	HIGH	HIGH	27	5	True	IN_SCOPE	
 RETENTION	CORE_HR	Pathogenic	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 RETENTION	CORE_HR	Pathogenic	HIGH	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Pathogenic	LOW	LOW	57	5	True	IN_SCOPE	
-CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Pathogenic	LOW	MID	60	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Pathogenic	LOW	LOW	59	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Pathogenic	LOW	MID	63	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Pathogenic	LOW	HIGH	55	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Pathogenic	LOW	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Pathogenic	LOW	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Pathogenic	MID	LOW	57	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Pathogenic	MID	LOW	58	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Pathogenic	MID	MID	57	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Pathogenic	MID	HIGH	52	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Pathogenic	MID	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Pathogenic	MID	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Pathogenic	HIGH	LOW	52	5	True	IN_SCOPE	
-CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Pathogenic	HIGH	MID	56	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Pathogenic	HIGH	MID	57	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Pathogenic	HIGH	HIGH	49	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Pathogenic	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Pathogenic	HIGH	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-WT_LOSS	CORE_HR	Pathogenic	LOW	LOW	102	5	True	IN_SCOPE	
-WT_LOSS	CORE_HR	Pathogenic	LOW	MID	97	5	True	IN_SCOPE	
+WT_LOSS	CORE_HR	Pathogenic	LOW	LOW	105	5	True	IN_SCOPE	
+WT_LOSS	CORE_HR	Pathogenic	LOW	MID	99	5	True	IN_SCOPE	
 WT_LOSS	CORE_HR	Pathogenic	LOW	HIGH	103	5	True	IN_SCOPE	
 WT_LOSS	CORE_HR	Pathogenic	LOW	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 WT_LOSS	CORE_HR	Pathogenic	LOW	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-WT_LOSS	CORE_HR	Pathogenic	MID	LOW	106	5	True	IN_SCOPE	
-WT_LOSS	CORE_HR	Pathogenic	MID	MID	109	5	True	IN_SCOPE	
-WT_LOSS	CORE_HR	Pathogenic	MID	HIGH	99	5	True	IN_SCOPE	
+WT_LOSS	CORE_HR	Pathogenic	MID	LOW	108	5	True	IN_SCOPE	
+WT_LOSS	CORE_HR	Pathogenic	MID	MID	110	5	True	IN_SCOPE	
+WT_LOSS	CORE_HR	Pathogenic	MID	HIGH	100	5	True	IN_SCOPE	
 WT_LOSS	CORE_HR	Pathogenic	MID	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 WT_LOSS	CORE_HR	Pathogenic	MID	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-WT_LOSS	CORE_HR	Pathogenic	HIGH	LOW	113	5	True	IN_SCOPE	
-WT_LOSS	CORE_HR	Pathogenic	HIGH	MID	102	5	True	IN_SCOPE	
+WT_LOSS	CORE_HR	Pathogenic	HIGH	LOW	114	5	True	IN_SCOPE	
+WT_LOSS	CORE_HR	Pathogenic	HIGH	MID	103	5	True	IN_SCOPE	
 WT_LOSS	CORE_HR	Pathogenic	HIGH	HIGH	109	5	True	IN_SCOPE	
 WT_LOSS	CORE_HR	Pathogenic	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 WT_LOSS	CORE_HR	Pathogenic	HIGH	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-VARIANT_LOSS	CORE_HR	Pathogenic	LOW	LOW	14	5	True	IN_SCOPE	
-VARIANT_LOSS	CORE_HR	Pathogenic	LOW	MID	22	5	True	IN_SCOPE	
+VARIANT_LOSS	CORE_HR	Pathogenic	LOW	LOW	12	5	True	IN_SCOPE	
+VARIANT_LOSS	CORE_HR	Pathogenic	LOW	MID	19	5	True	IN_SCOPE	
 VARIANT_LOSS	CORE_HR	Pathogenic	LOW	HIGH	19	5	True	IN_SCOPE	
 VARIANT_LOSS	CORE_HR	Pathogenic	LOW	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 VARIANT_LOSS	CORE_HR	Pathogenic	LOW	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-VARIANT_LOSS	CORE_HR	Pathogenic	MID	LOW	15	5	True	IN_SCOPE	
+VARIANT_LOSS	CORE_HR	Pathogenic	MID	LOW	14	5	True	IN_SCOPE	
 VARIANT_LOSS	CORE_HR	Pathogenic	MID	MID	10	5	True	IN_SCOPE	
 VARIANT_LOSS	CORE_HR	Pathogenic	MID	HIGH	17	5	True	IN_SCOPE	
 VARIANT_LOSS	CORE_HR	Pathogenic	MID	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 VARIANT_LOSS	CORE_HR	Pathogenic	MID	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 VARIANT_LOSS	CORE_HR	Pathogenic	HIGH	LOW	14	5	True	IN_SCOPE	
-VARIANT_LOSS	CORE_HR	Pathogenic	HIGH	MID	14	5	True	IN_SCOPE	
+VARIANT_LOSS	CORE_HR	Pathogenic	HIGH	MID	13	5	True	IN_SCOPE	
 VARIANT_LOSS	CORE_HR	Pathogenic	HIGH	HIGH	15	5	True	IN_SCOPE	
 VARIANT_LOSS	CORE_HR	Pathogenic	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 VARIANT_LOSS	CORE_HR	Pathogenic	HIGH	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
@@ -89,64 +89,64 @@ NOT_EVALUABLE	CORE_HR	Pathogenic	HIGH	MID	0			OUT_OF_SCOPE	NOT_EVALUABLE is defi
 NOT_EVALUABLE	CORE_HR	Pathogenic	HIGH	HIGH	0			OUT_OF_SCOPE	NOT_EVALUABLE is defined only in its own depth regime by construction (AMBIGUOUS: near-floor depth (20, 35); NOT_EVALUABLE: sub-floor depth (4, 19)); it has no representation in the evaluable-depth grid bins by design, not by omission
 NOT_EVALUABLE	CORE_HR	Pathogenic	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	NOT_EVALUABLE is defined only in its own depth regime by construction (AMBIGUOUS: near-floor depth (20, 35); NOT_EVALUABLE: sub-floor depth (4, 19)); it has no representation in the evaluable-depth grid bins by design, not by omission
 NOT_EVALUABLE	CORE_HR	Pathogenic	HIGH	NOT_EVALUABLE_REGIME	8	8	True	IN_SCOPE	
-RETENTION	CORE_HR	Benign	LOW	LOW	105	5	True	IN_SCOPE	
-RETENTION	CORE_HR	Benign	LOW	MID	93	5	True	IN_SCOPE	
-RETENTION	CORE_HR	Benign	LOW	HIGH	95	5	True	IN_SCOPE	
+RETENTION	CORE_HR	Benign	LOW	LOW	100	5	True	IN_SCOPE	
+RETENTION	CORE_HR	Benign	LOW	MID	91	5	True	IN_SCOPE	
+RETENTION	CORE_HR	Benign	LOW	HIGH	93	5	True	IN_SCOPE	
 RETENTION	CORE_HR	Benign	LOW	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 RETENTION	CORE_HR	Benign	LOW	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-RETENTION	CORE_HR	Benign	MID	LOW	95	5	True	IN_SCOPE	
-RETENTION	CORE_HR	Benign	MID	MID	107	5	True	IN_SCOPE	
-RETENTION	CORE_HR	Benign	MID	HIGH	90	5	True	IN_SCOPE	
+RETENTION	CORE_HR	Benign	MID	LOW	93	5	True	IN_SCOPE	
+RETENTION	CORE_HR	Benign	MID	MID	106	5	True	IN_SCOPE	
+RETENTION	CORE_HR	Benign	MID	HIGH	87	5	True	IN_SCOPE	
 RETENTION	CORE_HR	Benign	MID	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 RETENTION	CORE_HR	Benign	MID	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-RETENTION	CORE_HR	Benign	HIGH	LOW	102	5	True	IN_SCOPE	
-RETENTION	CORE_HR	Benign	HIGH	MID	106	5	True	IN_SCOPE	
-RETENTION	CORE_HR	Benign	HIGH	HIGH	102	5	True	IN_SCOPE	
+RETENTION	CORE_HR	Benign	HIGH	LOW	97	5	True	IN_SCOPE	
+RETENTION	CORE_HR	Benign	HIGH	MID	102	5	True	IN_SCOPE	
+RETENTION	CORE_HR	Benign	HIGH	HIGH	101	5	True	IN_SCOPE	
 RETENTION	CORE_HR	Benign	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 RETENTION	CORE_HR	Benign	HIGH	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Benign	LOW	LOW	11	5	True	IN_SCOPE	
-CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Benign	LOW	MID	14	5	True	IN_SCOPE	
-CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Benign	LOW	HIGH	12	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Benign	LOW	LOW	14	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Benign	LOW	MID	16	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Benign	LOW	HIGH	13	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Benign	LOW	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Benign	LOW	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Benign	MID	LOW	8	5	True	IN_SCOPE	
-CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Benign	MID	MID	14	5	True	IN_SCOPE	
-CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Benign	MID	HIGH	17	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Benign	MID	LOW	10	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Benign	MID	MID	15	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Benign	MID	HIGH	20	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Benign	MID	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Benign	MID	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Benign	HIGH	LOW	9	5	True	IN_SCOPE	
-CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Benign	HIGH	MID	12	5	True	IN_SCOPE	
-CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Benign	HIGH	HIGH	7	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Benign	HIGH	LOW	10	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Benign	HIGH	MID	13	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Benign	HIGH	HIGH	8	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Benign	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 CN_NEUTRAL_LOH_WT_LOSS	CORE_HR	Benign	HIGH	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-WT_LOSS	CORE_HR	Benign	LOW	LOW	23	5	True	IN_SCOPE	
-WT_LOSS	CORE_HR	Benign	LOW	MID	20	5	True	IN_SCOPE	
-WT_LOSS	CORE_HR	Benign	LOW	HIGH	32	5	True	IN_SCOPE	
+WT_LOSS	CORE_HR	Benign	LOW	LOW	28	5	True	IN_SCOPE	
+WT_LOSS	CORE_HR	Benign	LOW	MID	22	5	True	IN_SCOPE	
+WT_LOSS	CORE_HR	Benign	LOW	HIGH	34	5	True	IN_SCOPE	
 WT_LOSS	CORE_HR	Benign	LOW	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 WT_LOSS	CORE_HR	Benign	LOW	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-WT_LOSS	CORE_HR	Benign	MID	LOW	26	5	True	IN_SCOPE	
-WT_LOSS	CORE_HR	Benign	MID	MID	18	5	True	IN_SCOPE	
-WT_LOSS	CORE_HR	Benign	MID	HIGH	24	5	True	IN_SCOPE	
+WT_LOSS	CORE_HR	Benign	MID	LOW	28	5	True	IN_SCOPE	
+WT_LOSS	CORE_HR	Benign	MID	MID	19	5	True	IN_SCOPE	
+WT_LOSS	CORE_HR	Benign	MID	HIGH	27	5	True	IN_SCOPE	
 WT_LOSS	CORE_HR	Benign	MID	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 WT_LOSS	CORE_HR	Benign	MID	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-WT_LOSS	CORE_HR	Benign	HIGH	LOW	20	5	True	IN_SCOPE	
-WT_LOSS	CORE_HR	Benign	HIGH	MID	25	5	True	IN_SCOPE	
-WT_LOSS	CORE_HR	Benign	HIGH	HIGH	23	5	True	IN_SCOPE	
+WT_LOSS	CORE_HR	Benign	HIGH	LOW	25	5	True	IN_SCOPE	
+WT_LOSS	CORE_HR	Benign	HIGH	MID	29	5	True	IN_SCOPE	
+WT_LOSS	CORE_HR	Benign	HIGH	HIGH	24	5	True	IN_SCOPE	
 WT_LOSS	CORE_HR	Benign	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 WT_LOSS	CORE_HR	Benign	HIGH	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-VARIANT_LOSS	CORE_HR	Benign	LOW	LOW	61	5	True	IN_SCOPE	
-VARIANT_LOSS	CORE_HR	Benign	LOW	MID	73	5	True	IN_SCOPE	
-VARIANT_LOSS	CORE_HR	Benign	LOW	HIGH	61	5	True	IN_SCOPE	
+VARIANT_LOSS	CORE_HR	Benign	LOW	LOW	58	5	True	IN_SCOPE	
+VARIANT_LOSS	CORE_HR	Benign	LOW	MID	71	5	True	IN_SCOPE	
+VARIANT_LOSS	CORE_HR	Benign	LOW	HIGH	60	5	True	IN_SCOPE	
 VARIANT_LOSS	CORE_HR	Benign	LOW	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 VARIANT_LOSS	CORE_HR	Benign	LOW	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-VARIANT_LOSS	CORE_HR	Benign	MID	LOW	71	5	True	IN_SCOPE	
-VARIANT_LOSS	CORE_HR	Benign	MID	MID	61	5	True	IN_SCOPE	
-VARIANT_LOSS	CORE_HR	Benign	MID	HIGH	69	5	True	IN_SCOPE	
+VARIANT_LOSS	CORE_HR	Benign	MID	LOW	69	5	True	IN_SCOPE	
+VARIANT_LOSS	CORE_HR	Benign	MID	MID	60	5	True	IN_SCOPE	
+VARIANT_LOSS	CORE_HR	Benign	MID	HIGH	66	5	True	IN_SCOPE	
 VARIANT_LOSS	CORE_HR	Benign	MID	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 VARIANT_LOSS	CORE_HR	Benign	MID	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-VARIANT_LOSS	CORE_HR	Benign	HIGH	LOW	69	5	True	IN_SCOPE	
-VARIANT_LOSS	CORE_HR	Benign	HIGH	MID	57	5	True	IN_SCOPE	
-VARIANT_LOSS	CORE_HR	Benign	HIGH	HIGH	68	5	True	IN_SCOPE	
+VARIANT_LOSS	CORE_HR	Benign	HIGH	LOW	68	5	True	IN_SCOPE	
+VARIANT_LOSS	CORE_HR	Benign	HIGH	MID	56	5	True	IN_SCOPE	
+VARIANT_LOSS	CORE_HR	Benign	HIGH	HIGH	67	5	True	IN_SCOPE	
 VARIANT_LOSS	CORE_HR	Benign	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 VARIANT_LOSS	CORE_HR	Benign	HIGH	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 AMBIGUOUS	CORE_HR	Benign	LOW	LOW	0			OUT_OF_SCOPE	AMBIGUOUS is defined only in its own depth regime by construction (AMBIGUOUS: near-floor depth (20, 35); NOT_EVALUABLE: sub-floor depth (4, 19)); it has no representation in the evaluable-depth grid bins by design, not by omission
@@ -179,22 +179,22 @@ NOT_EVALUABLE	CORE_HR	Benign	HIGH	MID	0			OUT_OF_SCOPE	NOT_EVALUABLE is defined 
 NOT_EVALUABLE	CORE_HR	Benign	HIGH	HIGH	0			OUT_OF_SCOPE	NOT_EVALUABLE is defined only in its own depth regime by construction (AMBIGUOUS: near-floor depth (20, 35); NOT_EVALUABLE: sub-floor depth (4, 19)); it has no representation in the evaluable-depth grid bins by design, not by omission
 NOT_EVALUABLE	CORE_HR	Benign	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	NOT_EVALUABLE is defined only in its own depth regime by construction (AMBIGUOUS: near-floor depth (20, 35); NOT_EVALUABLE: sub-floor depth (4, 19)); it has no representation in the evaluable-depth grid bins by design, not by omission
 NOT_EVALUABLE	CORE_HR	Benign	HIGH	NOT_EVALUABLE_REGIME	8	8	True	IN_SCOPE	
-RETENTION	DDR_SIGNALING	Pathogenic	LOW	LOW	56	5	True	IN_SCOPE	
-RETENTION	DDR_SIGNALING	Pathogenic	LOW	MID	49	5	True	IN_SCOPE	
-RETENTION	DDR_SIGNALING	Pathogenic	LOW	HIGH	50	5	True	IN_SCOPE	
+RETENTION	DDR_SIGNALING	Pathogenic	LOW	LOW	52	5	True	IN_SCOPE	
+RETENTION	DDR_SIGNALING	Pathogenic	LOW	MID	48	5	True	IN_SCOPE	
+RETENTION	DDR_SIGNALING	Pathogenic	LOW	HIGH	46	5	True	IN_SCOPE	
 RETENTION	DDR_SIGNALING	Pathogenic	LOW	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 RETENTION	DDR_SIGNALING	Pathogenic	LOW	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-RETENTION	DDR_SIGNALING	Pathogenic	MID	LOW	67	5	True	IN_SCOPE	
-RETENTION	DDR_SIGNALING	Pathogenic	MID	MID	57	5	True	IN_SCOPE	
-RETENTION	DDR_SIGNALING	Pathogenic	MID	HIGH	52	5	True	IN_SCOPE	
+RETENTION	DDR_SIGNALING	Pathogenic	MID	LOW	61	5	True	IN_SCOPE	
+RETENTION	DDR_SIGNALING	Pathogenic	MID	MID	53	5	True	IN_SCOPE	
+RETENTION	DDR_SIGNALING	Pathogenic	MID	HIGH	49	5	True	IN_SCOPE	
 RETENTION	DDR_SIGNALING	Pathogenic	MID	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 RETENTION	DDR_SIGNALING	Pathogenic	MID	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-RETENTION	DDR_SIGNALING	Pathogenic	HIGH	LOW	60	5	True	IN_SCOPE	
-RETENTION	DDR_SIGNALING	Pathogenic	HIGH	MID	62	5	True	IN_SCOPE	
-RETENTION	DDR_SIGNALING	Pathogenic	HIGH	HIGH	65	5	True	IN_SCOPE	
+RETENTION	DDR_SIGNALING	Pathogenic	HIGH	LOW	58	5	True	IN_SCOPE	
+RETENTION	DDR_SIGNALING	Pathogenic	HIGH	MID	61	5	True	IN_SCOPE	
+RETENTION	DDR_SIGNALING	Pathogenic	HIGH	HIGH	62	5	True	IN_SCOPE	
 RETENTION	DDR_SIGNALING	Pathogenic	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 RETENTION	DDR_SIGNALING	Pathogenic	HIGH	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Pathogenic	LOW	LOW	38	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Pathogenic	LOW	LOW	39	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Pathogenic	LOW	MID	43	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Pathogenic	LOW	HIGH	39	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Pathogenic	LOW	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
@@ -204,39 +204,39 @@ CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Pathogenic	MID	MID	39	5	True	IN_SCOPE
 CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Pathogenic	MID	HIGH	35	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Pathogenic	MID	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Pathogenic	MID	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Pathogenic	HIGH	LOW	34	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Pathogenic	HIGH	LOW	37	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Pathogenic	HIGH	MID	30	5	True	IN_SCOPE	
-CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Pathogenic	HIGH	HIGH	44	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Pathogenic	HIGH	HIGH	47	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Pathogenic	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Pathogenic	HIGH	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-WT_LOSS	DDR_SIGNALING	Pathogenic	LOW	LOW	67	5	True	IN_SCOPE	
-WT_LOSS	DDR_SIGNALING	Pathogenic	LOW	MID	75	5	True	IN_SCOPE	
-WT_LOSS	DDR_SIGNALING	Pathogenic	LOW	HIGH	71	5	True	IN_SCOPE	
+WT_LOSS	DDR_SIGNALING	Pathogenic	LOW	LOW	71	5	True	IN_SCOPE	
+WT_LOSS	DDR_SIGNALING	Pathogenic	LOW	MID	76	5	True	IN_SCOPE	
+WT_LOSS	DDR_SIGNALING	Pathogenic	LOW	HIGH	75	5	True	IN_SCOPE	
 WT_LOSS	DDR_SIGNALING	Pathogenic	LOW	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 WT_LOSS	DDR_SIGNALING	Pathogenic	LOW	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-WT_LOSS	DDR_SIGNALING	Pathogenic	MID	LOW	65	5	True	IN_SCOPE	
-WT_LOSS	DDR_SIGNALING	Pathogenic	MID	MID	63	5	True	IN_SCOPE	
-WT_LOSS	DDR_SIGNALING	Pathogenic	MID	HIGH	75	5	True	IN_SCOPE	
+WT_LOSS	DDR_SIGNALING	Pathogenic	MID	LOW	71	5	True	IN_SCOPE	
+WT_LOSS	DDR_SIGNALING	Pathogenic	MID	MID	67	5	True	IN_SCOPE	
+WT_LOSS	DDR_SIGNALING	Pathogenic	MID	HIGH	79	5	True	IN_SCOPE	
 WT_LOSS	DDR_SIGNALING	Pathogenic	MID	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 WT_LOSS	DDR_SIGNALING	Pathogenic	MID	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-WT_LOSS	DDR_SIGNALING	Pathogenic	HIGH	LOW	67	5	True	IN_SCOPE	
-WT_LOSS	DDR_SIGNALING	Pathogenic	HIGH	MID	79	5	True	IN_SCOPE	
-WT_LOSS	DDR_SIGNALING	Pathogenic	HIGH	HIGH	51	5	True	IN_SCOPE	
+WT_LOSS	DDR_SIGNALING	Pathogenic	HIGH	LOW	69	5	True	IN_SCOPE	
+WT_LOSS	DDR_SIGNALING	Pathogenic	HIGH	MID	81	5	True	IN_SCOPE	
+WT_LOSS	DDR_SIGNALING	Pathogenic	HIGH	HIGH	54	5	True	IN_SCOPE	
 WT_LOSS	DDR_SIGNALING	Pathogenic	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 WT_LOSS	DDR_SIGNALING	Pathogenic	HIGH	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-VARIANT_LOSS	DDR_SIGNALING	Pathogenic	LOW	LOW	39	5	True	IN_SCOPE	
+VARIANT_LOSS	DDR_SIGNALING	Pathogenic	LOW	LOW	38	5	True	IN_SCOPE	
 VARIANT_LOSS	DDR_SIGNALING	Pathogenic	LOW	MID	33	5	True	IN_SCOPE	
 VARIANT_LOSS	DDR_SIGNALING	Pathogenic	LOW	HIGH	40	5	True	IN_SCOPE	
 VARIANT_LOSS	DDR_SIGNALING	Pathogenic	LOW	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 VARIANT_LOSS	DDR_SIGNALING	Pathogenic	LOW	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 VARIANT_LOSS	DDR_SIGNALING	Pathogenic	MID	LOW	39	5	True	IN_SCOPE	
 VARIANT_LOSS	DDR_SIGNALING	Pathogenic	MID	MID	41	5	True	IN_SCOPE	
-VARIANT_LOSS	DDR_SIGNALING	Pathogenic	MID	HIGH	38	5	True	IN_SCOPE	
+VARIANT_LOSS	DDR_SIGNALING	Pathogenic	MID	HIGH	37	5	True	IN_SCOPE	
 VARIANT_LOSS	DDR_SIGNALING	Pathogenic	MID	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 VARIANT_LOSS	DDR_SIGNALING	Pathogenic	MID	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-VARIANT_LOSS	DDR_SIGNALING	Pathogenic	HIGH	LOW	39	5	True	IN_SCOPE	
-VARIANT_LOSS	DDR_SIGNALING	Pathogenic	HIGH	MID	29	5	True	IN_SCOPE	
-VARIANT_LOSS	DDR_SIGNALING	Pathogenic	HIGH	HIGH	40	5	True	IN_SCOPE	
+VARIANT_LOSS	DDR_SIGNALING	Pathogenic	HIGH	LOW	36	5	True	IN_SCOPE	
+VARIANT_LOSS	DDR_SIGNALING	Pathogenic	HIGH	MID	28	5	True	IN_SCOPE	
+VARIANT_LOSS	DDR_SIGNALING	Pathogenic	HIGH	HIGH	37	5	True	IN_SCOPE	
 VARIANT_LOSS	DDR_SIGNALING	Pathogenic	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 VARIANT_LOSS	DDR_SIGNALING	Pathogenic	HIGH	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 AMBIGUOUS	DDR_SIGNALING	Pathogenic	LOW	LOW	0			OUT_OF_SCOPE	AMBIGUOUS is defined only in its own depth regime by construction (AMBIGUOUS: near-floor depth (20, 35); NOT_EVALUABLE: sub-floor depth (4, 19)); it has no representation in the evaluable-depth grid bins by design, not by omission
@@ -270,63 +270,63 @@ NOT_EVALUABLE	DDR_SIGNALING	Pathogenic	HIGH	HIGH	0			OUT_OF_SCOPE	NOT_EVALUABLE 
 NOT_EVALUABLE	DDR_SIGNALING	Pathogenic	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	NOT_EVALUABLE is defined only in its own depth regime by construction (AMBIGUOUS: near-floor depth (20, 35); NOT_EVALUABLE: sub-floor depth (4, 19)); it has no representation in the evaluable-depth grid bins by design, not by omission
 NOT_EVALUABLE	DDR_SIGNALING	Pathogenic	HIGH	NOT_EVALUABLE_REGIME	8	8	True	IN_SCOPE	
 RETENTION	DDR_SIGNALING	Benign	LOW	LOW	100	5	True	IN_SCOPE	
-RETENTION	DDR_SIGNALING	Benign	LOW	MID	81	5	True	IN_SCOPE	
-RETENTION	DDR_SIGNALING	Benign	LOW	HIGH	88	5	True	IN_SCOPE	
+RETENTION	DDR_SIGNALING	Benign	LOW	MID	80	5	True	IN_SCOPE	
+RETENTION	DDR_SIGNALING	Benign	LOW	HIGH	87	5	True	IN_SCOPE	
 RETENTION	DDR_SIGNALING	Benign	LOW	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 RETENTION	DDR_SIGNALING	Benign	LOW	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-RETENTION	DDR_SIGNALING	Benign	MID	LOW	91	5	True	IN_SCOPE	
+RETENTION	DDR_SIGNALING	Benign	MID	LOW	89	5	True	IN_SCOPE	
 RETENTION	DDR_SIGNALING	Benign	MID	MID	97	5	True	IN_SCOPE	
-RETENTION	DDR_SIGNALING	Benign	MID	HIGH	88	5	True	IN_SCOPE	
+RETENTION	DDR_SIGNALING	Benign	MID	HIGH	86	5	True	IN_SCOPE	
 RETENTION	DDR_SIGNALING	Benign	MID	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 RETENTION	DDR_SIGNALING	Benign	MID	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-RETENTION	DDR_SIGNALING	Benign	HIGH	LOW	91	5	True	IN_SCOPE	
-RETENTION	DDR_SIGNALING	Benign	HIGH	MID	85	5	True	IN_SCOPE	
-RETENTION	DDR_SIGNALING	Benign	HIGH	HIGH	96	5	True	IN_SCOPE	
+RETENTION	DDR_SIGNALING	Benign	HIGH	LOW	89	5	True	IN_SCOPE	
+RETENTION	DDR_SIGNALING	Benign	HIGH	MID	79	5	True	IN_SCOPE	
+RETENTION	DDR_SIGNALING	Benign	HIGH	HIGH	95	5	True	IN_SCOPE	
 RETENTION	DDR_SIGNALING	Benign	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 RETENTION	DDR_SIGNALING	Benign	HIGH	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Benign	LOW	LOW	21	5	True	IN_SCOPE	
-CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Benign	LOW	MID	22	5	True	IN_SCOPE	
-CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Benign	LOW	HIGH	13	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Benign	LOW	LOW	22	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Benign	LOW	MID	23	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Benign	LOW	HIGH	14	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Benign	LOW	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Benign	LOW	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Benign	MID	LOW	15	5	True	IN_SCOPE	
-CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Benign	MID	MID	15	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Benign	MID	LOW	17	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Benign	MID	MID	17	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Benign	MID	HIGH	11	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Benign	MID	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Benign	MID	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Benign	HIGH	LOW	15	5	True	IN_SCOPE	
-CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Benign	HIGH	MID	26	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Benign	HIGH	LOW	16	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Benign	HIGH	MID	27	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Benign	HIGH	HIGH	14	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Benign	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 CN_NEUTRAL_LOH_WT_LOSS	DDR_SIGNALING	Benign	HIGH	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-WT_LOSS	DDR_SIGNALING	Benign	LOW	LOW	31	5	True	IN_SCOPE	
-WT_LOSS	DDR_SIGNALING	Benign	LOW	MID	26	5	True	IN_SCOPE	
-WT_LOSS	DDR_SIGNALING	Benign	LOW	HIGH	30	5	True	IN_SCOPE	
+WT_LOSS	DDR_SIGNALING	Benign	LOW	LOW	32	5	True	IN_SCOPE	
+WT_LOSS	DDR_SIGNALING	Benign	LOW	MID	28	5	True	IN_SCOPE	
+WT_LOSS	DDR_SIGNALING	Benign	LOW	HIGH	31	5	True	IN_SCOPE	
 WT_LOSS	DDR_SIGNALING	Benign	LOW	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 WT_LOSS	DDR_SIGNALING	Benign	LOW	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-WT_LOSS	DDR_SIGNALING	Benign	MID	LOW	30	5	True	IN_SCOPE	
+WT_LOSS	DDR_SIGNALING	Benign	MID	LOW	32	5	True	IN_SCOPE	
 WT_LOSS	DDR_SIGNALING	Benign	MID	MID	28	5	True	IN_SCOPE	
-WT_LOSS	DDR_SIGNALING	Benign	MID	HIGH	37	5	True	IN_SCOPE	
+WT_LOSS	DDR_SIGNALING	Benign	MID	HIGH	39	5	True	IN_SCOPE	
 WT_LOSS	DDR_SIGNALING	Benign	MID	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 WT_LOSS	DDR_SIGNALING	Benign	MID	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-WT_LOSS	DDR_SIGNALING	Benign	HIGH	LOW	36	5	True	IN_SCOPE	
-WT_LOSS	DDR_SIGNALING	Benign	HIGH	MID	36	5	True	IN_SCOPE	
-WT_LOSS	DDR_SIGNALING	Benign	HIGH	HIGH	16	5	True	IN_SCOPE	
+WT_LOSS	DDR_SIGNALING	Benign	HIGH	LOW	38	5	True	IN_SCOPE	
+WT_LOSS	DDR_SIGNALING	Benign	HIGH	MID	42	5	True	IN_SCOPE	
+WT_LOSS	DDR_SIGNALING	Benign	HIGH	HIGH	18	5	True	IN_SCOPE	
 WT_LOSS	DDR_SIGNALING	Benign	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 WT_LOSS	DDR_SIGNALING	Benign	HIGH	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-VARIANT_LOSS	DDR_SIGNALING	Benign	LOW	LOW	48	5	True	IN_SCOPE	
-VARIANT_LOSS	DDR_SIGNALING	Benign	LOW	MID	71	5	True	IN_SCOPE	
-VARIANT_LOSS	DDR_SIGNALING	Benign	LOW	HIGH	69	5	True	IN_SCOPE	
+VARIANT_LOSS	DDR_SIGNALING	Benign	LOW	LOW	46	5	True	IN_SCOPE	
+VARIANT_LOSS	DDR_SIGNALING	Benign	LOW	MID	69	5	True	IN_SCOPE	
+VARIANT_LOSS	DDR_SIGNALING	Benign	LOW	HIGH	68	5	True	IN_SCOPE	
 VARIANT_LOSS	DDR_SIGNALING	Benign	LOW	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 VARIANT_LOSS	DDR_SIGNALING	Benign	LOW	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-VARIANT_LOSS	DDR_SIGNALING	Benign	MID	LOW	64	5	True	IN_SCOPE	
-VARIANT_LOSS	DDR_SIGNALING	Benign	MID	MID	60	5	True	IN_SCOPE	
+VARIANT_LOSS	DDR_SIGNALING	Benign	MID	LOW	62	5	True	IN_SCOPE	
+VARIANT_LOSS	DDR_SIGNALING	Benign	MID	MID	58	5	True	IN_SCOPE	
 VARIANT_LOSS	DDR_SIGNALING	Benign	MID	HIGH	64	5	True	IN_SCOPE	
 VARIANT_LOSS	DDR_SIGNALING	Benign	MID	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 VARIANT_LOSS	DDR_SIGNALING	Benign	MID	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-VARIANT_LOSS	DDR_SIGNALING	Benign	HIGH	LOW	58	5	True	IN_SCOPE	
-VARIANT_LOSS	DDR_SIGNALING	Benign	HIGH	MID	53	5	True	IN_SCOPE	
-VARIANT_LOSS	DDR_SIGNALING	Benign	HIGH	HIGH	74	5	True	IN_SCOPE	
+VARIANT_LOSS	DDR_SIGNALING	Benign	HIGH	LOW	57	5	True	IN_SCOPE	
+VARIANT_LOSS	DDR_SIGNALING	Benign	HIGH	MID	52	5	True	IN_SCOPE	
+VARIANT_LOSS	DDR_SIGNALING	Benign	HIGH	HIGH	73	5	True	IN_SCOPE	
 VARIANT_LOSS	DDR_SIGNALING	Benign	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 VARIANT_LOSS	DDR_SIGNALING	Benign	HIGH	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 AMBIGUOUS	DDR_SIGNALING	Benign	LOW	LOW	0			OUT_OF_SCOPE	AMBIGUOUS is defined only in its own depth regime by construction (AMBIGUOUS: near-floor depth (20, 35); NOT_EVALUABLE: sub-floor depth (4, 19)); it has no representation in the evaluable-depth grid bins by design, not by omission
@@ -359,64 +359,64 @@ NOT_EVALUABLE	DDR_SIGNALING	Benign	HIGH	MID	0			OUT_OF_SCOPE	NOT_EVALUABLE is de
 NOT_EVALUABLE	DDR_SIGNALING	Benign	HIGH	HIGH	0			OUT_OF_SCOPE	NOT_EVALUABLE is defined only in its own depth regime by construction (AMBIGUOUS: near-floor depth (20, 35); NOT_EVALUABLE: sub-floor depth (4, 19)); it has no representation in the evaluable-depth grid bins by design, not by omission
 NOT_EVALUABLE	DDR_SIGNALING	Benign	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	NOT_EVALUABLE is defined only in its own depth regime by construction (AMBIGUOUS: near-floor depth (20, 35); NOT_EVALUABLE: sub-floor depth (4, 19)); it has no representation in the evaluable-depth grid bins by design, not by omission
 NOT_EVALUABLE	DDR_SIGNALING	Benign	HIGH	NOT_EVALUABLE_REGIME	8	8	True	IN_SCOPE	
-RETENTION	NULL_ARM	Pathogenic	LOW	LOW	92	5	True	IN_SCOPE	
+RETENTION	NULL_ARM	Pathogenic	LOW	LOW	91	5	True	IN_SCOPE	
 RETENTION	NULL_ARM	Pathogenic	LOW	MID	72	5	True	IN_SCOPE	
-RETENTION	NULL_ARM	Pathogenic	LOW	HIGH	73	5	True	IN_SCOPE	
+RETENTION	NULL_ARM	Pathogenic	LOW	HIGH	71	5	True	IN_SCOPE	
 RETENTION	NULL_ARM	Pathogenic	LOW	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 RETENTION	NULL_ARM	Pathogenic	LOW	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-RETENTION	NULL_ARM	Pathogenic	MID	LOW	82	5	True	IN_SCOPE	
-RETENTION	NULL_ARM	Pathogenic	MID	MID	77	5	True	IN_SCOPE	
-RETENTION	NULL_ARM	Pathogenic	MID	HIGH	87	5	True	IN_SCOPE	
+RETENTION	NULL_ARM	Pathogenic	MID	LOW	81	5	True	IN_SCOPE	
+RETENTION	NULL_ARM	Pathogenic	MID	MID	75	5	True	IN_SCOPE	
+RETENTION	NULL_ARM	Pathogenic	MID	HIGH	85	5	True	IN_SCOPE	
 RETENTION	NULL_ARM	Pathogenic	MID	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 RETENTION	NULL_ARM	Pathogenic	MID	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-RETENTION	NULL_ARM	Pathogenic	HIGH	LOW	80	5	True	IN_SCOPE	
-RETENTION	NULL_ARM	Pathogenic	HIGH	MID	67	5	True	IN_SCOPE	
-RETENTION	NULL_ARM	Pathogenic	HIGH	HIGH	82	5	True	IN_SCOPE	
+RETENTION	NULL_ARM	Pathogenic	HIGH	LOW	78	5	True	IN_SCOPE	
+RETENTION	NULL_ARM	Pathogenic	HIGH	MID	65	5	True	IN_SCOPE	
+RETENTION	NULL_ARM	Pathogenic	HIGH	HIGH	81	5	True	IN_SCOPE	
 RETENTION	NULL_ARM	Pathogenic	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 RETENTION	NULL_ARM	Pathogenic	HIGH	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Pathogenic	LOW	LOW	22	5	True	IN_SCOPE	
-CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Pathogenic	LOW	MID	27	5	True	IN_SCOPE	
-CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Pathogenic	LOW	HIGH	31	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Pathogenic	LOW	LOW	23	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Pathogenic	LOW	MID	29	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Pathogenic	LOW	HIGH	32	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Pathogenic	LOW	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Pathogenic	LOW	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Pathogenic	MID	LOW	24	5	True	IN_SCOPE	
-CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Pathogenic	MID	MID	21	5	True	IN_SCOPE	
-CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Pathogenic	MID	HIGH	19	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Pathogenic	MID	LOW	27	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Pathogenic	MID	MID	23	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Pathogenic	MID	HIGH	20	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Pathogenic	MID	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Pathogenic	MID	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Pathogenic	HIGH	LOW	29	5	True	IN_SCOPE	
-CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Pathogenic	HIGH	MID	21	5	True	IN_SCOPE	
-CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Pathogenic	HIGH	HIGH	26	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Pathogenic	HIGH	LOW	32	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Pathogenic	HIGH	MID	22	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Pathogenic	HIGH	HIGH	30	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Pathogenic	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Pathogenic	HIGH	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-WT_LOSS	NULL_ARM	Pathogenic	LOW	LOW	38	5	True	IN_SCOPE	
+WT_LOSS	NULL_ARM	Pathogenic	LOW	LOW	39	5	True	IN_SCOPE	
 WT_LOSS	NULL_ARM	Pathogenic	LOW	MID	48	5	True	IN_SCOPE	
-WT_LOSS	NULL_ARM	Pathogenic	LOW	HIGH	42	5	True	IN_SCOPE	
+WT_LOSS	NULL_ARM	Pathogenic	LOW	HIGH	44	5	True	IN_SCOPE	
 WT_LOSS	NULL_ARM	Pathogenic	LOW	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 WT_LOSS	NULL_ARM	Pathogenic	LOW	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-WT_LOSS	NULL_ARM	Pathogenic	MID	LOW	48	5	True	IN_SCOPE	
-WT_LOSS	NULL_ARM	Pathogenic	MID	MID	49	5	True	IN_SCOPE	
-WT_LOSS	NULL_ARM	Pathogenic	MID	HIGH	37	5	True	IN_SCOPE	
+WT_LOSS	NULL_ARM	Pathogenic	MID	LOW	49	5	True	IN_SCOPE	
+WT_LOSS	NULL_ARM	Pathogenic	MID	MID	51	5	True	IN_SCOPE	
+WT_LOSS	NULL_ARM	Pathogenic	MID	HIGH	39	5	True	IN_SCOPE	
 WT_LOSS	NULL_ARM	Pathogenic	MID	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 WT_LOSS	NULL_ARM	Pathogenic	MID	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-WT_LOSS	NULL_ARM	Pathogenic	HIGH	LOW	44	5	True	IN_SCOPE	
-WT_LOSS	NULL_ARM	Pathogenic	HIGH	MID	65	5	True	IN_SCOPE	
-WT_LOSS	NULL_ARM	Pathogenic	HIGH	HIGH	40	5	True	IN_SCOPE	
+WT_LOSS	NULL_ARM	Pathogenic	HIGH	LOW	46	5	True	IN_SCOPE	
+WT_LOSS	NULL_ARM	Pathogenic	HIGH	MID	67	5	True	IN_SCOPE	
+WT_LOSS	NULL_ARM	Pathogenic	HIGH	HIGH	41	5	True	IN_SCOPE	
 WT_LOSS	NULL_ARM	Pathogenic	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 WT_LOSS	NULL_ARM	Pathogenic	HIGH	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-VARIANT_LOSS	NULL_ARM	Pathogenic	LOW	LOW	48	5	True	IN_SCOPE	
-VARIANT_LOSS	NULL_ARM	Pathogenic	LOW	MID	53	5	True	IN_SCOPE	
-VARIANT_LOSS	NULL_ARM	Pathogenic	LOW	HIGH	54	5	True	IN_SCOPE	
+VARIANT_LOSS	NULL_ARM	Pathogenic	LOW	LOW	47	5	True	IN_SCOPE	
+VARIANT_LOSS	NULL_ARM	Pathogenic	LOW	MID	51	5	True	IN_SCOPE	
+VARIANT_LOSS	NULL_ARM	Pathogenic	LOW	HIGH	53	5	True	IN_SCOPE	
 VARIANT_LOSS	NULL_ARM	Pathogenic	LOW	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 VARIANT_LOSS	NULL_ARM	Pathogenic	LOW	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-VARIANT_LOSS	NULL_ARM	Pathogenic	MID	LOW	46	5	True	IN_SCOPE	
-VARIANT_LOSS	NULL_ARM	Pathogenic	MID	MID	53	5	True	IN_SCOPE	
-VARIANT_LOSS	NULL_ARM	Pathogenic	MID	HIGH	57	5	True	IN_SCOPE	
+VARIANT_LOSS	NULL_ARM	Pathogenic	MID	LOW	43	5	True	IN_SCOPE	
+VARIANT_LOSS	NULL_ARM	Pathogenic	MID	MID	51	5	True	IN_SCOPE	
+VARIANT_LOSS	NULL_ARM	Pathogenic	MID	HIGH	56	5	True	IN_SCOPE	
 VARIANT_LOSS	NULL_ARM	Pathogenic	MID	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 VARIANT_LOSS	NULL_ARM	Pathogenic	MID	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-VARIANT_LOSS	NULL_ARM	Pathogenic	HIGH	LOW	47	5	True	IN_SCOPE	
-VARIANT_LOSS	NULL_ARM	Pathogenic	HIGH	MID	47	5	True	IN_SCOPE	
-VARIANT_LOSS	NULL_ARM	Pathogenic	HIGH	HIGH	52	5	True	IN_SCOPE	
+VARIANT_LOSS	NULL_ARM	Pathogenic	HIGH	LOW	44	5	True	IN_SCOPE	
+VARIANT_LOSS	NULL_ARM	Pathogenic	HIGH	MID	46	5	True	IN_SCOPE	
+VARIANT_LOSS	NULL_ARM	Pathogenic	HIGH	HIGH	48	5	True	IN_SCOPE	
 VARIANT_LOSS	NULL_ARM	Pathogenic	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 VARIANT_LOSS	NULL_ARM	Pathogenic	HIGH	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 AMBIGUOUS	NULL_ARM	Pathogenic	LOW	LOW	0			OUT_OF_SCOPE	AMBIGUOUS is defined only in its own depth regime by construction (AMBIGUOUS: near-floor depth (20, 35); NOT_EVALUABLE: sub-floor depth (4, 19)); it has no representation in the evaluable-depth grid bins by design, not by omission
@@ -449,63 +449,63 @@ NOT_EVALUABLE	NULL_ARM	Pathogenic	HIGH	MID	0			OUT_OF_SCOPE	NOT_EVALUABLE is def
 NOT_EVALUABLE	NULL_ARM	Pathogenic	HIGH	HIGH	0			OUT_OF_SCOPE	NOT_EVALUABLE is defined only in its own depth regime by construction (AMBIGUOUS: near-floor depth (20, 35); NOT_EVALUABLE: sub-floor depth (4, 19)); it has no representation in the evaluable-depth grid bins by design, not by omission
 NOT_EVALUABLE	NULL_ARM	Pathogenic	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	NOT_EVALUABLE is defined only in its own depth regime by construction (AMBIGUOUS: near-floor depth (20, 35); NOT_EVALUABLE: sub-floor depth (4, 19)); it has no representation in the evaluable-depth grid bins by design, not by omission
 NOT_EVALUABLE	NULL_ARM	Pathogenic	HIGH	NOT_EVALUABLE_REGIME	8	8	True	IN_SCOPE	
-RETENTION	NULL_ARM	Benign	LOW	LOW	85	5	True	IN_SCOPE	
-RETENTION	NULL_ARM	Benign	LOW	MID	73	5	True	IN_SCOPE	
-RETENTION	NULL_ARM	Benign	LOW	HIGH	82	5	True	IN_SCOPE	
+RETENTION	NULL_ARM	Benign	LOW	LOW	82	5	True	IN_SCOPE	
+RETENTION	NULL_ARM	Benign	LOW	MID	72	5	True	IN_SCOPE	
+RETENTION	NULL_ARM	Benign	LOW	HIGH	79	5	True	IN_SCOPE	
 RETENTION	NULL_ARM	Benign	LOW	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 RETENTION	NULL_ARM	Benign	LOW	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-RETENTION	NULL_ARM	Benign	MID	LOW	98	5	True	IN_SCOPE	
-RETENTION	NULL_ARM	Benign	MID	MID	93	5	True	IN_SCOPE	
+RETENTION	NULL_ARM	Benign	MID	LOW	95	5	True	IN_SCOPE	
+RETENTION	NULL_ARM	Benign	MID	MID	90	5	True	IN_SCOPE	
 RETENTION	NULL_ARM	Benign	MID	HIGH	70	5	True	IN_SCOPE	
 RETENTION	NULL_ARM	Benign	MID	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 RETENTION	NULL_ARM	Benign	MID	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 RETENTION	NULL_ARM	Benign	HIGH	LOW	75	5	True	IN_SCOPE	
-RETENTION	NULL_ARM	Benign	HIGH	MID	81	5	True	IN_SCOPE	
-RETENTION	NULL_ARM	Benign	HIGH	HIGH	70	5	True	IN_SCOPE	
+RETENTION	NULL_ARM	Benign	HIGH	MID	79	5	True	IN_SCOPE	
+RETENTION	NULL_ARM	Benign	HIGH	HIGH	69	5	True	IN_SCOPE	
 RETENTION	NULL_ARM	Benign	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 RETENTION	NULL_ARM	Benign	HIGH	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	RETENTION is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Benign	LOW	LOW	26	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Benign	LOW	LOW	27	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Benign	LOW	MID	25	5	True	IN_SCOPE	
-CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Benign	LOW	HIGH	25	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Benign	LOW	HIGH	26	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Benign	LOW	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Benign	LOW	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Benign	MID	LOW	24	5	True	IN_SCOPE	
-CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Benign	MID	MID	17	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Benign	MID	MID	19	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Benign	MID	HIGH	21	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Benign	MID	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Benign	MID	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Benign	HIGH	LOW	25	5	True	IN_SCOPE	
-CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Benign	HIGH	MID	19	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Benign	HIGH	LOW	27	5	True	IN_SCOPE	
+CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Benign	HIGH	MID	21	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Benign	HIGH	HIGH	20	5	True	IN_SCOPE	
 CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Benign	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 CN_NEUTRAL_LOH_WT_LOSS	NULL_ARM	Benign	HIGH	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	CN_NEUTRAL_LOH_WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-WT_LOSS	NULL_ARM	Benign	LOW	LOW	39	5	True	IN_SCOPE	
-WT_LOSS	NULL_ARM	Benign	LOW	MID	48	5	True	IN_SCOPE	
-WT_LOSS	NULL_ARM	Benign	LOW	HIGH	48	5	True	IN_SCOPE	
+WT_LOSS	NULL_ARM	Benign	LOW	LOW	42	5	True	IN_SCOPE	
+WT_LOSS	NULL_ARM	Benign	LOW	MID	49	5	True	IN_SCOPE	
+WT_LOSS	NULL_ARM	Benign	LOW	HIGH	51	5	True	IN_SCOPE	
 WT_LOSS	NULL_ARM	Benign	LOW	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 WT_LOSS	NULL_ARM	Benign	LOW	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-WT_LOSS	NULL_ARM	Benign	MID	LOW	40	5	True	IN_SCOPE	
-WT_LOSS	NULL_ARM	Benign	MID	MID	31	5	True	IN_SCOPE	
+WT_LOSS	NULL_ARM	Benign	MID	LOW	43	5	True	IN_SCOPE	
+WT_LOSS	NULL_ARM	Benign	MID	MID	34	5	True	IN_SCOPE	
 WT_LOSS	NULL_ARM	Benign	MID	HIGH	59	5	True	IN_SCOPE	
 WT_LOSS	NULL_ARM	Benign	MID	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 WT_LOSS	NULL_ARM	Benign	MID	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 WT_LOSS	NULL_ARM	Benign	HIGH	LOW	41	5	True	IN_SCOPE	
-WT_LOSS	NULL_ARM	Benign	HIGH	MID	47	5	True	IN_SCOPE	
-WT_LOSS	NULL_ARM	Benign	HIGH	HIGH	57	5	True	IN_SCOPE	
+WT_LOSS	NULL_ARM	Benign	HIGH	MID	49	5	True	IN_SCOPE	
+WT_LOSS	NULL_ARM	Benign	HIGH	HIGH	58	5	True	IN_SCOPE	
 WT_LOSS	NULL_ARM	Benign	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 WT_LOSS	NULL_ARM	Benign	HIGH	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	WT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-VARIANT_LOSS	NULL_ARM	Benign	LOW	LOW	50	5	True	IN_SCOPE	
+VARIANT_LOSS	NULL_ARM	Benign	LOW	LOW	49	5	True	IN_SCOPE	
 VARIANT_LOSS	NULL_ARM	Benign	LOW	MID	54	5	True	IN_SCOPE	
-VARIANT_LOSS	NULL_ARM	Benign	LOW	HIGH	45	5	True	IN_SCOPE	
+VARIANT_LOSS	NULL_ARM	Benign	LOW	HIGH	44	5	True	IN_SCOPE	
 VARIANT_LOSS	NULL_ARM	Benign	LOW	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 VARIANT_LOSS	NULL_ARM	Benign	LOW	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 VARIANT_LOSS	NULL_ARM	Benign	MID	LOW	38	5	True	IN_SCOPE	
-VARIANT_LOSS	NULL_ARM	Benign	MID	MID	59	5	True	IN_SCOPE	
+VARIANT_LOSS	NULL_ARM	Benign	MID	MID	57	5	True	IN_SCOPE	
 VARIANT_LOSS	NULL_ARM	Benign	MID	HIGH	50	5	True	IN_SCOPE	
 VARIANT_LOSS	NULL_ARM	Benign	MID	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 VARIANT_LOSS	NULL_ARM	Benign	MID	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
-VARIANT_LOSS	NULL_ARM	Benign	HIGH	LOW	59	5	True	IN_SCOPE	
-VARIANT_LOSS	NULL_ARM	Benign	HIGH	MID	53	5	True	IN_SCOPE	
+VARIANT_LOSS	NULL_ARM	Benign	HIGH	LOW	57	5	True	IN_SCOPE	
+VARIANT_LOSS	NULL_ARM	Benign	HIGH	MID	51	5	True	IN_SCOPE	
 VARIANT_LOSS	NULL_ARM	Benign	HIGH	HIGH	53	5	True	IN_SCOPE	
 VARIANT_LOSS	NULL_ARM	Benign	HIGH	AMBIGUOUS_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the AMBIGUOUS_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction
 VARIANT_LOSS	NULL_ARM	Benign	HIGH	NOT_EVALUABLE_REGIME	0			OUT_OF_SCOPE	VARIANT_LOSS is one of the 4 evaluable-depth grid categories and is not generated in the NOT_EVALUABLE_REGIME side-arm regime, which is reserved for AMBIGUOUS/NOT_EVALUABLE by construction

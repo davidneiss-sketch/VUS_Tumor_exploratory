@@ -315,6 +315,60 @@ this fix engineered. See `FIDELITY_AUDIT.md` for the full per-feature audit
 confirmed to have no clip/floor/ceiling divergence at all) and
 `REVALIDATION_REQUIRED.md` for what this means for P07/P08.
 
+## 3.3 pam50_subtype: from decorative to a genuine generative input (subtype fix)
+
+P-DEC-1 proved `pam50_subtype` was drawn independently of `cls` and of
+every evidentiary feature, and that Normal-like was never generated at all
+despite being named in `PROTOCOL.md`. This fix wires subtype into the
+generative model as a genuine, class-independent confounder, per the full
+design specification in `SUBTYPE_MODEL.md` (written and fixed BEFORE any
+`simulate.py` code change, per that task's STEP 1).
+
+**Mechanism.** Two channels, both class-independent additive shifts
+applied identically to Pathogenic and Benign within a subtype (this is
+what makes it a confound rather than a second hidden class signal):
+
+1. `z = Normal(Z_MEAN[arm][cls] + SUBTYPE_Z_SHIFT[subtype], Z_SD)` — a
+   generic elevated-instability-propensity term, nonzero only for Basal
+   (`0.4`, modest relative to the 1.3–2.5 class gaps already in the model).
+2. `gis = c + d*z + SUBTYPE_GIS_SHIFT[subtype] + Normal(0, sigma)` — a
+   separate, larger, direct GIS elevation (`10.0` for Basal), motivated by
+   literature reporting basal-like tumors carry elevated genomic
+   instability independent of germline BRCA1/2 status (qualitative
+   existence cited, magnitude ARBITRARY — `SUBTYPE_MODEL.md` §2).
+
+SBS3 and WT_LOST direction get no separate direct subtype term (only the
+small indirect effect via Z) — an evidence-absence decision, not an
+oversight (`SUBTYPE_MODEL.md` §3). `PAM50_PROPORTIONS` is now a genuine
+5-category distribution including Normal-like (`SUBTYPE_MODEL.md` §4).
+
+**Mixture-density mechanics.** Once subtype genuinely shifts a
+subpopulation's mean, the pooled (subtype-collapsed) truth is a
+prevalence-weighted MIXTURE of Gaussians, not a single Gaussian with the
+mixture's pooled mean/sd — `phi_pdf` evaluated at a "mixture mean" would be
+mathematically wrong. `simulate.py` adds
+`gaussian_density_collapsed()`/`sbs3_density_collapsed()`/
+`joint_density_collapsed()`, each a prevalence-weighted sum of the five
+per-subtype component densities evaluated at the same point, not a moment-
+matched single-Gaussian shortcut. The pre-existing bare functions
+(`marginal_wt_lost_prob`, `marginal_gaussian_feature_params`,
+`joint_density`, `joint_lr`, `product_of_marginals_lr`) are left
+unchanged, for `stake_ablation.py`'s existing call sites; new
+`_subtype`/`_collapsed`-suffixed functions carry the corrected truth.
+
+**Verification.** LumA (`SUBTYPE_Z_SHIFT`/`SUBTYPE_GIS_SHIFT` both `0.0`)
+strata reproduce the pre-fix pooled values exactly, confirming the mixture
+machinery collapses correctly to the old single-Gaussian case when every
+shift is zero. Full before→after numbers for all 91 `SIMULATED_TRUTH.tsv`
+quantities, the joint/product-of-marginals/ratio reporting, the NULL_ARM
+re-proof (exactly 1.0 in every stratum), and the STEP 3 confounding
+demonstration (naive pooled CORE_HR GIS LR favors Pathogenic while the
+Basal stratum alone flips to favor Benign) are in `TRUTH_DELTA.md`'s
+subtype-fix addendum. `REVALIDATION_REQUIRED.md`'s subtype-fix addendum
+concludes both P07 and P08 need re-running (unlike the P06R3 fix above,
+this one moves the actual scored targets). `PARAMETER_PROVENANCE.tsv`
+carries every new parameter's `source_type` and rationale.
+
 ## 4. LOH_AMBIGUOUS and the BAF channel (DEFECT 2)
 
 ### 4.1 AMBIGUOUS's new construction

@@ -66,9 +66,42 @@ GENE_GROUPS = {
     # true joint LR to be exactly 1.0 -- see DEFECT 4.
     "NULL_ARM": ["ATM", "CHEK1", "CHEK2", "ATR", "MRE11", "RAD50", "NBN", "FANCM"],
 }
-PAM50_PROPORTIONS = {  # BENCHMARKS.tsv PAM01 (225/126/57/93 of 501)
-    "LumA": 225 / 501, "LumB": 126 / 501, "HER2E": 57 / 501, "Basal": 93 / 501,
+# SUBTYPE_MODEL.md §4: BENCHMARKS.tsv PAM01 (225/126/57/93 of 501, TCGA
+# Nature 2012) has no Normal-like figure (PAM01's own notes: "Excludes a
+# small Normal-like group not captured in this search"). A second,
+# separately WebSearch-sourced citation from the SAME paper ("only eight
+# normal-like and eight claudin-low tumours" of 525 profiled) supplies
+# Normal-like ~ 8/525 -- a different denominator than PAM01's 501-tumor
+# subset, combined here explicitly (not a single clean source; see
+# SUBTYPE_MODEL.md §4 for the full citation and the egress-block caveat).
+# The other 4 proportions are renormalized to preserve their original
+# 225:126:57:93 ratio while leaving room for Normal-like.
+_NORMAL_LIKE_PROPORTION = 8 / 525
+_PAM01_RAW = {"LumA": 225, "LumB": 126, "HER2E": 57, "Basal": 93}  # of 501, BENCHMARKS.tsv PAM01
+_PAM01_TOTAL = sum(_PAM01_RAW.values())
+PAM50_PROPORTIONS = {
+    **{k: (v / _PAM01_TOTAL) * (1 - _NORMAL_LIKE_PROPORTION) for k, v in _PAM01_RAW.items()},
+    "Normal-like": _NORMAL_LIKE_PROPORTION,
 }
+
+# SUBTYPE_MODEL.md §1/§2: the confounder PROTOCOL.md's subtype
+# stratification exists to handle -- basal-like tumors carry elevated
+# baseline genomic instability irrespective of germline HR-deficiency
+# status. Applied identically to BOTH classes within a subtype (never
+# class-dependent), so it shifts each subtype's BASELINE without touching
+# the Pathogenic-vs-Benign SEPARATION Z_MEAN already encodes -- a genuine
+# confound, not a second hidden class signal. Only Basal is nonzero;
+# every other subtype (including the newly-added Normal-like) is 0.0.
+# Magnitudes are ARBITRARY (qualitative existence of the effect is cited
+# in SUBTYPE_MODEL.md §2; the size is a disclosed simulator design choice,
+# same status as GIS_LINK's own c/d/sigma).
+SUBTYPE_Z_SHIFT = {"LumA": 0.0, "LumB": 0.0, "HER2E": 0.0, "Basal": 0.4, "Normal-like": 0.0}
+SUBTYPE_GIS_SHIFT = {"LumA": 0.0, "LumB": 0.0, "HER2E": 0.0, "Basal": 10.0, "Normal-like": 0.0}
+# SBS3 and WT_LOST direction get NO separate direct subtype term --
+# SUBTYPE_MODEL.md §3: no citable literature basis found in this
+# session's (egress-restricted) search for an independent-of-Z subtype
+# effect on either. Both still inherit a small effect via SUBTYPE_Z_SHIFT
+# (since both are downstream of Z).
 WGD_PREVALENCE = 0.30          # BENCHMARKS.tsv WGD01
 MEAN_MUTATIONS_PER_EXOME = 60.05  # BENCHMARKS.tsv TMB01 (30626/510)
 MIN_EVALUABLE_DEPTH = 20        # PROTOCOL.md §5.2, copied verbatim (not a free parameter)
@@ -315,105 +348,390 @@ def normalization_self_check(arm: str, cls: str, n_steps: int = 4000) -> float:
     return p1 + p0
 
 
+# ============================================================================
+# Subtype-conditional and subtype-collapsed truth quantities (subtype fix).
+#
+# The functions above (marginal_wt_lost_prob, marginal_gaussian_feature_params,
+# joint_density, joint_lr, product_of_marginals_lr) are UNCHANGED -- they
+# still compute the Z-only-integrated marginal/joint at a single (arm, cls)
+# pair, with no subtype term. They are kept exactly as they were (not
+# repurposed) so stake_ablation.py's existing `true_reference_lr()` call
+# sites keep meaning exactly what they always meant -- the model's Z-only
+# view, evaluated with no subtype weighting. They are NOT what
+# compute_truth_quantities() below uses for the pooled/"AFTER" quantities
+# any more, since a bare Z-only marginal is no longer the correct pooled
+# truth once subtype genuinely shifts each stratum's baseline (see
+# SUBTYPE_MODEL.md and TRUTH_DELTA.md's own note on this).
+#
+# New below: SUBTYPE-CONDITIONAL versions (evaluated within one named
+# subtype stratum) and SUBTYPE-COLLAPSED versions (the correct pooled/
+# marginal quantity once subtype is a real mixture component -- a
+# prevalence-weighted MIXTURE, not a single Gaussian, so "collapsed" is
+# never simply "bare functions with subtype ignored").
+# ============================================================================
+
+def marginal_wt_lost_prob_subtype(arm: str, cls: str, subtype: str) -> float:
+    """Same Gaussian-probit convolution identity as marginal_wt_lost_prob,
+    with Z's mean shifted by SUBTYPE_Z_SHIFT[subtype] (Z's spread, Z_SD,
+    is unchanged by subtype -- SUBTYPE_MODEL.md §1)."""
+    link = WT_LOST_LINK[arm]
+    muZ = Z_MEAN[arm][cls] + SUBTYPE_Z_SHIFT[subtype]
+    return Phi((link["a"] + link["b"] * muZ) / math.sqrt(1 + link["b"] ** 2 * Z_SD ** 2))
+
+
+def marginal_gaussian_feature_params_subtype(link: dict, arm: str, cls: str, subtype: str,
+                                              direct_shift: float = 0.0) -> tuple[float, float]:
+    """Same closed form as marginal_gaussian_feature_params, with Z's mean
+    shifted by SUBTYPE_Z_SHIFT[subtype] and an optional additional
+    DIRECT shift on the feature itself (GIS only -- SUBTYPE_MODEL.md §2;
+    SBS3 always passes direct_shift=0.0, per §3)."""
+    muZ = Z_MEAN[arm][cls] + SUBTYPE_Z_SHIFT[subtype]
+    mean = link["c"] + link["d"] * muZ + direct_shift
+    sd = math.sqrt((link["d"] ** 2) * (Z_SD ** 2) + link["sigma"] ** 2)
+    return mean, sd
+
+
+def product_of_marginals_lr_subtype(arm: str, subtype: str, x: dict) -> float:
+    p1 = marginal_wt_lost_prob_subtype(arm, "Pathogenic", subtype)
+    p0 = marginal_wt_lost_prob_subtype(arm, "Benign", subtype)
+    lr_wt = (p1 if x["wt_lost"] == 1 else (1 - p1)) / (p0 if x["wt_lost"] == 1 else (1 - p0))
+
+    gis_mean1, gis_sd1 = marginal_gaussian_feature_params_subtype(GIS_LINK[arm], arm, "Pathogenic", subtype,
+                                                                    SUBTYPE_GIS_SHIFT[subtype])
+    gis_mean0, gis_sd0 = marginal_gaussian_feature_params_subtype(GIS_LINK[arm], arm, "Benign", subtype,
+                                                                    SUBTYPE_GIS_SHIFT[subtype])
+    lr_gis = phi_pdf(x["gis"], gis_mean1, gis_sd1) / phi_pdf(x["gis"], gis_mean0, gis_sd0)
+
+    sbs3_mean1, sbs3_sd1 = marginal_gaussian_feature_params_subtype(SBS3_LINK[arm], arm, "Pathogenic", subtype)
+    sbs3_mean0, sbs3_sd0 = marginal_gaussian_feature_params_subtype(SBS3_LINK[arm], arm, "Benign", subtype)
+    lr_sbs3 = sbs3_clipped_lr(x["sbs3"], sbs3_mean1, sbs3_sd1, sbs3_mean0, sbs3_sd0)
+
+    return lr_wt * lr_gis * lr_sbs3
+
+
+def joint_density_subtype(arm: str, cls: str, subtype: str, x: dict,
+                           z_lo: float = -8.0, z_hi: float = 8.0, n_steps: int = 4000) -> float:
+    """Same 1D Simpson's-rule Z-integral as joint_density, with Z's mean
+    shifted by SUBTYPE_Z_SHIFT[subtype] and GIS's conditional-on-Z mean
+    additionally shifted by SUBTYPE_GIS_SHIFT[subtype]."""
+    wt_link = WT_LOST_LINK[arm]
+    gis_link = GIS_LINK[arm]
+    sbs3_link = SBS3_LINK[arm]
+    muZ = Z_MEAN[arm][cls] + SUBTYPE_Z_SHIFT[subtype]
+    gis_shift = SUBTYPE_GIS_SHIFT[subtype]
+
+    def integrand(z: float) -> float:
+        p_wt = Phi(wt_link["a"] + wt_link["b"] * z)
+        wt_term = p_wt if x["wt_lost"] == 1 else (1 - p_wt)
+        gis_term = phi_pdf(x["gis"], gis_link["c"] + gis_link["d"] * z + gis_shift, gis_link["sigma"])
+        sbs3_term, _kind = sbs3_clipped_density(x["sbs3"], sbs3_link["c"] + sbs3_link["d"] * z, sbs3_link["sigma"])
+        z_term = phi_pdf(z, muZ, Z_SD)
+        return wt_term * gis_term * sbs3_term * z_term
+
+    return simpson_integrate(integrand, z_lo, z_hi, n_steps)
+
+
+def joint_lr_subtype(arm: str, subtype: str, x: dict) -> float:
+    return joint_density_subtype(arm, "Pathogenic", subtype, x) / joint_density_subtype(arm, "Benign", subtype, x)
+
+
+# --- Subtype-collapsed (pooled/marginal) quantities: the CORRECT "AFTER"
+# replacement for the pre-subtype-model 16 quantities. Subtype is now a
+# genuine mixture component, so "collapsed" means a prevalence-weighted
+# MIXTURE over subtype, never simply re-using the bare (no-subtype)
+# functions above. ---
+
+def marginal_wt_lost_prob_collapsed(arm: str, cls: str) -> float:
+    """Exact by the law of total probability (WT_LOST is a probability,
+    so its subtype-marginal IS the prevalence-weighted average of its
+    per-subtype conditional probabilities -- no approximation)."""
+    return sum(PAM50_PROPORTIONS[st] * marginal_wt_lost_prob_subtype(arm, cls, st) for st in PAM50_PROPORTIONS)
+
+
+def gaussian_density_collapsed(x0: float, link: dict, arm: str, cls: str, direct_shift_dict: dict) -> float:
+    """Mixture density at x0: sum over subtype of prevalence-weighted
+    per-subtype Gaussian densities. Exact (a Gaussian MIXTURE's density at
+    a point is exactly this weighted sum -- not itself Gaussian, and not
+    approximable by phi_pdf(x0, mixture_mean, mixture_sd))."""
+    return sum(
+        PAM50_PROPORTIONS[st] * phi_pdf(x0, *marginal_gaussian_feature_params_subtype(
+            link, arm, cls, st, direct_shift_dict.get(st, 0.0)))
+        for st in PAM50_PROPORTIONS
+    )
+
+
+def sbs3_density_collapsed(x0: float, arm: str, cls: str) -> tuple[float, set[str]]:
+    """Same mixture-of-densities logic as gaussian_density_collapsed, but
+    through sbs3_clipped_density (P06R3) per subtype component, since SBS3
+    is clipped. Returns (value, {kinds seen}) -- the caller should assert
+    kinds == {"density"} before treating the result as an ordinary LR
+    numerator/denominator; a mix of "density" and "point_mass" components
+    would mean x0 sits interior for some subtypes and at the boundary for
+    others, which this project's current EVAL_POINT never triggers but
+    which must not be silently mishandled if a future EVAL_POINT does."""
+    total = 0.0
+    kinds: set[str] = set()
+    for st, w in PAM50_PROPORTIONS.items():
+        mean, sd = marginal_gaussian_feature_params_subtype(SBS3_LINK[arm], arm, cls, st)
+        val, kind = sbs3_clipped_density(x0, mean, sd)
+        total += w * val
+        kinds.add(kind)
+    return total, kinds
+
+
+def joint_density_collapsed(arm: str, cls: str, x: dict) -> float:
+    return sum(PAM50_PROPORTIONS[st] * joint_density_subtype(arm, cls, st, x) for st in PAM50_PROPORTIONS)
+
+
+def joint_lr_collapsed(arm: str, x: dict) -> float:
+    return joint_density_collapsed(arm, "Pathogenic", x) / joint_density_collapsed(arm, "Benign", x)
+
+
+def product_of_marginals_lr_collapsed(arm: str, x: dict) -> float:
+    """The 'naive' estimator's target under the subtype-aware model: blind
+    to BOTH the shared-Z correlation (product, not joint) AND to subtype
+    (each per-feature density is the prevalence-weighted mixture, not a
+    per-subtype-stratified fit) -- exactly what a pipeline that has never
+    heard of subtype stratification would compute."""
+    p1 = marginal_wt_lost_prob_collapsed(arm, "Pathogenic")
+    p0 = marginal_wt_lost_prob_collapsed(arm, "Benign")
+    lr_wt = (p1 if x["wt_lost"] == 1 else (1 - p1)) / (p0 if x["wt_lost"] == 1 else (1 - p0))
+
+    gis1 = gaussian_density_collapsed(x["gis"], GIS_LINK[arm], arm, "Pathogenic", SUBTYPE_GIS_SHIFT)
+    gis0 = gaussian_density_collapsed(x["gis"], GIS_LINK[arm], arm, "Benign", SUBTYPE_GIS_SHIFT)
+    lr_gis = gis1 / gis0
+
+    sbs3_1, kinds1 = sbs3_density_collapsed(x["sbs3"], arm, "Pathogenic")
+    sbs3_0, kinds0 = sbs3_density_collapsed(x["sbs3"], arm, "Benign")
+    if kinds1 != {"density"} or kinds0 != {"density"}:
+        raise ValueError(f"product_of_marginals_lr_collapsed: sbs3 mixture components are not uniformly "
+                          f"'density' kind (Pathogenic kinds={kinds1}, Benign kinds={kinds0}) -- EVAL_POINT "
+                          f"sbs3 is no longer interior for every subtype; a mixture LR is undefined here "
+                          f"without a boundary-aware generalization this project does not yet have")
+    lr_sbs3 = sbs3_1 / sbs3_0
+
+    return lr_wt * lr_gis * lr_sbs3
+
+
+def _pooled_quantity_rows(arm: str) -> list[dict]:
+    """The pre-existing 16-quantity structure's 6-quantity block per
+    (CORE_HR, DDR_SIGNALING) arm, now correctly re-derived as the subtype-
+    COLLAPSED (prevalence-weighted mixture over all 5 subtypes) quantity --
+    the subtype fix's "AFTER" value for each. See TRUTH_DELTA.md for the
+    before/after comparison and why these move only slightly."""
+    rows = []
+    p1 = marginal_wt_lost_prob_collapsed(arm, "Pathogenic")
+    p0 = marginal_wt_lost_prob_collapsed(arm, "Benign")
+    rows.append({
+        "quantity": f"{arm.lower()}_wt_lost_direction_LR", "injected_value": p1 / p0,
+        "estimand": "LR", "is_null": "FALSE", "feature_type": "categorical",
+        "derivation": f"subtype fix: P(WT_LOST_DIRECTION|Pathogenic)={p1:.6f} / P(...|Benign)={p0:.6f}, each "
+                       f"the PAM50-prevalence-weighted average of the per-subtype Gaussian-probit-convolution "
+                       f"probability (marginal_wt_lost_prob_subtype) -- exact by the law of total probability, "
+                       f"not an approximation.",
+    })
+
+    x_gis = EVAL_POINT["gis"]
+    gis1 = gaussian_density_collapsed(x_gis, GIS_LINK[arm], arm, "Pathogenic", SUBTYPE_GIS_SHIFT)
+    gis0 = gaussian_density_collapsed(x_gis, GIS_LINK[arm], arm, "Benign", SUBTYPE_GIS_SHIFT)
+    rows.append({
+        "quantity": f"{arm.lower()}_gis_score_LR", "injected_value": gis1 / gis0,
+        "estimand": "LR", "is_null": "FALSE", "feature_type": "continuous_gaussian_mixture_marginal",
+        "derivation": f"subtype fix: f(GIS={x_gis}|Pathogenic)={gis1:.6f} / f(GIS={x_gis}|Benign)={gis0:.6f}, "
+                       f"each a PAM50-prevalence-weighted MIXTURE of 5 per-subtype Gaussian densities "
+                       f"(gaussian_density_collapsed), not a single Gaussian -- Basal's SUBTYPE_GIS_SHIFT/"
+                       f"SUBTYPE_Z_SHIFT genuinely shift that component's mean relative to the other 4, so "
+                       f"the true marginal is a real mixture, computed exactly (Simpson/closed-form, no MC).",
+    })
+
+    x_sbs3 = EVAL_POINT["sbs3"]
+    sbs3_1, kinds1 = sbs3_density_collapsed(x_sbs3, arm, "Pathogenic")
+    sbs3_0, kinds0 = sbs3_density_collapsed(x_sbs3, arm, "Benign")
+    rows.append({
+        "quantity": f"{arm.lower()}_sbs3_exposure_LR", "injected_value": sbs3_1 / sbs3_0,
+        "estimand": "LR", "is_null": "FALSE", "feature_type": "continuous_gaussian_mixture_marginal",
+        "derivation": f"subtype fix: f_clipped(SBS3={x_sbs3}|Pathogenic)={sbs3_1:.6f} (component kinds "
+                       f"{kinds1}) / f_clipped(SBS3={x_sbs3}|Benign)={sbs3_0:.6f} (component kinds {kinds0}), "
+                       f"each a PAM50-prevalence-weighted mixture of 5 per-subtype clipped densities "
+                       f"(sbs3_density_collapsed, P06R3's clip-is-identity-on-the-interior argument applied "
+                       f"per component); SBS3 carries no direct subtype term (SUBTYPE_MODEL.md §3), only the "
+                       f"small Z-mediated shift, so this moves only slightly from the pre-subtype-fix value.",
+    })
+
+    jlr = joint_lr_collapsed(arm, EVAL_POINT)
+    plr = product_of_marginals_lr_collapsed(arm, EVAL_POINT)
+    rows.append({
+        "quantity": f"{arm.lower()}_joint_LR", "injected_value": jlr,
+        "estimand": "LR", "is_null": "FALSE", "feature_type": "joint_latent_model",
+        "derivation": f"subtype fix: joint_density_collapsed(x*|Pathogenic)/joint_density_collapsed(x*|Benign) "
+                       f"at x*={EVAL_POINT} -- each joint_density_collapsed is a PAM50-prevalence-weighted sum "
+                       f"of 5 per-subtype joint_density_subtype values, each itself a 1D Simpson's-rule "
+                       f"integral over Z within that subtype stratum. Correctly accounts for BOTH the shared-Z "
+                       f"correlation (DEFECT 3) AND the subtype mixture (this fix) -- NOT a product of "
+                       f"marginals, and NOT subtype-blind.",
+    })
+    rows.append({
+        "quantity": f"{arm.lower()}_product_of_marginals_LR", "injected_value": plr,
+        "estimand": "LR", "is_null": "FALSE", "feature_type": "product_of_marginals",
+        "derivation": f"subtype fix: naive product of the 3 subtype-collapsed marginal per-feature LRs above, "
+                       f"evaluated at the SAME x*={EVAL_POINT} -- the quantity an estimator that is BOTH "
+                       f"conditional-independence-assuming (ignores shared-Z) AND subtype-blind (never "
+                       f"stratifies by PAM50 subtype) would recover -- the fully naive baseline this fix's "
+                       f"joint-vs-marginal ratio below is measured against.",
+    })
+    rows.append({
+        "quantity": f"{arm.lower()}_joint_vs_marginal_inflation_ratio", "injected_value": jlr / plr,
+        "estimand": "LR_RATIO", "is_null": "FALSE", "feature_type": "diagnostic_ratio",
+        "derivation": f"{arm.lower()}_joint_LR / {arm.lower()}_product_of_marginals_LR -- P09's known "
+                       f"inflation target; != 1.0 both because the 3 features share latent Z (DEFECT 3) and "
+                       f"because the naive denominator ignores the subtype mixture this fix adds.",
+    })
+    return rows
+
+
+def _subtype_quantity_rows(arm: str, subtype: str) -> list[dict]:
+    """Per-subtype-stratum version of the same 6-quantity block, so gate6
+    can score stratified recovery (this task's own explicit requirement)."""
+    rows = []
+    prefix = f"{arm.lower()}_{subtype.lower().replace('-', '_')}"
+    p1 = marginal_wt_lost_prob_subtype(arm, "Pathogenic", subtype)
+    p0 = marginal_wt_lost_prob_subtype(arm, "Benign", subtype)
+    rows.append({
+        "quantity": f"{prefix}_wt_lost_direction_LR", "injected_value": p1 / p0,
+        "estimand": "LR", "is_null": "FALSE", "feature_type": "categorical_subtype_stratum",
+        "derivation": f"P(WT_LOST_DIRECTION|Pathogenic,{subtype})={p1:.6f} / P(...|Benign,{subtype})={p0:.6f}, "
+                       f"Gaussian-probit convolution with Z's mean shifted by SUBTYPE_Z_SHIFT[{subtype}]="
+                       f"{SUBTYPE_Z_SHIFT[subtype]}.",
+    })
+
+    x_gis = EVAL_POINT["gis"]
+    gis_mean1, gis_sd1 = marginal_gaussian_feature_params_subtype(GIS_LINK[arm], arm, "Pathogenic", subtype,
+                                                                    SUBTYPE_GIS_SHIFT[subtype])
+    gis_mean0, gis_sd0 = marginal_gaussian_feature_params_subtype(GIS_LINK[arm], arm, "Benign", subtype,
+                                                                    SUBTYPE_GIS_SHIFT[subtype])
+    rows.append({
+        "quantity": f"{prefix}_gis_score_LR",
+        "injected_value": phi_pdf(x_gis, gis_mean1, gis_sd1) / phi_pdf(x_gis, gis_mean0, gis_sd0),
+        "estimand": "LR", "is_null": "FALSE", "feature_type": "continuous_gaussian_subtype_stratum",
+        "derivation": f"f(GIS={x_gis}|Pathogenic,{subtype}~N({gis_mean1:.4f},{gis_sd1:.4f})) / "
+                       f"f(GIS={x_gis}|Benign,{subtype}~N({gis_mean0:.4f},{gis_sd0:.4f})); SUBTYPE_GIS_SHIFT"
+                       f"[{subtype}]={SUBTYPE_GIS_SHIFT[subtype]}, SUBTYPE_Z_SHIFT[{subtype}]="
+                       f"{SUBTYPE_Z_SHIFT[subtype]}.",
+    })
+
+    x_sbs3 = EVAL_POINT["sbs3"]
+    sbs3_mean1, sbs3_sd1 = marginal_gaussian_feature_params_subtype(SBS3_LINK[arm], arm, "Pathogenic", subtype)
+    sbs3_mean0, sbs3_sd0 = marginal_gaussian_feature_params_subtype(SBS3_LINK[arm], arm, "Benign", subtype)
+    sbs3_dens1, sbs3_kind1 = sbs3_clipped_density(x_sbs3, sbs3_mean1, sbs3_sd1)
+    sbs3_dens0, sbs3_kind0 = sbs3_clipped_density(x_sbs3, sbs3_mean0, sbs3_sd0)
+    rows.append({
+        "quantity": f"{prefix}_sbs3_exposure_LR", "injected_value": sbs3_dens1 / sbs3_dens0,
+        "estimand": "LR", "is_null": "FALSE", "feature_type": "continuous_gaussian_subtype_stratum",
+        "derivation": f"f_clipped(SBS3={x_sbs3}|Pathogenic,{subtype}~N({sbs3_mean1:.4f},{sbs3_sd1:.4f}))="
+                       f"{sbs3_dens1:.6f} ({sbs3_kind1}) / f_clipped(SBS3={x_sbs3}|Benign,{subtype}~N("
+                       f"{sbs3_mean0:.4f},{sbs3_sd0:.4f}))={sbs3_dens0:.6f} ({sbs3_kind0}); SBS3 has no direct "
+                       f"subtype term (SUBTYPE_MODEL.md §3), only SUBTYPE_Z_SHIFT[{subtype}]="
+                       f"{SUBTYPE_Z_SHIFT[subtype]}.",
+    })
+
+    jlr = joint_lr_subtype(arm, subtype, EVAL_POINT)
+    plr = product_of_marginals_lr_subtype(arm, subtype, EVAL_POINT)
+    rows.append({
+        "quantity": f"{prefix}_joint_LR", "injected_value": jlr,
+        "estimand": "LR", "is_null": "FALSE", "feature_type": "joint_latent_model_subtype_stratum",
+        "derivation": f"joint_density_subtype(x*|Pathogenic,{subtype})/joint_density_subtype(x*|Benign,"
+                       f"{subtype}) at x*={EVAL_POINT}, 1D Simpson's-rule integral over Z within this subtype "
+                       f"stratum only.",
+    })
+    rows.append({
+        "quantity": f"{prefix}_product_of_marginals_LR", "injected_value": plr,
+        "estimand": "LR", "is_null": "FALSE", "feature_type": "product_of_marginals_subtype_stratum",
+        "derivation": f"naive product of the 3 per-feature LRs above, within this subtype stratum only -- "
+                       f"the quantity a conditional-independence-assuming estimator would recover if it "
+                       f"stratified by subtype but still ignored the shared-Z correlation.",
+    })
+    rows.append({
+        "quantity": f"{prefix}_joint_vs_marginal_inflation_ratio", "injected_value": jlr / plr,
+        "estimand": "LR_RATIO", "is_null": "FALSE", "feature_type": "diagnostic_ratio_subtype_stratum",
+        "derivation": f"{prefix}_joint_LR / {prefix}_product_of_marginals_LR, within this subtype stratum.",
+    })
+    return rows
+
+
+def _null_arm_pooled_rows() -> list[dict]:
+    jlr_null = joint_lr_collapsed("NULL_ARM", EVAL_POINT)
+    plr_null = product_of_marginals_lr_collapsed("NULL_ARM", EVAL_POINT)
+    return [
+        {
+            "quantity": "null_arm_full_vector_joint_LR", "injected_value": jlr_null,
+            "estimand": "LR", "is_null": "TRUE", "feature_type": "joint_latent_model",
+            "derivation": "NULL_ARM's Z_MEAN is identical (0.0) for Pathogenic and Benign, and SUBTYPE_Z_SHIFT/"
+                          "SUBTYPE_GIS_SHIFT are applied IDENTICALLY to both classes within every subtype "
+                          "(never class-dependent) -- so f(x|Pathogenic)===f(x|Benign) as full mixture "
+                          "distributions still holds exactly under the subtype fix, joint_LR(x)===1.0 for "
+                          "EVERY evidence vector x, at every subtype stratum and pooled. Verified numerically "
+                          "at EVAL_POINT, pooled across subtype.",
+        },
+        {
+            "quantity": "null_arm_full_vector_product_of_marginals_LR", "injected_value": plr_null,
+            "estimand": "LR", "is_null": "TRUE", "feature_type": "product_of_marginals",
+            "derivation": "Each marginal (subtype-collapsed mixture included) of two identical distributions "
+                          "is itself identical, so the naive product-of-marginals LR is also exactly 1.0 here, "
+                          "pooled across subtype -- the subtype fix does not disturb DEFECT 4's null.",
+        },
+        {
+            "quantity": "null_arm_full_vector_inflation_ratio", "injected_value": jlr_null / plr_null,
+            "estimand": "LR_RATIO", "is_null": "TRUE", "feature_type": "diagnostic_ratio",
+            "derivation": "joint/product ratio for the null arm, pooled across subtype; == 1.0 exactly since "
+                          "both quantities above are each exactly 1.0 by construction.",
+        },
+    ]
+
+
+def _null_arm_subtype_rows(subtype: str) -> list[dict]:
+    prefix = f"null_arm_{subtype.lower().replace('-', '_')}"
+    jlr_null = joint_lr_subtype("NULL_ARM", subtype, EVAL_POINT)
+    plr_null = product_of_marginals_lr_subtype("NULL_ARM", subtype, EVAL_POINT)
+    return [
+        {
+            "quantity": f"{prefix}_full_vector_joint_LR", "injected_value": jlr_null,
+            "estimand": "LR", "is_null": "TRUE", "feature_type": "joint_latent_model_subtype_stratum",
+            "derivation": f"NULL_ARM within {subtype} only: SUBTYPE_Z_SHIFT[{subtype}] and "
+                           f"SUBTYPE_GIS_SHIFT[{subtype}] are applied identically to Pathogenic and Benign "
+                           f"(both already share Z_MEAN=0.0), so f(x|Pathogenic,{subtype})===f(x|Benign,"
+                           f"{subtype}) exactly -- joint_LR===1.0 within this stratum too, re-proven per "
+                           f"STEP 2's explicit requirement, not merely assumed to carry over from the pooled "
+                           f"proof above.",
+        },
+        {
+            "quantity": f"{prefix}_full_vector_product_of_marginals_LR", "injected_value": plr_null,
+            "estimand": "LR", "is_null": "TRUE", "feature_type": "product_of_marginals_subtype_stratum",
+            "derivation": f"Each per-feature marginal within {subtype}, for two identical (Pathogenic===Benign) "
+                           f"distributions, is itself identical -- product-of-marginals LR===1.0 exactly, "
+                           f"within this stratum.",
+        },
+        {
+            "quantity": f"{prefix}_full_vector_inflation_ratio", "injected_value": jlr_null / plr_null,
+            "estimand": "LR_RATIO", "is_null": "TRUE", "feature_type": "diagnostic_ratio_subtype_stratum",
+            "derivation": f"joint/product ratio for NULL_ARM within {subtype} only; == 1.0 exactly.",
+        },
+    ]
+
+
 def compute_truth_quantities() -> list[dict]:
     rows = []
 
     for arm in ("CORE_HR", "DDR_SIGNALING"):
-        p1 = marginal_wt_lost_prob(arm, "Pathogenic")
-        p0 = marginal_wt_lost_prob(arm, "Benign")
-        rows.append({
-            "quantity": f"{arm.lower()}_wt_lost_direction_LR", "injected_value": p1 / p0,
-            "estimand": "LR", "is_null": "FALSE", "feature_type": "categorical",
-            "derivation": f"marginal P(WT_LOST_DIRECTION|Pathogenic)={p1:.6f} / P(...|Benign)={p0:.6f}, "
-                           f"each via the Gaussian-probit convolution identity Phi((a+b*muZ)/sqrt(1+b^2))",
-        })
+        rows.extend(_pooled_quantity_rows(arm))
+        for subtype in PAM50_PROPORTIONS:
+            rows.extend(_subtype_quantity_rows(arm, subtype))
 
-        gis_mean1, gis_sd1 = marginal_gaussian_feature_params(GIS_LINK[arm], arm, "Pathogenic")
-        gis_mean0, gis_sd0 = marginal_gaussian_feature_params(GIS_LINK[arm], arm, "Benign")
-        x_gis = EVAL_POINT["gis"]
-        rows.append({
-            "quantity": f"{arm.lower()}_gis_score_LR",
-            "injected_value": phi_pdf(x_gis, gis_mean1, gis_sd1) / phi_pdf(x_gis, gis_mean0, gis_sd0),
-            "estimand": "LR", "is_null": "FALSE", "feature_type": "continuous_gaussian_marginal",
-            "derivation": f"f(GIS={x_gis}|Pathogenic~N({gis_mean1:.4f},{gis_sd1:.4f})) / "
-                           f"f(GIS={x_gis}|Benign~N({gis_mean0:.4f},{gis_sd0:.4f})), marginal over Z",
-        })
-
-        sbs3_mean1, sbs3_sd1 = marginal_gaussian_feature_params(SBS3_LINK[arm], arm, "Pathogenic")
-        sbs3_mean0, sbs3_sd0 = marginal_gaussian_feature_params(SBS3_LINK[arm], arm, "Benign")
-        x_sbs3 = EVAL_POINT["sbs3"]
-        sbs3_dens1, sbs3_kind1 = sbs3_clipped_density(x_sbs3, sbs3_mean1, sbs3_sd1)
-        sbs3_dens0, sbs3_kind0 = sbs3_clipped_density(x_sbs3, sbs3_mean0, sbs3_sd0)
-        rows.append({
-            "quantity": f"{arm.lower()}_sbs3_exposure_LR",
-            "injected_value": sbs3_dens1 / sbs3_dens0,
-            "estimand": "LR", "is_null": "FALSE", "feature_type": "continuous_gaussian_marginal",
-            "derivation": f"P06R3: f_clipped(SBS3={x_sbs3}|Pathogenic~N({sbs3_mean1:.4f},{sbs3_sd1:.4f})"
-                           f"|clip[{SBS3_CLIP_LO},{SBS3_CLIP_HI}])={sbs3_dens1:.6f} ({sbs3_kind1}) / "
-                           f"f_clipped(SBS3={x_sbs3}|Benign~N({sbs3_mean0:.4f},{sbs3_sd0:.4f})"
-                           f"|clip[{SBS3_CLIP_LO},{SBS3_CLIP_HI}])={sbs3_dens0:.6f} ({sbs3_kind0}), marginal "
-                           f"over Z. x_sbs3 is interior to the clip range for both classes (kind='density' "
-                           f"both sides), so this equals the pre-P06R3 unclipped-Gaussian formula exactly -- "
-                           f"clipping is a measure-preserving identity map on the open interval, it cannot "
-                           f"change the density there; see FIDELITY_AUDIT.md.",
-        })
-
-        jlr = joint_lr(arm, EVAL_POINT)
-        plr = product_of_marginals_lr(arm, EVAL_POINT)
-        rows.append({
-            "quantity": f"{arm.lower()}_joint_LR", "injected_value": jlr,
-            "estimand": "LR", "is_null": "FALSE", "feature_type": "joint_latent_model",
-            "derivation": f"joint_density(x*|Pathogenic)/joint_density(x*|Benign) at x*={EVAL_POINT}, "
-                           f"each joint_density computed by 1D Simpson's-rule integration over the shared "
-                           f"latent Z (see joint_density()); NOT a product of marginals",
-        })
-        rows.append({
-            "quantity": f"{arm.lower()}_product_of_marginals_LR", "injected_value": plr,
-            "estimand": "LR", "is_null": "FALSE", "feature_type": "product_of_marginals",
-            "derivation": f"naive product of the 3 marginal per-feature LRs above, evaluated at the SAME "
-                           f"x*={EVAL_POINT} -- the quantity a conditional-independence-assuming estimator "
-                           f"would recover if it ignored the shared-Z correlation",
-        })
-        rows.append({
-            "quantity": f"{arm.lower()}_joint_vs_marginal_inflation_ratio", "injected_value": jlr / plr,
-            "estimand": "LR_RATIO", "is_null": "FALSE", "feature_type": "diagnostic_ratio",
-            "derivation": f"{arm.lower()}_joint_LR / {arm.lower()}_product_of_marginals_LR -- P09's known "
-                           f"inflation target; != 1.0 because the 3 features share latent Z and are therefore "
-                           f"correlated given class, so the conditional-independence assumption behind a "
-                           f"naive product-of-marginals estimator is violated by construction",
-        })
-
-    # NULL_ARM: Z_MEAN identical between classes -> f(x|Pathogenic) == f(x|Benign)
-    # as full joint distributions, so joint_LR(x) == 1.0 EXACTLY for every x
-    # (not just at EVAL_POINT) and, since every marginal of an identical
-    # distribution is itself identical, product_of_marginals_LR(x) == 1.0
-    # exactly too. This is DEFECT 4's full-feature-vector null.
-    jlr_null = joint_lr("NULL_ARM", EVAL_POINT)
-    plr_null = product_of_marginals_lr("NULL_ARM", EVAL_POINT)
-    rows.append({
-        "quantity": "null_arm_full_vector_joint_LR", "injected_value": jlr_null,
-        "estimand": "LR", "is_null": "TRUE", "feature_type": "joint_latent_model",
-        "derivation": "NULL_ARM's Z_MEAN is identical (0.0) for Pathogenic and Benign, and every other "
-                      "link parameter is shared -- f(x|Pathogenic)===f(x|Benign) as distributions, so "
-                      "joint_LR(x)===1.0 for EVERY evidence vector x, not merely at one evaluation point "
-                      "(proof: LR(x)=f(x|Path)/f(x|Benign)=f(x)/f(x)=1 identically when the two class-"
-                      "conditional densities are the same function). Verified numerically at EVAL_POINT.",
-    })
-    rows.append({
-        "quantity": "null_arm_full_vector_product_of_marginals_LR", "injected_value": plr_null,
-        "estimand": "LR", "is_null": "TRUE", "feature_type": "product_of_marginals",
-        "derivation": "Each marginal of two identical distributions is itself identical, so the naive "
-                      "product-of-marginals LR is also exactly 1.0 here -- this null arm is a genuine test "
-                      "of the FULL feature vector (the case the task's v2 regression got wrong, returning "
-                      "0.36 [0.30-0.43] instead of ~1), not merely the single-feature depth-bucket null below.",
-    })
-    rows.append({
-        "quantity": "null_arm_full_vector_inflation_ratio", "injected_value": jlr_null / plr_null,
-        "estimand": "LR_RATIO", "is_null": "TRUE", "feature_type": "diagnostic_ratio",
-        "derivation": "joint/product ratio for the null arm; == 1.0 exactly since both the numerator and "
-                      "denominator quantities above are each exactly 1.0 by construction (no shared-Z "
-                      "correlation exists between classes here, because there is no class difference at all).",
-    })
+    # NULL_ARM: DEFECT 4's full-feature-vector null, pooled and per subtype
+    # (see _null_arm_pooled_rows/_null_arm_subtype_rows docstrings for why
+    # the subtype fix cannot disturb the exact-1.0 property).
+    rows.extend(_null_arm_pooled_rows())
+    for subtype in PAM50_PROPORTIONS:
+        rows.extend(_null_arm_subtype_rows(subtype))
 
     # Secondary null, kept from v1 per the task's explicit instruction.
     p1 = p0 = 0.50
@@ -673,7 +991,9 @@ def _emit_sample(state: dict, arm: str, cls: str, purity_bin: str, p_lo: float, 
     baseline_cn = 4 if wgd else 2
     normal_depth = max(5, round(rng.gauss(NORMAL_DEPTH_MEAN, 8)))
 
-    z = rng.gauss(Z_MEAN[arm][cls], Z_SD)
+    # Subtype fix: SUBTYPE_Z_SHIFT applied identically regardless of cls
+    # (SUBTYPE_MODEL.md §1) -- a genuine confound, not a second class signal.
+    z = rng.gauss(Z_MEAN[arm][cls] + SUBTYPE_Z_SHIFT[subtype], Z_SD)
 
     hidden_direction = ""
     if forced_category is None:
@@ -692,7 +1012,9 @@ def _emit_sample(state: dict, arm: str, cls: str, purity_bin: str, p_lo: float, 
     normal_alt = binomial_draw(rng, normal_depth, 0.5)
     normal_ref = normal_depth - normal_alt
 
-    gis = GIS_LINK[arm]["c"] + GIS_LINK[arm]["d"] * z + rng.gauss(0, GIS_LINK[arm]["sigma"])
+    # Subtype fix: SUBTYPE_GIS_SHIFT is the explicit, literature-cited direct
+    # channel (SUBTYPE_MODEL.md §2), on top of whatever GIS inherits via z.
+    gis = GIS_LINK[arm]["c"] + GIS_LINK[arm]["d"] * z + SUBTYPE_GIS_SHIFT[subtype] + rng.gauss(0, GIS_LINK[arm]["sigma"])
     sbs3 = min(SBS3_CLIP_HI, max(SBS3_CLIP_LO, SBS3_LINK[arm]["c"] + SBS3_LINK[arm]["d"] * z + rng.gauss(0, SBS3_LINK[arm]["sigma"])))
 
     state["sample_rows"].append({

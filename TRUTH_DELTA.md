@@ -444,3 +444,170 @@ CORE_HR's gate6 FAIL stems partly from a truth-definition defect — does not
 hold up**, and both arms' gate6 FAILs should now be attributed to the same
 estimator-instability mechanism. See REVALIDATION_REQUIRED.md for what this
 means for P07 and P08.
+
+---
+
+# Subtype fix addendum: pam50_subtype is now a genuine generative input
+
+SIMULATED: full design in `SUBTYPE_MODEL.md`, written and fixed before any
+code change. Full data: `SIMULATED_TRUTH.tsv` (91 quantities, up from 16).
+
+## 1. The original 16 quantities, BEFORE → AFTER
+
+"Before" = the value committed at HEAD (P-DEC-1/gate8 commit). "After" =
+the value produced once `pam50_subtype` genuinely feeds the latent Z
+(SUBTYPE_Z_SHIFT, all subtypes except Basal = 0.0) and GIS directly
+(SUBTYPE_GIS_SHIFT, same). Every original quantity is now computed as a
+PAM50-prevalence-weighted MIXTURE over 5 subtype strata
+(`*_collapsed()` functions in `simulate.py`), not a single Gaussian/Z-only
+marginal as before — the correct pooled truth once subtype is a real
+mixture component, not an approximation of it.
+
+| quantity | before | after | relative change |
+|---|---|---|---|
+| core_hr_wt_lost_direction_LR | 4.480412 | 4.194289 | −6.39% |
+| core_hr_gis_score_LR | 3.662247 | 2.300985 | **−37.17%** |
+| core_hr_sbs3_exposure_LR | 5.644995 | 4.846995 | −14.14% |
+| core_hr_joint_LR | 7.243192 | 5.826333 | −19.56% |
+| core_hr_product_of_marginals_LR | 92.625192 | 46.778329 | −49.50% |
+| core_hr_joint_vs_marginal_inflation_ratio | 0.078199 | 0.124552 | +59.28% |
+| ddr_signaling_wt_lost_direction_LR | 2.137349 | 2.084178 | −2.49% |
+| ddr_signaling_gis_score_LR | 2.723591 | 2.080864 | −23.60% |
+| ddr_signaling_sbs3_exposure_LR | 3.915723 | 3.672406 | −6.21% |
+| ddr_signaling_joint_LR | 6.204176 | 5.154487 | −16.92% |
+| ddr_signaling_product_of_marginals_LR | 22.794454 | 15.926821 | −30.13% |
+| ddr_signaling_joint_vs_marginal_inflation_ratio | 0.272179 | 0.323636 | +18.91% |
+| null_arm_full_vector_joint_LR | 1.0 | 1.0 | 0% |
+| null_arm_full_vector_product_of_marginals_LR | 1.0 | 1.0 | 0% |
+| null_arm_full_vector_inflation_ratio | 1.0 | 1.0 | 0% |
+| null_sequencing_depth_bucket_LR | 1.0 | 1.0 | 0% |
+
+## 2. Why these moved — and why the movement is NOT a red flag
+
+This task's own instruction anticipated movement and asked for an
+explanation, not for the values to stay put: *"a purely stratifying
+variable added without changing marginal prevalences should leave them
+close"* — **close, not unchanged**, and the SIZE of the movement here is
+directly explained by which channel each feature has:
+
+- **GIS moved the most (−37% CORE_HR, −24% DDR_SIGNALING)** because it
+  carries BOTH the direct `SUBTYPE_GIS_SHIFT` channel AND the indirect
+  Z-mediated channel (`SUBTYPE_MODEL.md` §2) — Basal's combined shift is
+  ~14.8 GIS points for CORE_HR, ~1 full feature-sigma, applied to 18.28%
+  of the population. A confound with a material effect size on a fifth of
+  the population WILL move the marginal by a material amount; a small
+  movement here would have meant the confound wasn't really generated.
+- **WT_LOST direction moved the least (−6.4%, −2.5%)** because it carries
+  ONLY the small, indirect Z-mediated channel (`SUBTYPE_Z_SHIFT["Basal"]
+  = 0.4`, modest relative to the class gaps 1.3–2.5) — no direct subtype
+  term at all (`SUBTYPE_MODEL.md` §3).
+- **SBS3 moved by an intermediate amount (−14%, −6%)** for the same
+  reason as WT_LOST (Z-mediated only, no direct term) — its larger raw
+  percentage move than WT_LOST's reflects SBS3's own sensitivity (a
+  narrower feature sigma relative to its Z-loading `d`), not a different
+  subtype channel.
+
+**This differential — largest movement for the feature with two channels,
+smallest for the feature with none — is itself evidence the confound
+mechanism is implemented correctly**, not evidence of a problem.
+
+## 3. Joint LR, product-of-marginals, ratio — reported, not engineered
+
+Per this task's explicit instruction to report these "currently 0.0782 /
+0.2722, i.e. 12.79x and 3.67x deflation" quantities before → after:
+`core_hr_joint_vs_marginal_inflation_ratio`: **0.0782 → 0.1246** (naive
+product-of-marginals still overstates the true joint LR by ~8.0x, down
+from ~12.8x); `ddr_signaling_joint_vs_marginal_inflation_ratio`: **0.2722
+→ 0.3236** (naive overstates by ~3.1x, down from ~3.7x). **Neither ratio
+collapses toward 1 — this task's HALT condition does not trigger.** Both
+move modestly toward 1 because the subtype-blind naive estimator's own
+denominator (`product_of_marginals_lr_collapsed`) is now ALSO confounded
+by the same subtype mixture the joint numerator is, in a way that
+partially, not fully, cancels the pre-existing Z-correlation inflation —
+an incomplete cancellation, not a collapse.
+
+## 4. NULL_ARM re-proven at exactly 1.0 — pooled AND in every one of 5 subtype strata
+
+`null_arm_full_vector_joint_LR` / `_product_of_marginals_LR` /
+`_inflation_ratio` remain exactly `1.0` pooled, **and** 15 new
+`null_arm_{subtype}_full_vector_*` rows (3 quantities × 5 subtypes) are
+each exactly `1.0` too — verified directly from `SIMULATED_TRUTH.tsv`,
+not merely asserted. This holds by construction: `SUBTYPE_Z_SHIFT` and
+`SUBTYPE_GIS_SHIFT` are applied IDENTICALLY to Pathogenic and Benign
+within every subtype (never class-dependent) — NULL_ARM's two classes,
+already identical before this fix, stay identical after it, in every
+stratum, so `joint_LR≡1.0` for every evidence vector regardless of
+subtype.
+
+## 5. Confounding demonstrated numerically (this task's STEP 3)
+
+**Empirical (from the actual generated sample data, not just the
+analytic model) — mean GIS by subtype, within Benign only (germline
+status held constant, so ANY difference is purely subtype-driven):**
+
+| arm | class | mean GIS, Basal | mean GIS, non-Basal | frac(GIS≥42), Basal | frac(GIS≥42), non-Basal |
+|---|---|---|---|---|---|
+| CORE_HR | Benign | 33.85 (n=369) | 17.65 (n=1479) | 26.6% | 4.8% |
+| DDR_SIGNALING | Benign | 34.31 (n=349) | 20.56 (n=1499) | 24.9% | 4.7% |
+
+A quarter of Benign-Basal tumors cross the `BENCHMARKS.tsv` HRD03
+GIS≥42 threshold — over 5x the rate of Benign-non-Basal tumors — despite
+identically Benign germline status in both groups. This is the confound,
+present in the actual generated data, not merely in the analytic formulas.
+
+**Analytic — LR(GIS=42), naive-pooled vs. subtype-stratified:**
+
+| arm | naive pooled LR | Basal-stratified LR | LumA-stratified LR |
+|---|---|---|---|
+| CORE_HR | 2.3010 | **0.4332** (favors BENIGN) | 3.6622 (favors Pathogenic) |
+| DDR_SIGNALING | 2.0809 | 1.1792 (near-null) | 2.7236 (favors Pathogenic) |
+
+**The naive, subtype-blind estimate is wrong in both directions
+simultaneously**: for CORE_HR, it overstates the Basal-stratified truth by
+5.3x (reads GIS=42 as mild positive evidence when the correctly-stratified
+value says it is actually mild evidence for BENIGN — the LR sits on
+opposite sides of 1) and understates the LumA-stratified truth by a
+factor of 0.63x. **Stratification removes this bias by construction**:
+`joint_lr_subtype`/`product_of_marginals_lr_subtype` compute the LR
+within one subtype only, so they are exactly the values in the table
+above — no residual composition confound, since each stratum's own
+Pathogenic/Benign comparison never mixes across subtype baselines.
+
+## 6. Revalidation scope
+
+See `REVALIDATION_REQUIRED.md` — the presumption stated by this task
+("subtype now enters the feature distributions, so the presumption is yes
+for both [P07 and P08]") is confirmed correct: both arms' pre-existing
+`*_wt_lost_direction_LR` and `*_sbs3_exposure_LR` targets moved (§1),
+so a gate6 run scored against the stale, pre-subtype-fix
+`SIMULATED_TRUTH.tsv` would be scoring against the wrong number. Neither
+is re-run from this prompt, per the task's explicit instruction.
+
+## 7. gate8 against the new, subtype-stratified truth (this task's STEP 5)
+
+`subtype_gate8_check.py` (new file) computes PROTOCOL.md §7.1's estimator
+(bootstrap CI, B=2000) at the ACTUAL per-(arm, subtype)-stratum sample
+sizes the generator now produces (smaller than the pooled 1848/class,
+exactly as this task anticipated), then runs
+`gate8_interval_informativeness.py` against the result. **3 of 10 strata
+are UNINFORMATIVE**:
+
+| stratum | n (Path/Benign) | point est. | CI | gate8 reason |
+|---|---|---|---|---|
+| CORE_HR/Basal | 314/369 | 3.20 | [2.00, 5.36] | spans 3 ACMG tiers (NO_EVIDENCE→MODERATE) — the true value sits genuinely near a tier boundary here (§5's confound partially cancels the germline signal), not an estimator-noise artifact |
+| CORE_HR/Normal-like | 36/27 | 196.8 | [36.5, 3.57 MILLION] | ratio/ceiling — the same small-n KDE instability `INTERVAL_INSTABILITY.md` already characterized, now hit by a real stratum this project's own simulator produces |
+| DDR_SIGNALING/Normal-like | 32/23 | 10.4 | [2.16, 249.3] | spans 3 tiers AND exceeds the ratio ceiling |
+
+The other 7 strata (both arms × LumA/LumB/HER2E, plus DDR_SIGNALING/Basal)
+are `INFORMATIVE`. Full table: `SIMULATED_SUBTYPE_STRATUM_ESTIMATES.tsv`;
+full gate8 report: `SIMULATED_subtype_gate8_out/SIMULATED_GATE8_INTERVAL_REPORT.tsv`
+(a separate output directory from the STAKE task's own
+`SIMULATED_GATE8_INTERVAL_REPORT.tsv` at repo root — the two gate8 runs
+score different input tables and must not overwrite each other; this was
+discovered as a real collision during this task's own development, not a
+hypothetical, and fixed the same way before anything was committed). This
+is reported as a finding about what this study design can resolve at
+subtype-stratified granularity — the two smallest strata (Normal-like,
+~1.5% of the population by design) are exactly where recoverability
+breaks down, which is itself informative for a future Track B power
+analysis, not something tuned away here.
