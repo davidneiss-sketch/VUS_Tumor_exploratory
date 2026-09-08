@@ -180,3 +180,121 @@ range.
 weigh this against the study's overall design goals — a two-feature model
 with an occasional third data point may still be adequate for Track B's
 purposes, depending on what margin the original power calculation assumed.
+
+## 5. SigMA at scale: it holds up, and PROTOCOL.md's tool ordering should be revisited (P08-RERUN addendum)
+
+SIMULATED: this section is a P08-RERUN addendum. Evidence:
+`SIMULATED_signature_work/SIMULATED_sigma_382sample_stratified_result.csv`,
+`SIMULATED_signature_work/SIMULATED_sigma_7392population_result.csv`,
+`SIMULATED_signature_work/SIMULATED_sigma_vs_spa_by_bin.tsv`. §4 above
+(P06R2) showed 10/10 correct binary classification for SigMA on the
+newly-fixed catalog. That was a small, easy demonstration. This section
+scales it: SigMA's `run()`, via the same source-level catalogue-only
+bypass, was run against (a) the same 382-sample, mutation-count-stratified
+subset `signatures.py` uses for its SigProfilerAssignment curve (real
+apples-to-apples axis, not ten hand-picked samples), and (b) the full
+7392-sample `CORE_HR`+`DDR_SIGNALING` population `signatures.py`'s gate6
+scoring uses, fit against SigMA's full COSMIC-derived basis (not a
+2-signature restriction — the `cosmic_v2_inhouse` catalog covers ~30
+signatures, confirmed by the wide signature column set in the raw output).
+Both runs completed quickly (382 samples: 13s; 7392 samples: 232s) — this
+is not a performance-limited comparison.
+
+### 5.1 Recovery error vs. mutation count, both tools, same bins
+
+| bin | n | mean true | SPA mean recovered | SPA MAE | SPA frac exact-0 | SigMA mean recovered | SigMA MAE | SigMA frac exact-0 |
+|---|---|---|---|---|---|---|---|---|
+| [5,15) | 7 | 0.0949 | 0.0000 | 0.0949 | 1.00 | 0.0273 | 0.0929 | 0.29 |
+| [15,25) | 40 | 0.1739 | 0.0000 | 0.1739 | 1.00 | 0.0458 | 0.1449 | 0.33 |
+| [25,35) | 40 | 0.1179 | 0.0142 | 0.1226 | 0.97 | 0.0710 | 0.1026 | 0.38 |
+| [35,45) | 40 | 0.1672 | 0.0000 | 0.1672 | 1.00 | 0.1259 | 0.1048 | 0.23 |
+| [45,55) | 40 | 0.1374 | 0.0118 | 0.1433 | 0.97 | 0.1479 | 0.0956 | 0.28 |
+| [55,65) | 40 | 0.1615 | 0.0139 | 0.1548 | 0.97 | 0.1606 | 0.1165 | 0.23 |
+| [65,75) | 40 | 0.1568 | 0.0273 | 0.1607 | 0.95 | 0.2116 | 0.1121 | 0.07 |
+| [75,85) | 40 | 0.1111 | 0.0202 | 0.1067 | 0.95 | 0.2085 | 0.1318 | 0.15 |
+| [85,95) | 40 | 0.1687 | 0.0365 | 0.1680 | 0.93 | 0.2852 | 0.1431 | 0.07 |
+| [95,105) | 40 | 0.1592 | 0.0471 | 0.1559 | 0.90 | 0.2885 | 0.1674 | 0.15 |
+| [105,116) | 15 | 0.1469 | 0.0652 | 0.1114 | 0.87 | 0.3186 | 0.1891 | 0.20 |
+
+Applying the same MAE<=0.15 recoverability criterion `signatures.py` uses:
+**SigMA clears it in 9/11 bins (all of [5,95), failing only the top two
+bins [95,116)); SigProfilerAssignment clears it in only 4/11 bins,
+scattered non-monotonically** (consistent with `DIAGNOSIS_P08.md`'s
+finding that SPA's per-bin MAE is noisy, not a clean function of count).
+**SigMA's exact-zero rate stays below 40% in every bin tested; SPA's stays
+above 87% in every bin** — SigMA does not show the catastrophic
+collapse-to-zero `DIAGNOSIS_P08.md` §5 (Mechanism 2) found for SPA.
+
+**SigMA's failure mode at high counts is different in kind, not just
+degree**: it does not collapse to zero — it OVER-attributes (mean
+recovered 0.29-0.32 vs. true ~0.15 in the top two bins, roughly double).
+This was not tuned or selected for; it is what SigMA's real NNLS+likelihood
+fit returns.
+
+### 5.2 Population-level LR (same construction gate6 uses)
+
+Fitting the same class-conditional-Gaussian-at-`EVAL_POINT`
+(`sbs3=0.30`) LR construction `signatures.py`'s `phase6_gate6_recovery()`
+uses, to SigMA's `exp_sig3` recovered exposures across the full
+7392-sample population:
+
+| quantity | injected | SPA recovered (CI) | SPA relative bias | SigMA recovered (CI) | SigMA relative bias |
+|---|---|---|---|---|---|
+| core_hr_sbs3_exposure_LR | 5.6450 | 435.24 [61.32, 14426.86] | 76.10 | 2.32 [2.11, 2.56] | 0.59 |
+| ddr_signaling_sbs3_exposure_LR | 3.9157 | 112.02 [11.59, 7897.46] | 27.61 | 1.52 [1.40, 1.67] | 0.61 |
+
+**Both tools still FAIL gate6's 0.25 relative-bias tolerance on both
+quantities** — SigMA does not pass outright. But the difference in
+*degree* is enormous: SPA's error is 27-76x the injected value (driven by
+a degenerate class-conditional fit — SPA's recovered exposures are 88-98%
+EXACT ZERO in every class, `SIMULATED_signature_work/SIMULATED_existing_catalog_recovered_sbs3.tsv`,
+so a Gaussian fit to that distribution evaluated at `x=0.30` sits several
+standard deviations into a near-degenerate tail). SigMA's recovered
+class-conditional distributions are smooth, sensibly-shaped Gaussians
+(frac-zero 7-24%, not 88-98%) and its LR, while still off, is off by
+roughly half rather than by 30-80x.
+
+### 5.3 Recommendation (proposed, not applied)
+
+**PROTOCOL.md §5.4 currently orders SigProfilerAssignment as the primary,
+gated tool and SigMA as BLOCKED/secondary.** The evidence above — real
+runs, same data, same axis, same LR construction, same tolerance — shows
+SigMA materially outperforms SigProfilerAssignment at exome-scale mutation
+counts in this simulated regime, both in per-sample recovery error (§5.1)
+and in population-level LR distortion (§5.2), consistent with SigMA's own
+documentation ("optimized to detect...Signature 3...from...exomes",
+"for panels with low SNV counts, conventional signature analysis tools do
+not perform well"). **Proposed: once SigMA is genuinely installable (not
+just source-bypassable) in this environment, PROTOCOL.md §5.4 should be
+revisited to make SigMA the primary SBS3-exposure tool for exome-scale
+data, with SigProfilerAssignment retained as a cross-check** — the reverse
+of the current ordering. This is not applied: `PROTOCOL.md` is not
+modified by this task, and `GATE1.json`'s formal SigMA status remains FAIL
+(the source-level bypass is evidence of capability, not a resolution of
+the `BSgenome.Hsapiens.UCSC.hg19` blocker — see `GATE1.json`
+`resolution_attempts_p08rerun`).
+
+**This document proposes; it does not decide.** A human reviewer should
+weigh whether the source-level bypass is an acceptable production pathway
+(it is not, as currently constructed — it bypasses the package's own
+installation and dependency-checking machinery) before treating SigMA as
+anything other than BLOCKED for actual Stage 1 use, regardless of how
+well it performs here.
+
+## 6. P08-RERUN session disposition
+
+Both of this task's HALT conditions are met, independently:
+
+1. **`ANALYTIC_VS_OBSERVED.md` found `core_hr_sbs3_exposure_LR`'s analytic
+   truth is not achievable from the observed (true, exactly-known)
+   distributions** — a P06 truth-definition defect, not fixed here.
+2. **`ddr_signaling_sbs3_exposure_LR`'s analytic truth WAS confirmed
+   faithful** (`ANALYTIC_VS_OBSERVED.md` §7), and gate6 still FAILs on it
+   with both tools (SigProfilerAssignment relative bias 27.6, SigMA 0.61)
+   — a genuine estimator problem with a confirmed-faithful truth.
+
+Per this task's explicit instruction, **this session does not proceed to
+P09**, and does not fix either finding from this prompt. `simulate.py`
+(the P06 truth-definition fix `ANALYTIC_VS_OBSERVED.md` §7 recommends) and
+`PROTOCOL.md` (the tool-ordering change §5.3 above recommends) are both
+left unmodified, per this task's DO NOT list.

@@ -188,8 +188,8 @@ re-run of SPA needed for this cheap step).
 
 | quantity | estimand | recovered LR | 95% CI | n Pathogenic | n Benign |
 |---|---|---|---|---|---|
-| core_hr_sbs3_exposure_LR | LR | 0.309121 | [0.061941, 0.833367] | 1848 | 1848 |
-| ddr_signaling_sbs3_exposure_LR | LR | 0.476533 | [0.18614, 0.948359] | 1848 | 1848 |
+| core_hr_sbs3_exposure_LR | LR | 435.24222 | [61.315827, 14426.858662] | 1848 | 1848 |
+| ddr_signaling_sbs3_exposure_LR | LR | 112.01845 | [11.588999, 7897.461071] | 1848 | 1848 |
 
 **gate6_recovery.py: FAIL** (full output: `SIMULATED_signature_work/SIMULATED_gate6_output.txt`,
 table: `SIMULATED_signature_work/gate6_out/SIMULATED_RECOVERY_TABLE.tsv`). All 14 other
