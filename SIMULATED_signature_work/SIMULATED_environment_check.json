@@ -1,0 +1,15 @@
+{
+  "timestamp_utc": "2026-09-08T07:10:13Z",
+  "docker_image": "vus-tumor-gate1:local",
+  "docker_image_digest": "sha256:2f344e8a456167eec8701db9581b07b0a4139ed2acdaecf23ab811fec354ca4c",
+  "sigprofilerassignment_version": "1.1.5",
+  "sigprofilerassignment_version_matches_gate1": true,
+  "cosmic_version_bundled_default": 3.6,
+  "genome_build_bundled_default": "GRCh37",
+  "genome_build_used_this_run": "GRCh38",
+  "sigma_status": "FAIL",
+  "sigma_check_output": "SigMA_FAIL: there is no package called \u2018SigMA\u2019",
+  "bsgenome_hg19_status": "FAIL",
+  "bsgenome_hg19_check_output": "BSGENOME_FAIL: there is no package called \u2018BSgenome.Hsapiens.UCSC.hg19\u2019",
+  "sigma_matches_gate1_fail": true
+}

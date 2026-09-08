@@ -1,0 +1,3 @@
+quantity	estimand	recovered_point	ci_low	ci_high	n_pathogenic	n_benign
+core_hr_sbs3_exposure_LR	LR	0.309121	0.061941	0.833367	1848	1848
+ddr_signaling_sbs3_exposure_LR	LR	0.476533	0.18614	0.948359	1848	1848

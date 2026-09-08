@@ -1,0 +1,56 @@
+{
+  "genome_build": "GRCh38",
+  "spa_data_root": "/opt/conda/envs/bioenv/lib/python3.12/site-packages/SigProfilerAssignment/data/Reference_Signatures/GRCh38",
+  "smg_context_root": "/opt/conda/envs/bioenv/lib/python3.12/site-packages/SigProfilerMatrixGenerator/references/chromosomes/context_distributions",
+  "sources": [
+    {
+      "key": "SBS3_v3.6",
+      "file": "/opt/conda/envs/bioenv/lib/python3.12/site-packages/SigProfilerAssignment/data/Reference_Signatures/GRCh38/COSMIC_v3.6_SBS_GRCh38.txt",
+      "column": "SBS3"
+    },
+    {
+      "key": "SBS5_v3.6",
+      "file": "/opt/conda/envs/bioenv/lib/python3.12/site-packages/SigProfilerAssignment/data/Reference_Signatures/GRCh38/COSMIC_v3.6_SBS_GRCh38.txt",
+      "column": "SBS5"
+    },
+    {
+      "key": "SBS40a_v3.6",
+      "file": "/opt/conda/envs/bioenv/lib/python3.12/site-packages/SigProfilerAssignment/data/Reference_Signatures/GRCh38/COSMIC_v3.6_SBS_GRCh38.txt",
+      "column": "SBS40a"
+    },
+    {
+      "key": "SBS40b_v3.6",
+      "file": "/opt/conda/envs/bioenv/lib/python3.12/site-packages/SigProfilerAssignment/data/Reference_Signatures/GRCh38/COSMIC_v3.6_SBS_GRCh38.txt",
+      "column": "SBS40b"
+    },
+    {
+      "key": "SBS40c_v3.6",
+      "file": "/opt/conda/envs/bioenv/lib/python3.12/site-packages/SigProfilerAssignment/data/Reference_Signatures/GRCh38/COSMIC_v3.6_SBS_GRCh38.txt",
+      "column": "SBS40c"
+    },
+    {
+      "key": "SBS40_unsplit_v3",
+      "file": "/opt/conda/envs/bioenv/lib/python3.12/site-packages/SigProfilerAssignment/data/Reference_Signatures/GRCh38/COSMIC_v3_SBS_GRCh38.txt",
+      "column": "SBS40"
+    },
+    {
+      "key": "Signature_3_v2",
+      "file": "/opt/conda/envs/bioenv/lib/python3.12/site-packages/SigProfilerAssignment/data/Reference_Signatures/GRCh38/COSMIC_v2_SBS_GRCh38.txt",
+      "column": "Signature_3"
+    },
+    {
+      "key": "Signature_5_v2",
+      "file": "/opt/conda/envs/bioenv/lib/python3.12/site-packages/SigProfilerAssignment/data/Reference_Signatures/GRCh38/COSMIC_v2_SBS_GRCh38.txt",
+      "column": "Signature_5"
+    }
+  ],
+  "trinuc_genome_source": "/opt/conda/envs/bioenv/lib/python3.12/site-packages/SigProfilerMatrixGenerator/references/chromosomes/context_distributions/context_counts_GRCh38_96.csv",
+  "trinuc_exome_source": "/opt/conda/envs/bioenv/lib/python3.12/site-packages/SigProfilerMatrixGenerator/references/chromosomes/context_distributions/context_counts_GRCh38_96_exome.csv",
+  "cosine_similarities": {
+    "SBS3_v3.6_vs_SBS5_v3.6": 0.7928402219388434,
+    "SBS3_v3.6_vs_SBS40a_v3.6": 0.7634045920131545,
+    "SBS3_v3.6_vs_Signature_3_v2": 0.9648362874897726,
+    "Signature_3_v2_vs_SBS40_unsplit_v3": 0.8987659725532664
+  },
+  "note": "Read from the exact files installed by SigProfilerAssignment 1.1.5 / SigProfilerMatrixGenerator inside vus-tumor-gate1:local. Not fetched from a live URL: cancer.sanger.ac.uk is network-blocked this session (ENVIRONMENT.lock \u00a70). These are the same reference-signature and opportunity files SigProfilerAssignment itself reads at runtime -- not a re-derivation."
+}

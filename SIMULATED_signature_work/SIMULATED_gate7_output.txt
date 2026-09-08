@@ -1,0 +1,8 @@
+=== gate7_denominators ===
+[PASS] rates table present — SIMULATED_sbs3_rates_table.tsv, 6 metric row(s)
+[PASS] every row has a positive denominator — all 6 row(s) have a positive denominator
+[PASS] every row has an explicit (non-blank) excluded_count — all 6 row(s) carry an explicit excluded_count
+[PASS] numerator never exceeds denominator — all 6 row(s) OK
+[PASS] reported rate (if present) matches numerator/denominator — all reported rates internally consistent
+
+gate7_denominators OVERALL: PASS
