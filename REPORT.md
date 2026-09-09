@@ -12,9 +12,70 @@ produce and was not scoped to verify; doing so here, unprompted, would
 risk exactly the kind of unverified, invented content Standing Rule 3
 forbids. What follows is the deviation entry, placed first and
 prominently, as instructed. A future task that assembles a full study
-report should read this file's deviation section as-is (not
+report should read this file's deviation sections as-is (not
 re-summarized) and prepend or append the rest of the study's narrative
-around it.
+around them.
+
+---
+
+## Protocol deviation in effect (APPLIED): PROTOCOL.md §11's recovery-tolerance criterion, and a known estimator-bias disclosure
+
+**Status: APPLIED.** `PROTOCOL.md` §11 (Stage 2 recovery-tolerance
+criterion) was amended and applied this task
+(`PROTOCOL_DEVIATIONS.md` Entry 3, approver recorded there).
+
+**What changed:** CI containment of the injected value is **no longer a
+hard pass/fail condition** for Stage 2 `SIMULATED_PASS`/`SIMULATED_FAIL`
+status — it is computed and reported for every quantity
+(`ci_contains_injected` in `SIMULATED_RECOVERY_TABLE.tsv`), information
+for the reader, not a gate. In its place: the existing 0.25 relative-bias
+tolerance (unchanged), plus a new **directional shrinkage-bias check** —
+when the estimator's expected bias magnitude for a quantity is declared
+in advance from its own characterized shrinkage curve, an observed bias
+of the wrong sign, or materially larger than predicted, still FAILS the
+quantity even when inside the raw tolerance.
+
+**Why:** `RESIDUAL_DIAGNOSIS.md` (P-DIAG-1) and `MIXTURE_FIX.md`
+(P-AMD-3a) established that CORE_HR's CI-containment miss is caused by
+ridge shrinkage bias at the CV-selected penalty — a known, expected,
+now-quantified property of the currently-used estimator, not a defect
+(Monte Carlo noise and a separate mixture-weighting defect were both
+ruled out or fixed first). `PROPOSED_GATE6_AMENDMENT.md` computed,
+against the actual on-disk `tests/fixtures/gate6_bad_ci/` fixture (the
+case that motivated building gate6: recovered=9.3 vs injected=4.5), that
+this amendment does **not** let that historical failure pass — it still
+fails, on relative bias alone (106.67% ≫ 25%) — so no tolerance
+tightening was required.
+
+**Known conservative bias, disclosed here as instructed (not merely in
+an appendix):** the CV-selected penalty's shrinkage-toward-the-null bias
+systematically UNDERSTATES evidentiary strength — downward for LR>1
+(pathogenic-leaning) quantities, upward for LR<1 (benign-leaning) ones —
+**never the reverse**, by construction of the shrinkage mechanism. Since
+`PROTOCOL.md` §9 assigns ACMG-equivalent evidence from the CI lower
+bound, a true quantity near an OddsPath boundary may be assigned ONE
+TIER LOWER than its true strength; it will never be assigned a tier that
+OVERSTATES the true strength. This is not hypothetical for this study:
+**both of the two quantities this project has actually recovered so far
+(CORE_HR and DDR_SIGNALING) show exactly this — a realized, one-tier
+downgrade** (`PATHOGENIC_MODERATE` → `PATHOGENIC_SUPPORTING`), confirmed
+conservative in direction (never an over-call) by
+`scripts/confirm_tier_directionality.py`, whose full output is
+`CONFIRM_TIER_DIRECTIONALITY_RESULT.md`. `gate6_recovery.py`'s
+`SIMULATED_RECOVERY_TABLE.tsv` now carries this as a standing
+`near_tier_boundary` column on every run, not a one-time note. Full
+quantification and both draft-and-applied disclosure texts:
+`CONSERVATIVE_ASSIGNMENT_ANALYSIS.md`.
+
+**What this means for reading this study's results:** every
+`PATHOGENIC_SUPPORTING` or `PATHOGENIC_MODERATE` call landing near a §9
+boundary should be read with this conservative margin in mind — the true
+strength is at least this strong, plausibly one tier stronger, never
+weaker than reported.
+
+Nothing about §7.1's model specification changed as part of this entry —
+see the next section for that separate, still-unapplied amendment, and
+`PROTOCOL.md` §11's own closing note for how the two relate.
 
 ---
 
@@ -78,5 +139,6 @@ sign-off, and tagging before anything proceeds.**
 
 ---
 
-*(No further sections. This file's scope, as created by this task, ends
-here — see this file's own opening note.)*
+*(No further sections beyond the two deviation entries above. This
+file's scope, as created and extended across P-AMD-3a/3b, ends here —
+see this file's own opening note.)*

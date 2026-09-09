@@ -1,0 +1,2 @@
+quantity	predicted_relative_bias_magnitude	source
+WRONG_SIGN_QUANTITY	0.15	test fixture: predicts downward shrinkage of 15%; recovered value is instead 14% ABOVE injected -- wrong sign, within raw tolerance

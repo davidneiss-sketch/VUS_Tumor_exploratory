@@ -563,32 +563,94 @@ Stage 2 output** — the `PATHOGENIC_*`/`BENIGN_*`/`NO_EVIDENCE` vocabulary
 of §9 is reserved for Stage 1 only. Stage 2 uses exclusively `SIMULATED`,
 `SIMULATED_PASS`, `SIMULATED_FAIL`, `BLOCKED`.
 
-### RECOVERY TOLERANCE — fixed now, before any Stage 2 data exists
+### RECOVERY TOLERANCE — AMENDED (PROTOCOL_DEVIATIONS.md Entry 3, applied)
+
+**Status: APPLIED.** This section was amended from its original form
+(interval containment as a hard pass/fail condition) in response to
+evidence from `RESIDUAL_DIAGNOSIS.md` (P-DIAG-1) and `MIXTURE_FIX.md`
+(P-AMD-3a): the estimator currently used to produce `production_v2/`
+output (L2-penalized logistic regression — see the note at the end of
+this section on its own, separate, still-DRAFT relationship to §7.1) is,
+by construction, biased toward the null at the cross-validation-selected
+penalty strength. This is a **known, characterized, expected** property
+of the procedure (CV selects the penalty to minimize held-out prediction
+deviance, not to minimize bias in one specific recovered LR), not a
+symptom of a defect — full evidence and the decision record:
+`PROPOSED_GATE6_AMENDMENT.md`, `PROTOCOL_DEVIATIONS.md` Entry 3.
 
 A Stage 2 stratum is marked **`SIMULATED_PASS`** if and only if **both**:
 
-1. **Interval containment:** the recovered 95% CI (patient-clustered
-   bootstrap, B = 2000, percentile method — identical procedure to §7.3)
-   contains the injected target LR value.
-2. **Relative bias bound:** `|LR_hat − LR_true| / LR_true ≤ 0.25` (25%),
+1. **Relative bias bound:** `|LR_hat − LR_true| / LR_true ≤ 0.25` (25%),
    where `LR_hat` is the full-sample point estimate (not the bootstrap
-   mean) and `LR_true` is the pre-specified injected value.
+   mean) and `LR_true` is the pre-specified injected value. **Unchanged**
+   — `PROPOSED_GATE6_AMENDMENT.md` section 3 computed explicitly that the
+   historical failure motivating this gate (an on-disk fixture recovering
+   9.3 against an injected 4.5, `tests/fixtures/gate6_bad_ci/`) still
+   fails at this same 0.25 tolerance under the amended criterion, so no
+   tightening was required as a condition of this amendment.
+2. **Directional shrinkage-bias check (NEW):** when the estimator's
+   expected bias magnitude for this quantity has been declared IN
+   ADVANCE (from its own characterized shrinkage curve, e.g. a lambda
+   sweep at the CV-selected penalty), the OBSERVED bias must be the same
+   SIGN as predicted (shrinkage toward the null: downward for an injected
+   value > 1, upward for < 1) and not materially larger in magnitude
+   (implementation: `gates/gate6_recovery.py`'s `MAGNITUDE_SLACK_FACTOR`,
+   currently 1.5x, disclosed there). A quantity with no advance
+   prediction declared is scored on (1) alone.
+
+**Interval containment of the injected value is no longer a hard
+pass/fail condition.** It is still **computed and reported** for every
+quantity (`ci_contains_injected` column, `SIMULATED_RECOVERY_TABLE.tsv`)
+— information for the reader, not a gate. The **null-containment check**
+(for injected-null quantities, whether the CI contains 1.0) is
+**unchanged** and still gates — this amendment does not touch it.
 
 **Outcome rules:**
-- Both (1) and (2) hold → `SIMULATED_PASS`.
-- (1) holds but (2) fails → `SIMULATED_FAIL`, with the exact relative-bias
-  value reported (never rounded away or omitted).
-- (1) fails (CI excludes the injected target) → `SIMULATED_FAIL`
-  regardless of (2) — per Standing Rule 2, an interval that excludes its
-  target is a failed validation and is reported as `SIMULATED_FAIL`, not
-  as "approximately recovered" or any success-adjacent language.
+- (1) and, where a prediction was declared, (2) both hold → `SIMULATED_PASS`.
+- (1) fails, or (2) fails when evaluated → `SIMULATED_FAIL`, with the
+  exact relative-bias value and (where applicable) the directional-check
+  detail reported (never rounded away or omitted).
 - The stratum's simulated class sizes fall below the §8 minimum (n < 20)
   → `INSUFFICIENT_N`, not `SIMULATED_FAIL` — an untestable configuration
   is not a failed one.
 
-No other tolerance value (e.g. a looser or stricter relative-bias bound,
-or a different CI method) is used in this protocol; 0.25 and the
-percentile-bootstrap CI from §7.3 are the only recovery criteria.
+**Known conservative bias of the estimator currently in use.** The
+CV-selected penalty's shrinkage-toward-the-null bias systematically
+UNDERSTATES evidentiary strength in both directions — downward for LR>1
+(pathogenic-leaning) quantities, upward for LR<1 (benign-leaning)
+quantities — never the reverse, by construction of the mechanism (ridge
+shrinkage always pulls toward 1, regardless of which side of 1 the true
+value sits on). Since §9's ACMG-equivalent tier is assigned from the CI
+lower bound, this means a true quantity near an OddsPath boundary (§9)
+may be assigned one tier lower than its true strength; it is never
+assigned a tier that overstates the true strength. This is quantified —
+a general result plus two concrete, observed instances from this
+project's own synthetic validation — in
+`CONSERVATIVE_ASSIGNMENT_ANALYSIS.md`, and their directionality is
+explicitly confirmed conservative in
+`scripts/confirm_tier_directionality.py`'s output before this text was
+added here. Every `PATHOGENIC_SUPPORTING` or `PATHOGENIC_MODERATE` call
+landing near a §9 boundary should be read with this conservative margin
+in mind, not treated as a precise cut-point.
+
+No other relative-bias tolerance value is used in this protocol; 0.25
+remains the only bias bound. The percentile-bootstrap CI from §7.3
+remains the CI construction method (used for the reported interval and
+for the informational containment check above) regardless of this
+amendment.
+
+**Note on the estimator this section now describes.** The
+"CV-selected penalty" and "characterized shrinkage curve" language above
+refers to the L2-penalized logistic regression estimator that
+`production_v2_run.py` and `gate6_recovery.py`'s callers currently use in
+practice (`logistic_estimator.py`, `PROPOSED_PROTOCOL_AMENDMENT.md`).
+**§7.1 itself has NOT been amended to specify this model** —
+`PROTOCOL_DEVIATIONS.md` Entry 1 (the §7.1 model-replacement amendment)
+remains DRAFT, its Approver field blank, separate from and independent of
+THIS section's amendment (Entry 3). This section's amendment concerns
+Stage 2's *recovery-tolerance criterion* only, applies regardless of
+which model §7.1 ultimately specifies, and is disclosed here rather than
+silently implying §7.1 has already changed (Standing Rule 4).
 
 ---
 

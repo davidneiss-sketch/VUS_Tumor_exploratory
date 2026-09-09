@@ -1,0 +1,3 @@
+quantity	predicted_relative_bias_magnitude	source
+core_hr_joint_LR	0.172207	MIXTURE_FIX_POST_FIX_DIAGNOSTICS.md lambda sweep (mixture_fix/SIMULATED_LAMBDA_SWEEP_POST_FIX.tsv) at CV-selected lambda=30.0 for CORE_HR
+ddr_signaling_joint_LR	0.096884	MIXTURE_FIX_POST_FIX_DIAGNOSTICS.md lambda sweep (mixture_fix/SIMULATED_LAMBDA_SWEEP_POST_FIX.tsv) at CV-selected lambda=100.0 for DDR_SIGNALING

@@ -226,8 +226,111 @@ value") means the result stands as computed.
 
 ---
 
-## Approver
+## Entry 3 — Amend PROTOCOL.md §11's recovery-tolerance criterion: CI containment reported, not gated; directional shrinkage-bias check added
 
-_(blank — for human completion. This amendment does not take effect,
-and `PROTOCOL.md` is not edited, until this field is completed and a
-separate, subsequent implementation task is run.)_
+| field | value |
+|---|---|
+| **Status** | **APPLIED** — approved and implemented this task (P-AMD-3b) |
+| **Date drafted** | 2026-09-09 (P-AMD-3a, `PROPOSED_GATE6_AMENDMENT.md`) |
+| **Date approved** | 2026-09-09 |
+| **Date applied** | 2026-09-09 (same day) |
+| **Section amended** | `PROTOCOL.md` §11 ("Stage 2 — synthetic recovery test and RECOVERY TOLERANCE") |
+| **Files changed** | `gates/gate6_recovery.py`, `PROTOCOL.md` §11, `REPORT.md`, `tests/test_gate6.py` + 2 new fixtures |
+| **Approver** | davidneiss@unicauca.edu.co (session user — sign-off given as an explicit task message this session: "SIGN-OFF GIVEN. The amendment drafted in PROPOSED_GATE6_AMENDMENT.md is approved as written, with one addition (Part D below)." This is the verified, session-authenticated user identity available; no other identifier is invented per Standing Rule 3.) |
+
+### What changed
+
+`PROTOCOL.md` §11's Stage 2 recovery criterion previously required BOTH
+(1) the recovered 95% CI to contain the injected target value, AND (2)
+relative bias ≤ 0.25 — either failing meant `SIMULATED_FAIL`. This entry
+replaces (1): **CI containment of the injected value is no longer a hard
+pass/fail condition.** It is computed and reported for every quantity
+(new `ci_contains_injected` column in `SIMULATED_RECOVERY_TABLE.tsv`),
+but does not affect `status`. In its place, a NEW, additive **directional
+shrinkage-bias check**: when the estimator's expected bias magnitude for
+a quantity is declared in advance (a new, optional `--bias-prediction`
+input to `gate6_recovery.py`, sourced from the estimator's own
+characterized shrinkage curve — e.g. a lambda sweep at the CV-selected
+penalty), the observed bias must be the same sign as predicted (toward
+the null: downward for LR>1, upward for LR<1) and not materially larger
+in magnitude (slack factor 1.5x, `gate6_recovery.py`'s
+`MAGNITUDE_SLACK_FACTOR`, disclosed there) — a wrong-sign or
+much-larger-than-predicted bias FAILS even when within the raw 0.25
+tolerance. Relative bias itself (2) is UNCHANGED, still at 0.25. The
+existing null-containment check (for injected-null quantities) is
+UNCHANGED and still gates.
+
+Also added (Part D of this task, at the human's own request, appended to
+the approved draft): a `NEAR_TIER_BOUNDARY` column, computed whenever a
+bias-prediction magnitude is available for a pathogenic-direction
+(injected > 1) quantity, flagging whether the recovered CI lower bound
+falls within the characterized-bias "danger zone"
+(`CONSERVATIVE_ASSIGNMENT_ANALYSIS.md`'s `f/(1-f)`-of-boundary result) of
+one of §9's four OddsPath boundaries. This is a standing, always-computed
+part of `gate6_recovery.py`'s output, not a one-time analysis.
+
+### Why
+
+`RESIDUAL_DIAGNOSIS.md` (P-DIAG-1) established that CORE_HR's CI
+containment miss was caused by ridge shrinkage bias at the CV-selected
+lambda — a known, expected property of the penalized estimator, not a
+defect (0/15 independent seeds contained, ruling out Monte Carlo noise;
+the mixture-weighting application-point defect, once isolated, pushed the
+wrong direction to explain it alone). `MIXTURE_FIX.md` (P-AMD-3a) then
+fixed that separate application-point defect and, as predicted, the
+containment gap WIDENED (0.053 → 0.330 for CORE_HR) because removing the
+defect stopped it from partially offsetting the shrinkage bias — the
+miss is real, systematic, reproducible, and now larger, not an artifact
+of the fixed bug. `PROPOSED_GATE6_AMENDMENT.md` computed, rather than
+asserted, that the historical failure motivating gate6's original design
+(the on-disk `tests/fixtures/gate6_bad_ci/` fixture: recovered=9.3,
+injected=4.5, CI=`[7.47, 11.25]`) still fails under the amended criterion
+at the current 0.25 tolerance (relative bias 106.67%) — so no tolerance
+tightening was required. (Note on provenance, from the approving human:
+the task text's own "v2 reported 8.83 against an injected 4.5" figure
+came from a conversation transcript, not this repository, and was
+correctly flagged `UNVERIFIED` in `PROPOSED_GATE6_AMENDMENT.md` rather
+than treated as fact; the on-disk `gate6_bad_ci` fixture is the
+authoritative regression target, per the approving human's own
+instruction, and is what `tests/test_gate6.py` now asserts against.)
+
+### Directionality confirmation (Part D requirement, run before this text was added)
+
+`scripts/confirm_tier_directionality.py` verified, against the corrected
+P-AMD-3a production output, that every tier movement this amendment's
+own `NEAR_TIER_BOUNDARY`/`CONSERVATIVE_ASSIGNMENT_ANALYSIS.md` findings
+identify moves in the CONSERVATIVE direction only (recovered ACMG tier
+≤ true tier, never >) — see that script's own output, captured in
+`CONFIRM_TIER_DIRECTIONALITY_RESULT.md`. Per this task's own explicit
+HALT condition, had any movement gone the other way, this text would not
+have been added to `PROTOCOL.md` and the task would have stopped instead.
+
+### What was NOT changed
+
+- The relative-bias tolerance value (0.25) — computed as not requiring a
+  change, see above.
+- The estimand-match check (comparing an OR to an LR remains an automatic
+  fail regardless of any of this).
+- The null-containment check (injected-null quantities' CI must still
+  contain 1.0).
+- `PROTOCOL.md` §7.1's model specification — this entry is independent of
+  Entry 1 (the §7.1 model-replacement amendment), which **remains DRAFT**
+  and unapplied. §11's amended criterion is written to apply regardless
+  of which model §7.1 ultimately specifies; see §11's own closing note in
+  `PROTOCOL.md`.
+- `logistic_estimator.py`, `simulate.py`, `signatures.py`,
+  `loh_caller.py` — none modified by this task.
+- Lambda selection, the ridge penalty, or any estimator parameter — this
+  amendment characterizes and reports the estimator's known behavior, it
+  does not tune the estimator toward a passing result.
+
+---
+
+## Approver (Entry 1 only)
+
+_(blank — for human completion. Entry 1 (the §7.1 model-replacement
+amendment) does not take effect, and `PROTOCOL.md` §7.1 is not edited,
+until THIS field is completed and a separate, subsequent implementation
+task is run. Entry 3's own approval is recorded in its own table above,
+distinct from this field — Entry 3 does not depend on Entry 1's
+approval, and does not complete it.)_

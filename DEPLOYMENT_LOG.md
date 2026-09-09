@@ -624,3 +624,100 @@ collision class this session has now built structural, automated
 protection against, per `OUTPUT_PATH_INVENTORY.tsv` and Part B's two
 checks, rather than relying on manual pre-commit `git status` review
 alone as in every prior occurrence this session).
+
+---
+
+## Invocation 6 — P-AMD-3b: amended gate6 criterion (PROTOCOL_DEVIATIONS.md Entry 3), against the P-AMD-3a-corrected production output
+
+Re-scores `production_v2/`'s output (unchanged since P-AMD-3a's
+`MIXTURE_FIX.md` fix) under the AMENDED gate6 criterion — relative bias
+tolerance + directional shrinkage-bias check, CI containment reported not
+gated (`PROTOCOL_DEVIATIONS.md` Entry 3, approved and applied this task).
+`production_v2/SIMULATED_BIAS_PREDICTION.tsv` (new this invocation)
+declares each quantity's predicted bias magnitude from
+`MIXTURE_FIX_POST_FIX_DIAGNOSTICS.md`'s own lambda sweep at the
+CV-selected lambda. All four gates run through Part B's integrity wrapper
+(preflight + checksum snapshot/verify).
+
+```
+$ python3 scripts/run_with_integrity_checks.py --expect-changed "production_v2/*" -- \
+    python3 gates/gate4_statistics.py --lr-table production_v2/SIMULATED_LR_TABLE.tsv
+=== preflight_collision_check === ... OVERALL: PASS
+=== gate4_statistics === ... OVERALL: PASS
+=== artifact_checksum_check verify === 0 unexpected changes ... OVERALL: PASS
+wrapped command exit=0, integrity verify exit=0
+```
+
+```
+$ python3 scripts/run_with_integrity_checks.py --expect-changed "production_v2/*" -- \
+    python3 gates/gate6_recovery.py --truth SIMULATED_TRUTH.tsv \
+      --recovered production_v2/SIMULATED_RECOVERED.tsv \
+      --scope production_v2/SIMULATED_scope.tsv \
+      --bias-prediction production_v2/SIMULATED_BIAS_PREDICTION.tsv \
+      --outdir production_v2
+
+    [containment, reported not gated] CI [4.279653895853543, 5.496457440366384] does NOT contain
+      injected value 5.826333463989027
+    [directional check] PASS -- consistent with prediction: direction=down, predicted magnitude=0.1722,
+      observed=0.1722 (limit 0.2583)
+    [near_tier_boundary] REALIZED_DOWNGRADE -- ci_low=4.2797 is AT/BELOW the PATHOGENIC_MODERATE
+      boundary (4.33); de-shrinking by 0.1722 (=5.1700) would clear it
+[SIMULATED_PASS] core_hr_joint_LR: injected=5.826333463989027, recovered=4.822998382715588,
+  CI=[4.279653895853543, 5.496457440366384], relative_bias=0.1722
+
+    [containment, reported not gated] CI [4.144367179925987, 5.301606016952504] contains
+      injected value 5.154487467493152
+    [directional check] PASS -- consistent with prediction: direction=down, predicted magnitude=0.0969,
+      observed=0.0969 (limit 0.1453)
+    [near_tier_boundary] REALIZED_DOWNGRADE -- ci_low=4.1444 is AT/BELOW the PATHOGENIC_MODERATE
+      boundary (4.33); de-shrinking by 0.0969 (=4.5890) would clear it
+[SIMULATED_PASS] ddr_signaling_joint_LR: injected=5.154487467493152, recovered=4.655099019128405,
+  CI=[4.144367179925987, 5.301606016952504], relative_bias=0.0969
+
+gate6_recovery OVERALL: PASS
+=== artifact_checksum_check verify === 0 unexpected changes ... OVERALL: PASS
+wrapped command exit=0, integrity verify exit=0
+```
+
+**CORE_HR now PASSES under the amended criterion** (relative bias 17.22%
+within 0.25 tolerance; directional check confirms this is the estimator's
+own predicted shrinkage, not a wrong-sign or oversized anomaly) — the
+SAME quantity `RESIDUAL_DIAGNOSIS.md` and `MIXTURE_FIX.md` established
+fails ONLY the CI-containment test, for a reason (characterized ridge
+shrinkage) the amendment exists specifically to stop penalizing.
+`near_tier_boundary` flags `REALIZED_DOWNGRADE` for both quantities — a
+concrete, standing-output confirmation of `CONSERVATIVE_ASSIGNMENT_ANALYSIS.md`'s
+finding, not a one-time aside.
+
+```
+$ python3 scripts/run_with_integrity_checks.py --expect-changed "production_v2/*" -- \
+    python3 gates/gate8_interval_informativeness.py --table production_v2/SIMULATED_ABLATION_TABLE_V2.tsv \
+      --id-cols arm,feature_subset,n_scenario --point-col point_estimate --ci-low-col ci_low \
+      --ci-high-col ci_high --outdir production_v2/gate8_out
+=== gate8_interval_informativeness === 2 rows: 2 INFORMATIVE, 0 UNINFORMATIVE ... OVERALL: PASS
+=== artifact_checksum_check verify === OVERALL: PASS
+wrapped command exit=0, integrity verify exit=0
+```
+
+```
+$ python3 scripts/run_with_integrity_checks.py --expect-changed "production_v2/*" -- \
+    python3 gates/gate9_imbalance.py --table production_v2/SIMULATED_GATE9_INPUT.tsv --outdir production_v2/gate9_out
+=== gate9_imbalance === all 2 test_case(s) stable within 2.0x tolerance ... OVERALL: PASS
+=== artifact_checksum_check verify === OVERALL: PASS
+wrapped command exit=0, integrity verify exit=0
+```
+
+### Summary of this invocation
+
+| gate | result | reason |
+|---|---|---|
+| gate4_statistics | PASS | unchanged from Invocation 5 |
+| gate6_recovery (AMENDED criterion) | **PASS** (both quantities) | CORE_HR: relative bias 17.22% (within 0.25) + directional check PASS; CI containment reported but not gating. DDR_SIGNALING: relative bias 9.69%, CI contains injected, directional check PASS. |
+| gate8_interval_informativeness | PASS | unchanged from Invocation 5 |
+| gate9_imbalance | PASS | unchanged from Invocation 5 |
+
+Per this task's own explicit HALT condition ("if the amended gate6
+passes the gate6_bad_ci fixture... stop and reconsider"): the fixture
+still FAILS (see `tests/test_gate6.py`), so no HALT is triggered by that
+condition. This invocation's own CORE_HR PASS is the amendment doing
+exactly what it was designed to do — not the fixture passing.

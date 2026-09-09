@@ -31,7 +31,13 @@ class TestGate6Recovery(unittest.TestCase):
 
     def test_bad_ci_fixture_rejects_ci_7_47_to_11_25_against_injected_4_5(self):
         """Exact ACCEPTANCE criterion: gate6 rejects a recovered CI of
-        [7.47, 11.25] against an injected 4.5."""
+        [7.47, 11.25] against an injected 4.5. UPDATED (P-AMD-3b,
+        PROTOCOL_DEVIATIONS.md Entry 3): CI containment is no longer the
+        gating reason -- it is STILL computed and reported (informational),
+        but the quantity now fails on relative-bias tolerance alone
+        (106.67% >> 25%). This is the exact fixture
+        PROPOSED_GATE6_AMENDMENT.md computed still fails under the amended
+        criterion -- if this test ever passes, the amendment is wrong."""
         d = FIXTURES_DIR / "gate6_bad_ci"
         outdir = Path(self._tmpdir) / "bad_ci"
         r = run_gate(
@@ -45,9 +51,78 @@ class TestGate6Recovery(unittest.TestCase):
         self.assertIn("gate6_recovery OVERALL: FAIL", r.stdout)
         self.assertIn("SIMULATED_FAIL", r.stdout)
         self.assertIn("[7.47, 11.25]", r.stdout)
-        self.assertIn("does not contain injected value 4.5", r.stdout)
+        # Containment is still COMPUTED and REPORTED (informational)...
+        self.assertIn("does NOT contain injected value 4.5", r.stdout)
+        # ...but the actual FAIL reason is relative bias, not containment.
+        self.assertIn("relative bias 1.0667 exceeds tolerance 0.25", r.stdout)
         table_text = (outdir / "SIMULATED_RECOVERY_TABLE.tsv").read_text()
         self.assertIn("SIMULATED_FAIL", table_text)
+        self.assertIn("False", table_text)  # ci_contains_injected column, reported not gating
+
+    def test_amended_criterion_fails_bad_ci_fixture_on_relative_bias_not_containment(self):
+        """The Part B regression test that decides whether the amendment is
+        sound: gate6_bad_ci is the exact case that motivated building
+        gate6. If the amended criterion passed it, the amendment would be
+        wrong (per this task's own explicit HALT condition). It still
+        fails -- on relative bias alone, since containment no longer
+        gates -- confirmed explicitly here, separate from the containment
+        -reporting assertions above."""
+        d = FIXTURES_DIR / "gate6_bad_ci"
+        outdir = Path(self._tmpdir) / "bad_ci_amended"
+        r = run_gate(
+            "gate6_recovery.py",
+            "--truth", str(d / "truth.tsv"),
+            "--recovered", str(d / "recovered.tsv"),
+            "--scope", str(d / "scope.tsv"),
+            "--outdir", str(outdir),
+        )
+        self.assertEqual(r.returncode, 1, msg=r.stdout + r.stderr)
+        self.assertIn("gate6_recovery OVERALL: FAIL", r.stdout)
+        table_text = (outdir / "SIMULATED_RECOVERY_TABLE.tsv").read_text()
+        rows = {line.split("\t")[0]: line for line in table_text.splitlines()[1:] if line}
+        self.assertIn("SIMULATED_FAIL", rows["BAD_CI_QUANTITY"])
+
+    def test_wrong_sign_bias_fixture_fails_directional_check_within_tolerance(self):
+        """New for the amendment: a quantity whose relative bias is WELL
+        WITHIN the 0.25 tolerance, but whose direction is the OPPOSITE of
+        what the estimator's own characterized shrinkage curve predicts,
+        must FAIL -- this is exactly what the directional check exists to
+        catch, since tolerance alone would pass it."""
+        d = FIXTURES_DIR / "gate6_wrong_sign_bias"
+        outdir = Path(self._tmpdir) / "wrong_sign"
+        r = run_gate(
+            "gate6_recovery.py",
+            "--truth", str(d / "truth.tsv"),
+            "--recovered", str(d / "recovered.tsv"),
+            "--scope", str(d / "scope.tsv"),
+            "--outdir", str(outdir),
+            "--bias-prediction", str(d / "bias_prediction.tsv"),
+        )
+        self.assertEqual(r.returncode, 1, msg=r.stdout + r.stderr)
+        self.assertIn("gate6_recovery OVERALL: FAIL", r.stdout)
+        self.assertIn("WRONG SIGN", r.stdout)
+        table_text = (outdir / "SIMULATED_RECOVERY_TABLE.tsv").read_text()
+        rows = {line.split("\t")[0]: line for line in table_text.splitlines()[1:] if line}
+        self.assertIn("SIMULATED_FAIL", rows["WRONG_SIGN_QUANTITY"])
+        self.assertIn("FAIL", rows["WRONG_SIGN_QUANTITY"].split("\t"))  # directional_check column itself
+
+    def test_correct_sign_within_slack_bias_fixture_passes(self):
+        """Control for the wrong-sign test: the SAME magnitude of bias, but
+        in the PREDICTED direction, passes -- confirms the directional
+        check discriminates on sign/magnitude, not merely on the presence
+        of any bias."""
+        d = FIXTURES_DIR / "gate6_correct_sign_bias"
+        outdir = Path(self._tmpdir) / "correct_sign"
+        r = run_gate(
+            "gate6_recovery.py",
+            "--truth", str(d / "truth.tsv"),
+            "--recovered", str(d / "recovered.tsv"),
+            "--scope", str(d / "scope.tsv"),
+            "--outdir", str(outdir),
+            "--bias-prediction", str(d / "bias_prediction.tsv"),
+        )
+        self.assertEqual(r.returncode, 0, msg=r.stdout + r.stderr)
+        self.assertIn("gate6_recovery OVERALL: PASS", r.stdout)
 
     def test_bad_estimand_fixture_rejects_or_vs_lr(self):
         """Exact ACCEPTANCE criterion: gate6 rejects an OR-vs-LR comparison."""
