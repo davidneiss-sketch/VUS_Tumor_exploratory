@@ -402,3 +402,83 @@ evidence alongside `STAKE_ANALYSIS.md`'s separate finding (dropping SBS3
 entirely changes the ACMG tier for some but not all strata) when deciding
 whether the fix belongs in the estimator, in a class-size floor, or in a
 feature-inclusion rule.
+
+---
+
+## 9. gate6's CI-containment criterion for a penalized estimator (P-DIAG-1 addendum)
+
+SIMULATED: raised per P-DIAG-1's explicit STEP 5 instruction, following
+`RESIDUAL_DIAGNOSIS.md`'s finding that CORE_HR's residual gate6
+containment miss (CI upper bound 5.7734 vs. injected 5.8263, a 0.0529 gap)
+is fully accounted for by ridge shrinkage bias at the CV-selected lambda,
+partially offset by a smaller, opposite-signed application-point effect —
+not by Monte Carlo noise (ruled out: the miss is reproducible across 15
+independent seeds, 0/15 containing) and not by a weighting defect (weights
+are identical in value and object identity on both sides). Full evidence:
+`RESIDUAL_DIAGNOSIS.md`. **This is a proposal only. `gate6`'s logic is not
+modified by this task, per Standing Rule 10** ("An agent may PROPOSE a
+protocol amendment. It may never APPLY one or waive/override a gate").
+
+**The question.** `PROTOCOL.md`'s gate6 currently requires the bootstrap
+CI to contain the injected (truth) value, in addition to a separate
+relative-bias tolerance (0.25). For CORE_HR, relative bias passes (13.5%
+observed on the 0.25 tolerance) while CI containment fails by an amount
+`RESIDUAL_DIAGNOSIS.md` §3 shows is the direct, expected, monotonic
+consequence of shrinkage at the lambda `select_lambda_cv`'s own
+lambda.1se rule selects — not a wider, unrelated estimation failure.
+
+**Argument for keeping exact CI containment as a hard gate6 criterion:**
+- Containment is a stronger, more interpretable claim than relative bias
+  alone — "the interval covers the true value" is what a clinical
+  consumer of a CI actually wants, and a systematic (not random)
+  under-coverage is exactly the failure mode a containment check exists
+  to catch.
+- A penalized estimator's bias is a real, permanent property of its
+  output, not a sampling artifact — arguably a CI that structurally,
+  predictably excludes the truth on synthetic data with a known injected
+  value is providing miscalibrated coverage, which is worth surfacing
+  precisely because it would also miscalibrate coverage on real data.
+- Loosening the criterion for one estimator family risks becoming a
+  standing excuse to wave through future genuine defects that happen to
+  also produce shrinkage-shaped bias.
+
+**Argument for relative-bias-within-tolerance as the appropriate criterion
+for a penalized estimator specifically:**
+- Ridge regression is deliberately biased toward the null by construction
+  — that is the mechanism by which it buys variance reduction at small n.
+  A criterion that penalizes the estimator for doing exactly what it was
+  selected to do (per `RESIDUAL_DIAGNOSIS.md` §3, the CV-selected lambda
+  sits just past each arm's own zero-bias crossing, meaning some
+  non-zero bias at the selected lambda is close to unavoidable by
+  construction of the lambda.1se rule itself) tests the wrong quantity.
+  An unshrunk/near-zero-lambda fit would satisfy containment far more
+  reliably (the lambda-sweep shows near-zero-lambda bias is large but
+  *positive*, and CI width at low lambda was not separately measured here,
+  but low-bias-magnitude crossing regions exist near lambda=10-60 for both
+  arms) — yet that is precisely the direction this task's own framing (and
+  the user's explicit caution) warns against: PALB2 and RAD51C will have
+  class sizes in the tens, where reduced shrinkage would trade this
+  synthetic bias for materially wider, less useful real-data intervals.
+  A criterion that implicitly pressures toward less shrinkage works
+  against the reason shrinkage was selected in the first place.
+- Relative bias with a defined tolerance (already present in gate6 at
+  0.25) is a criterion that can be satisfied by a deliberately-shrunk
+  estimator without contradiction, and CORE_HR already passes it (13.5%
+  bias, well inside the 0.25 tolerance).
+- If containment remains a hard requirement, it may be worth asking
+  whether it should be evaluated against a shrinkage-adjusted target
+  (e.g. the value the estimator would asymptotically report given
+  infinite synthetic data at the selected lambda) rather than the raw
+  injected value — though this document does not propose a specific
+  adjusted-target formula, since that is itself a modeling choice for the
+  human to make, not something this diagnosis is positioned to settle.
+
+**This document does not recommend a resolution.** Both arguments turn on
+a judgment about what gate6 is *for* — whether it exists to catch defects
+in the estimation pipeline (in which case relative bias, which CORE_HR
+passes, may be the more diagnostic signal once shrinkage is understood and
+quantified) or to guarantee interval coverage as an end in itself (in
+which case the current containment requirement is doing its job correctly
+by failing CORE_HR). **Standing Rule 10 applies: this is the human's
+decision.** No change is made to `gate6`'s implementation, `PROTOCOL.md`,
+or `logistic_estimator.py`'s lambda selection by this task.
