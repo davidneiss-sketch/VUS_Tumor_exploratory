@@ -18,10 +18,36 @@ quantities represent. Both are fixed here -- see
 and its correction (Standing Rule 4: a mistake fixed is still logged,
 not erased).
 
+REVISION 2 (P-AMD-3a, MIXTURE_FIX.md): `mixture_point_estimate`'s SECOND
+version (this file's own, committed under P-AMD-2 follow-up, found
+deficient by P-DIAG-1) weighted the per-subtype LRs directly
+(`Sigma_s w_s * LR_s`), while `simulate.py`'s `compute_truth_quantities()`
+weights the per-subtype DENSITIES and divides
+(`Sigma_s w_s * f(x|Path,s) / Sigma_s w_s * f(x|Benign,s)`). These are
+different operations. MIXTURE_FIX.md proves that, GIVEN this simulator's
+own generative independence between PAM50 subtype and true pathogenicity
+class (subtype is drawn from `PAM50_PROPORTIONS` identically regardless
+of `cls` -- see `simulate.py`'s `_emit_sample`, and verified live in
+MIXTURE_FIX.md), the density-mixture construction is EXACTLY the
+subtype-MARGINAL (pooled, subtype-blind) joint LR `f(x|Path)/f(x|Benign)`.
+This is estimated directly and correctly by fitting the SAME ridge
+logistic model on the SAME feature set, but WITHOUT a subtype covariate
+at all (`mixture_point_estimate` below), rather than by combining
+per-subtype conditional fits (which cannot recover the true density
+mixture from a discriminative model without extra, unverified
+assumptions -- see MIXTURE_FIX.md section 2). The old (P-AMD-2)
+LR-weighted computation is kept as `mixture_point_estimate_legacy_lr_weighted`
+for the required before/after comparison only; it is not used for
+production output as of this revision.
+
 SIMULATED: read-only imports of logistic_estimator.py and simulate.py.
 Does NOT modify PROTOCOL.md, logistic_estimator.py, or simulate.py --
 this file implements the mixture-evaluation and CV-selection logic
-itself, calling those two modules' existing, unmodified functions.
+itself, calling those two modules' existing, unmodified functions
+(including, for the subtype-blind fix, `le.standardize_params`,
+`le.fit_ridge_logistic`, `le.predict_proba`, `le.probability_to_lr`,
+`le.make_folds`, and `le.deviance` -- all used exactly as-is; only the
+SET OF COLUMNS fed into them, assembled in this file, differs).
 
 Run: python3 production_v2_run.py
 """
@@ -66,6 +92,37 @@ def select_cv_lambda_with_provenance(path_records: list[dict], benign_records: l
     return cv_result["lambda_1se"], "CV_SELECTED"
 
 
+def select_cv_lambda_subtype_blind_with_provenance(path_records: list[dict], benign_records: list[dict],
+                                                      rng: random.Random) -> tuple[float, str]:
+    """Same provenance contract as select_cv_lambda_with_provenance, for
+    the subtype-blind design (select_lambda_cv_subtype_blind, defined
+    above) -- selected SEPARATELY from the subtype-covariate design's own
+    lambda, since the two designs have different columns and can select
+    different lambda.1se values (P-AMD-3a's own explicit instruction: "Re
+    -run the lambda sweep ... after the fix, so the shrinkage attribution
+    is re-established on the corrected computation")."""
+    cv_result = select_lambda_cv_subtype_blind(path_records, benign_records, CV_K, rng)
+    return cv_result["lambda_1se"], "CV_SELECTED"
+
+
+def per_subtype_lr_report(beta: list[float], std_params: dict, eval_point: dict, purity: float, wgd: int,
+                            n_path_ref: int, n_benign_ref: int) -> dict[str, float]:
+    """INFORMATIONAL ONLY (not used for the gate6 mixture estimand as of
+    P-AMD-3a): the subtype-COVARIATE model's own per-subtype conditional
+    LR at eval_point, for each PAM50 level. Retained because it is a
+    genuinely interpretable quantity in its own right (the model's
+    subtype-specific relative-risk estimate) -- just not one that can be
+    correctly averaged into the pooled/mixture estimand without the
+    density information a discriminative model does not provide (see
+    MIXTURE_FIX.md section 2)."""
+    rows = {}
+    for subtype, prevalence in simulate.PAM50_PROPORTIONS.items():
+        design_row = le.eval_point_design_row(eval_point, purity, subtype, wgd, std_params)
+        p_hat = le.predict_proba(beta, design_row)
+        rows[subtype] = le.probability_to_lr(p_hat, n_path_ref, n_benign_ref, verbose=False)
+    return rows
+
+
 def assert_cv_selected(lambda_value: float, provenance: str, context: str) -> None:
     """The assertion this task's own ACCEPTANCE section requires: 'the
     production run fails if the penalty was not CV-selected.' Any code
@@ -82,17 +139,13 @@ def assert_cv_selected(lambda_value: float, provenance: str, context: str) -> No
     print(f"    [lambda provenance] {context}: lambda={lambda_value:.4f}, provenance=CV_SELECTED (assertion OK)")
 
 
-def mixture_point_estimate(beta: list[float], std_params: dict, eval_point: dict, purity: float, wgd: int,
-                             n_path_ref: int, n_benign_ref: int, print_detail: bool = False) -> tuple[float, dict]:
-    """The PAM50-prevalence-weighted mixture LR -- the SAME estimand
-    SIMULATED_TRUTH.tsv's pooled quantities represent (simulate.py's own
-    joint_lr_collapsed / *_collapsed functions, mixture over
-    simulate.PAM50_PROPORTIONS). Uses the ALREADY-FITTED beta (fit once
-    on the full reference set, standard practice -- not refit per
-    subtype), evaluated at each of the 5 subtype levels, then averaged
-    with the SAME prevalence weights simulate.py's own truth computation
-    uses (BENCHMARKS.tsv PAM01/PAM02 via simulate.PAM50_PROPORTIONS --
-    not re-derived independently here, imported directly)."""
+def mixture_point_estimate_legacy_lr_weighted(beta: list[float], std_params: dict, eval_point: dict,
+                                                purity: float, wgd: int, n_path_ref: int, n_benign_ref: int,
+                                                print_detail: bool = False) -> tuple[float, dict]:
+    """P-AMD-2's (deficient, per P-DIAG-1/MIXTURE_FIX.md) mixture
+    construction: weights the per-subtype LRs directly (Sigma_s w_s *
+    LR_s). Kept ONLY for the required before/after comparison in
+    MIXTURE_FIX.md -- not called by main() as of P-AMD-3a."""
     per_subtype_lr = {}
     weighted_lr = 0.0
     for subtype, prevalence in simulate.PAM50_PROPORTIONS.items():
@@ -106,27 +159,107 @@ def mixture_point_estimate(beta: list[float], std_params: dict, eval_point: dict
     return weighted_lr, per_subtype_lr
 
 
+# ============================================================================
+# P-AMD-3a fix: the subtype-BLIND design (MIXTURE_FIX.md). Reuses
+# logistic_estimator.py's primitives (standardize_params, sigmoid via
+# fit_ridge_logistic/predict_proba, probability_to_lr, make_folds,
+# deviance) completely unmodified -- only the SET OF COLUMNS assembled
+# into the design matrix differs (subtype dummies omitted), which is a
+# choice of what to feed the existing, unmodified estimator, not a
+# change to the estimator itself.
+# ============================================================================
+
+def build_subtype_blind_design_row(record: dict, std_params: dict) -> list[float]:
+    row = [1.0]
+    for k in le.CONTINUOUS_FEATURES:
+        mean, sd = std_params[k]
+        row.append((float(record[k]) - mean) / sd)
+    for k in le.BINARY_FEATURES:
+        row.append(float(record[k]))
+    return row
+
+
+def build_subtype_blind_design_matrix(path_records: list[dict],
+                                        benign_records: list[dict]) -> tuple[list[list[float]], list[float], dict]:
+    all_records = path_records + benign_records
+    std_params = le.standardize_params(all_records, le.CONTINUOUS_FEATURES)
+    X = [build_subtype_blind_design_row(r, std_params) for r in all_records]
+    y = [1.0] * len(path_records) + [0.0] * len(benign_records)
+    return X, y, std_params
+
+
+def eval_point_subtype_blind_design_row(eval_point: dict, purity: float, wgd: int, std_params: dict) -> list[float]:
+    record = {**eval_point, "purity": purity, "wgd": wgd}
+    return build_subtype_blind_design_row(record, std_params)
+
+
+def select_lambda_cv_subtype_blind(path_records: list[dict], benign_records: list[dict], k: int,
+                                     rng: random.Random, lambda_grid: list[float] = None) -> dict:
+    """le.select_lambda_cv's exact algorithm, re-implemented here (not
+    calling le.select_lambda_cv, since that function hardcodes the
+    subtype-including le.build_design_matrix) against the subtype-blind
+    design instead. Uses le.make_folds, le.fit_ridge_logistic,
+    le.predict_proba, le.deviance unmodified."""
+    if lambda_grid is None:
+        lambda_grid = le.LAMBDA_GRID
+    folds = le.make_folds(path_records, benign_records, k, rng)
+    per_lambda_fold_deviance = {lam: [] for lam in lambda_grid}
+    for train_path, train_benign, test_path, test_benign in folds:
+        X_train, y_train, std_params = build_subtype_blind_design_matrix(train_path, train_benign)
+        X_test = [build_subtype_blind_design_row(r, std_params) for r in test_path + test_benign]
+        y_test = [1.0] * len(test_path) + [0.0] * len(test_benign)
+        for lam in lambda_grid:
+            beta = le.fit_ridge_logistic(X_train, y_train, lam)
+            p_hat = [le.predict_proba(beta, row) for row in X_test]
+            per_lambda_fold_deviance[lam].append(le.deviance(y_test, p_hat))
+    mean_dev = {lam: sum(devs) / len(devs) for lam, devs in per_lambda_fold_deviance.items()}
+    se_dev = {lam: (sum((d - mean_dev[lam]) ** 2 for d in devs) / (len(devs) - 1)) ** 0.5 / (len(devs) ** 0.5)
+              if len(devs) > 1 else 0.0
+              for lam, devs in per_lambda_fold_deviance.items()}
+    lambda_min = min(mean_dev, key=lambda l: mean_dev[l])
+    threshold = mean_dev[lambda_min] + se_dev[lambda_min]
+    candidates = [l for l in lambda_grid if mean_dev[l] <= threshold]
+    lambda_1se = max(candidates) if candidates else lambda_min
+    return {"lambda_min": lambda_min, "lambda_1se": lambda_1se, "mean_deviance": mean_dev, "se_deviance": se_dev}
+
+
+def mixture_point_estimate(beta: list[float], std_params: dict, eval_point: dict, purity: float, wgd: int,
+                             n_path_ref: int, n_benign_ref: int, print_detail: bool = False) -> float:
+    """CORRECTED (P-AMD-3a/MIXTURE_FIX.md) mixture LR: the subtype-blind
+    fit's prior-odds-corrected LR at eval_point. MIXTURE_FIX.md proves
+    this equals the PAM50-prevalence-weighted DENSITY mixture
+    (SIMULATED_TRUTH.tsv's own estimand) exactly, given this simulator's
+    verified subtype-class independence -- NOT an approximation. `beta`
+    and `std_params` must come from a SUBTYPE-BLIND fit
+    (build_subtype_blind_design_matrix), not le.build_design_matrix."""
+    design_row = eval_point_subtype_blind_design_row(eval_point, purity, wgd, std_params)
+    p_hat = le.predict_proba(beta, design_row)
+    lr = le.probability_to_lr(p_hat, n_path_ref, n_benign_ref, verbose=False)
+    if print_detail:
+        print(f"      [subtype-blind mixture] p_hat={p_hat:.6f}  LR={lr:.4f}  "
+              f"(n_path_ref={n_path_ref}, n_benign_ref={n_benign_ref})")
+    return lr
+
+
 def bootstrap_ci_mixture(path_records: list[dict], benign_records: list[dict], eval_point: dict,
                           purity: float, wgd: int, lam: float, rng: random.Random, b: int) -> tuple[float, float, list[float]]:
     """Patient-clustered bootstrap (see logistic_estimator.py's own
     docstring: sample-grouped in this simulator, no recurrent variants)
-    of the MIXTURE point estimate above -- each replicate refits on a
-    resample (at the SAME, already CV-selected lambda -- standard
-    bootstrap practice is to hold the tuning parameter fixed across
-    replicates, not re-select it 2000 times) and computes the
-    prevalence-weighted mixture LR for that replicate, exactly mirroring
-    logistic_estimator.py's own bootstrap_ci_logistic structure but for
-    the mixture estimand instead of a single-subtype point."""
+    of the CORRECTED (subtype-blind) mixture point estimate above -- each
+    replicate refits the subtype-blind design on a resample (at the SAME,
+    already CV-selected lambda -- standard bootstrap practice is to hold
+    the tuning parameter fixed across replicates, not re-select it 2000
+    times)."""
     n_path, n_benign = len(path_records), len(benign_records)
     replicates = []
     for _ in range(b):
         path_rs = [path_records[rng.randrange(n_path)] for _ in range(n_path)]
         benign_rs = [benign_records[rng.randrange(n_benign)] for _ in range(n_benign)]
-        X, y, std_params = le.build_design_matrix(path_rs, benign_rs)
+        X, y, std_params = build_subtype_blind_design_matrix(path_rs, benign_rs)
         beta = le.fit_ridge_logistic(X, y, lam)
-        weighted_lr, _ = mixture_point_estimate(beta, std_params, eval_point, purity, wgd,
-                                                  len(path_rs), len(benign_rs), print_detail=False)
-        replicates.append(weighted_lr)
+        lr = mixture_point_estimate(beta, std_params, eval_point, purity, wgd,
+                                     len(path_rs), len(benign_rs), print_detail=False)
+        replicates.append(lr)
     replicates.sort()
     lo = simulate.percentile(replicates, 2.5)
     hi = simulate.percentile(replicates, 97.5)
@@ -160,20 +293,38 @@ def main() -> None:
         benign_records = pop_by_arm[arm]["Benign"]
         print(f"\n--- {arm}: n_path={len(path_records)}, n_benign={len(benign_records)} ---")
 
-        print("  Selecting lambda via 5-fold CV (PROPOSED_PROTOCOL_AMENDMENT.md's own specified method)...")
-        lam, provenance = select_cv_lambda_with_provenance(path_records, benign_records, rng)
-        assert_cv_selected(lam, provenance, context=f"{arm} pooled fit")
-
-        X, y, std_params = le.build_design_matrix(path_records, benign_records)
-        beta = le.fit_ridge_logistic(X, y, lam)
         n_path_ref, n_benign_ref = len(path_records), len(benign_records)
 
-        print(f"  Per-subtype LRs (PAM50-prevalence-weighted mixture -- the estimand SIMULATED_TRUTH.tsv's "
-              f"pooled quantities represent, not a single reference-subtype evaluation):")
-        weighted_lr, per_subtype_lr = mixture_point_estimate(
+        # Informational only (P-AMD-3a/MIXTURE_FIX.md): the subtype-COVARIATE
+        # fit's own per-subtype conditional LRs. No longer used to form the
+        # gate6 mixture estimand -- see MIXTURE_FIX.md.
+        print("  Selecting lambda via 5-fold CV for the subtype-COVARIATE design (informational per-subtype report only)...")
+        lam_subtype, provenance_subtype = select_cv_lambda_with_provenance(path_records, benign_records, rng)
+        assert_cv_selected(lam_subtype, provenance_subtype, context=f"{arm} subtype-covariate fit (informational)")
+        X_st, y_st, std_params_st = le.build_design_matrix(path_records, benign_records)
+        beta_st = le.fit_ridge_logistic(X_st, y_st, lam_subtype)
+        per_subtype_lr = per_subtype_lr_report(beta_st, std_params_st, le.EVAL_POINT,
+                                                 REF_COVARIATES_NON_SUBTYPE["purity"],
+                                                 REF_COVARIATES_NON_SUBTYPE["wgd"], n_path_ref, n_benign_ref)
+        print("  Per-subtype conditional LRs (informational, NOT averaged into the gate6 estimand):")
+        for subtype, lr_val in per_subtype_lr.items():
+            print(f"      subtype={subtype:<12} prevalence={simulate.PAM50_PROPORTIONS[subtype]:.5f}  LR={lr_val:.4f}")
+
+        # CORRECTED (P-AMD-3a): the subtype-BLIND fit, whose prior-odds
+        # -corrected LR at eval_point equals the PAM50-prevalence-weighted
+        # DENSITY mixture exactly (MIXTURE_FIX.md) -- this IS the gate6
+        # estimand.
+        print("  Selecting lambda via 5-fold CV for the subtype-BLIND design (the CORRECTED estimand)...")
+        lam, provenance = select_cv_lambda_subtype_blind_with_provenance(path_records, benign_records, rng)
+        assert_cv_selected(lam, provenance, context=f"{arm} subtype-blind fit (corrected estimand)")
+
+        X, y, std_params = build_subtype_blind_design_matrix(path_records, benign_records)
+        beta = le.fit_ridge_logistic(X, y, lam)
+
+        weighted_lr = mixture_point_estimate(
             beta, std_params, le.EVAL_POINT, REF_COVARIATES_NON_SUBTYPE["purity"],
             REF_COVARIATES_NON_SUBTYPE["wgd"], n_path_ref, n_benign_ref, print_detail=True)
-        print(f"  Prevalence-weighted mixture point estimate: {weighted_lr:.6f}")
+        print(f"  Corrected (subtype-blind) mixture point estimate: {weighted_lr:.6f}")
 
         print(f"  Bootstrapping the mixture estimand, B={B_PROTOCOL} (PROTOCOL.md section 7.3's own replicate count)...")
         ci_low, ci_high, _ = bootstrap_ci_mixture(path_records, benign_records, le.EVAL_POINT,
@@ -193,11 +344,14 @@ def main() -> None:
         print(f"  INJECTED estimand:   {injected_estimand} -- {injected_derivation[:160]}"
               f"{'...' if len(injected_derivation) > 160 else ''}")
         print(f"  RECOVERED value:     {weighted_lr:.6f}  CI=[{ci_low:.6f}, {ci_high:.6f}]")
-        print(f"  RECOVERED estimand:  LR -- ridge-logistic fitted model (lambda={lam:.4f}, CV-selected), "
-              f"PAM50-prevalence-weighted mixture over the same 5 subtype levels and the same "
-              f"simulate.PAM50_PROPORTIONS weights the injected value's own derivation uses, "
-              f"wt_lost/gis/sbs3 at EVAL_POINT, purity={REF_COVARIATES_NON_SUBTYPE['purity']}, wgd="
-              f"{REF_COVARIATES_NON_SUBTYPE['wgd']}")
+        print(f"  RECOVERED estimand:  LR -- ridge-logistic fitted model, SUBTYPE-BLIND design "
+              f"(lambda={lam:.4f}, CV-selected on this design), wt_lost/gis/sbs3/purity/wgd at "
+              f"EVAL_POINT/REF_COVARIATES_NON_SUBTYPE. MIXTURE_FIX.md proves this equals the "
+              f"PAM50-prevalence-weighted DENSITY mixture over the same simulate.PAM50_PROPORTIONS "
+              f"weights the injected value's own derivation uses (subtype-class independence, "
+              f"verified against simulate.py's own sample generation) -- P-AMD-3a's fix for the "
+              f"application-point mismatch P-DIAG-1 found (weighting per-subtype LRs, this file's "
+              f"prior revision, is NOT the same operation).")
         print(f"  UNITS match (both LR): {injected_estimand.strip() == 'LR'}")
         print()
 
@@ -217,7 +371,7 @@ def main() -> None:
         for subtype, lr_val in per_subtype_lr.items():
             per_subtype_rows.append({
                 "arm": arm, "subtype": subtype, "prevalence": simulate.PAM50_PROPORTIONS[subtype],
-                "point_estimate_lr": lr_val, "lambda_used": lam,
+                "point_estimate_lr": lr_val, "lambda_used": lam_subtype,
             })
 
     # gate4 LR table

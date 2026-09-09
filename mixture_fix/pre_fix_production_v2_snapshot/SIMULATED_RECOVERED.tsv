@@ -1,0 +1,3 @@
+quantity	recovered_point	ci_low	ci_high	estimand
+core_hr_joint_LR	5.041023914175883	4.480709616584653	5.773396884425773	LR
+ddr_signaling_joint_LR	4.831241401559791	4.295170979111382	5.477146839050968	LR
