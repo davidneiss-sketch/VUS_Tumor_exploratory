@@ -155,6 +155,77 @@ per-quantity classification.
 
 ---
 
+## Entry 2 — Implementation deviation in `production_v2_run.py`: hardcoded lambda, occurred and corrected
+
+| field | value |
+|---|---|
+| **Status** | RESOLVED — occurred, then corrected, both logged (Standing Rule 4: a mistake fixed is still logged, not erased) |
+| **Date occurred** | 2026-09-09 |
+| **Date corrected** | 2026-09-09 (same day, next task in this series) |
+| **File** | `production_v2_run.py` |
+
+### What happened
+
+`production_v2_run.py`'s first version (committed 2026-09-09, this
+session) used `LAMBDA_FIXED = 1.0`, a hardcoded ridge-penalty constant,
+for its production fits — not the CV-selected `lambda.1se`
+`PROPOSED_PROTOCOL_AMENDMENT.md`'s own approved §7.1 replacement text
+specifies. `logistic_estimator.py` itself already implemented CV
+selection correctly (exercised in `CALIBRATION_DIAGNOSTICS.md`'s own
+runs); the production script simply did not call it, for its own
+disclosed reason at the time (bounding the cost of 2 strata × B=2000 to
+a single lambda value rather than 2 strata × 5-fold CV × 9-lambda-grid
+× B=2000). That disclosed reason did not make the choice compliant with
+the approved amendment — **a production run with a hardcoded penalty
+did not implement the amended protocol**, a finding distinct from (and
+more severe than) the evaluation-methodology gap Entry 2's sibling
+finding (single-subtype evaluation, below) describes.
+
+### Correction
+
+`production_v2_run.py` now calls `logistic_estimator.py`'s own
+`select_lambda_cv()` for every production fit (pooled recovery AND the
+gate9 imbalance sweep), and carries an explicit provenance guard
+(`select_cv_lambda_with_provenance()` / `assert_cv_selected()`) that
+raises `AssertionError` and halts the run if any downstream computation
+is ever reached with a lambda value not tagged `CV_SELECTED` — a
+structural guard against this specific deviation recurring, not merely
+a corrected value. `logistic_estimator.py` itself is unmodified (per
+this task's own DO-NOT clause) — the guard lives entirely in the calling
+script.
+
+### Compounding finding, same production run: single-subtype evaluation
+
+The same first version of `production_v2_run.py` also evaluated the
+pooled `core_hr_joint_LR` / `ddr_signaling_joint_LR` quantities at a
+single reference subtype (`subtype="LumA"`) rather than the
+PAM50-prevalence-weighted mixture `SIMULATED_TRUTH.tsv`'s own pooled
+quantities represent — an ESTIMAND MISMATCH, the same class of error as
+the prior-odds conversion issue that broke "v2" and as P07's own first
+pass (both cases of scoring a recovered value against a target it was
+not actually computing). **This is the third time this project has hit
+an estimand mismatch.** Corrected the same day: `production_v2_run.py`
+now evaluates the fitted model at all 5 PAM50 subtype levels and
+prevalence-weights them using the SAME `simulate.PAM50_PROPORTIONS`
+values `SIMULATED_TRUTH.tsv`'s own truth derivation uses (imported
+directly, not re-derived), and prints the injected and recovered
+estimand definitions side by side on every run (see
+`DEPLOYMENT_LOG.md`'s Invocation 5) — making the comparison visible by
+default, per this task's own instruction, rather than something a future
+session must diagnose from a bare `SIMULATED_FAIL` line.
+
+### Result after both corrections
+
+See `DEPLOYMENT_LOG.md`'s Invocation 5 for gate4/gate6/gate8/gate9's
+results against the corrected production run. Per this task's own
+instruction, no further methodology change is made in direct response to
+that result (whatever it is) — Standing Rule 2 applies: a failed
+validation reported honestly is a successful session, and this project's
+own DO-NOT clause ("do not tune anything toward a target recovery
+value") means the result stands as computed.
+
+---
+
 ## Approver
 
 _(blank — for human completion. This amendment does not take effect,

@@ -1,0 +1,110 @@
+producer	call_kind	line	output_path	normalized_path	dynamic	shared_with_other_producer	known_sanctioned_exception	other_producers
+estimator_joint_vs_product_test.py	open()	186	REPO_ROOT/SIMULATED_ESTIMATOR_JOINT_VS_PRODUCT_TEST.tsv	SIMULATED_ESTIMATOR_JOINT_VS_PRODUCT_TEST.tsv	True	False	False	
+estimator_joint_vs_product_test.py	open()	213	REPO_ROOT/SIMULATED_ESTIMATOR_JOINT_VS_PRODUCT_TEST_REPLICATES.tsv	SIMULATED_ESTIMATOR_JOINT_VS_PRODUCT_TEST_REPLICATES.tsv	True	False	False	
+estimator_joint_vs_product_test_v2.py	open()	159	REPO_ROOT/SIMULATED_ESTIMATOR_JOINT_VS_PRODUCT_TEST_V2.tsv	SIMULATED_ESTIMATOR_JOINT_VS_PRODUCT_TEST_V2.tsv	True	False	False	
+estimator_joint_vs_product_test_v2.py	open()	197	REPO_ROOT/SIMULATED_ESTIMATOR_JOINT_VS_PRODUCT_TEST_V2_REPLICATES.tsv	SIMULATED_ESTIMATOR_JOINT_VS_PRODUCT_TEST_V2_REPLICATES.tsv	True	False	False	
+estimator_underflow_bandwidth_diagnosis.py	open()	177	REPO_ROOT/SIMULATED_FAILURE_MODE_RECONCILIATION.tsv	SIMULATED_FAILURE_MODE_RECONCILIATION.tsv	True	False	False	
+estimator_underflow_bandwidth_diagnosis.py	open()	189	REPO_ROOT/SIMULATED_KDE_BANDWIDTH_MECHANISM.tsv	SIMULATED_KDE_BANDWIDTH_MECHANISM.tsv	True	False	False	
+generate_reachability_table.py	open()	133	REPO_ROOT/REACHABILITY_TABLE.tsv	REACHABILITY_TABLE.tsv	True	False	False	
+interval_instability_sweep.py	open()	97	REPO_ROOT/SIMULATED_INTERVAL_INSTABILITY_SWEEP.tsv	SIMULATED_INTERVAL_INSTABILITY_SWEEP.tsv	True	False	False	
+interval_instability_sweep_v2.py	open()	153	REPO_ROOT/SIMULATED_INTERVAL_INSTABILITY_SWEEP_V2.tsv	SIMULATED_INTERVAL_INSTABILITY_SWEEP_V2.tsv	True	False	False	
+logistic_calibration_and_loglinearity.py	open()	145	REPO_ROOT/SIMULATED_CALIBRATION_RESULTS.tsv	SIMULATED_CALIBRATION_RESULTS.tsv	True	False	False	
+logistic_calibration_and_loglinearity.py	open()	163	REPO_ROOT/SIMULATED_LOGLINEARITY_RESIDUAL_GRID.tsv	SIMULATED_LOGLINEARITY_RESIDUAL_GRID.tsv	True	False	False	
+logistic_calibration_and_loglinearity.py	open()	180	REPO_ROOT/SIMULATED_LOGLINEARITY_NESTED_COMPARISON.tsv	SIMULATED_LOGLINEARITY_NESTED_COMPARISON.tsv	True	False	False	
+loh_caller.py	write_tsv()	589	OUT_DIR/SIMULATED_loh_calls.tsv	OUT_DIR/SIMULATED_loh_calls.tsv	True	False	False	
+loh_caller.py	write_tsv()	597	OUT_DIR/SIMULATED_confusion_matrix.tsv	OUT_DIR/SIMULATED_confusion_matrix.tsv	True	False	False	
+loh_caller.py	write_tsv()	600	OUT_DIR/SIMULATED_rates_table.tsv	OUT_DIR/SIMULATED_rates_table.tsv	True	False	False	
+loh_caller.py	write_tsv()	605	OUT_DIR/SIMULATED_recovered_quantities.tsv	OUT_DIR/SIMULATED_recovered_quantities.tsv	True	False	False	
+loh_caller.py	write_tsv()	608	OUT_DIR/SIMULATED_recovery_scope.tsv	OUT_DIR/SIMULATED_recovery_scope.tsv	True	False	False	
+production_v2_run.py	open()	225	OUT_DIR/SIMULATED_LR_TABLE.tsv	OUT_DIR/SIMULATED_LR_TABLE.tsv	True	False	False	
+production_v2_run.py	open()	236	OUT_DIR/SIMULATED_RECOVERED.tsv	OUT_DIR/SIMULATED_RECOVERED.tsv	True	False	False	
+production_v2_run.py	open()	247	OUT_DIR/SIMULATED_scope.tsv	OUT_DIR/SIMULATED_scope.tsv	True	False	False	
+production_v2_run.py	open()	270	OUT_DIR/SIMULATED_ABLATION_TABLE_V2.tsv	OUT_DIR/SIMULATED_ABLATION_TABLE_V2.tsv	True	False	False	
+production_v2_run.py	open()	281	OUT_DIR/SIMULATED_PER_SUBTYPE_LR.tsv	OUT_DIR/SIMULATED_PER_SUBTYPE_LR.tsv	True	False	False	
+production_v2_run.py	open()	311	OUT_DIR/SIMULATED_GATE9_INPUT.tsv	OUT_DIR/SIMULATED_GATE9_INPUT.tsv	True	False	False	
+signatures.py	open()	164	path	path	True	False	False	
+signatures.py	open()	227	WORK_DIR/SIMULATED_environment_check.json	WORK_DIR/SIMULATED_environment_check.json	True	False	False	
+signatures.py	write_tsv()	290	WORK_DIR/SIMULATED_cosmic_reference_extract.tsv	WORK_DIR/SIMULATED_cosmic_reference_extract.tsv	True	False	False	
+signatures.py	write_tsv()	344	WORK_DIR/SIMULATED_trinuc_exome_genome_factors.tsv	WORK_DIR/SIMULATED_trinuc_exome_genome_factors.tsv	True	False	False	
+signatures.py	open()	363	WORK_DIR/SIMULATED_cosmic_reference_provenance.json	WORK_DIR/SIMULATED_cosmic_reference_provenance.json	True	False	False	
+signatures.py	open()	456	WORK_DIR/SIMULATED_sbs3_validation_catalog_main.tsv	WORK_DIR/SIMULATED_sbs3_validation_catalog_main.tsv	True	False	False	
+signatures.py	write_tsv()	461	WORK_DIR/SIMULATED_sbs3_validation_truth_main.tsv	WORK_DIR/SIMULATED_sbs3_validation_truth_main.tsv	True	False	False	
+signatures.py	open()	465	WORK_DIR/SIMULATED_sbs3_bootstrap_seed_counts.tsv	WORK_DIR/SIMULATED_sbs3_bootstrap_seed_counts.tsv	True	False	False	
+signatures.py	write_tsv()	571	WORK_DIR/SIMULATED_sbs3_exome_compare.tsv	WORK_DIR/SIMULATED_sbs3_exome_compare.tsv	True	False	False	
+signatures.py	write_tsv()	662	WORK_DIR/SIMULATED_sbs3_by_cosmic_version_detail.tsv	WORK_DIR/SIMULATED_sbs3_by_cosmic_version_detail.tsv	True	False	False	
+signatures.py	write_tsv()	666	WORK_DIR/SIMULATED_sbs3_misassignment_by_cosmic_version.tsv	WORK_DIR/SIMULATED_sbs3_misassignment_by_cosmic_version.tsv	True	False	False	
+signatures.py	open()	704	WORK_DIR/SIMULATED_sbs3_bootstrap_replicates_matrix.tsv	WORK_DIR/SIMULATED_sbs3_bootstrap_replicates_matrix.tsv	True	False	False	
+signatures.py	write_tsv()	753	WORK_DIR/SIMULATED_sbs3_bootstrap_recovery.tsv	WORK_DIR/SIMULATED_sbs3_bootstrap_recovery.tsv	True	False	False	
+signatures.py	open()	783	WORK_DIR/SIMULATED_existing_catalog_transposed.tsv	WORK_DIR/SIMULATED_existing_catalog_transposed.tsv	True	False	False	
+signatures.py	write_tsv()	807	WORK_DIR/SIMULATED_existing_catalog_recovered_sbs3.tsv	WORK_DIR/SIMULATED_existing_catalog_recovered_sbs3.tsv	True	False	False	
+signatures.py	write_tsv()	851	WORK_DIR/SIMULATED_sbs3_lr_recovered.tsv	WORK_DIR/SIMULATED_sbs3_lr_recovered.tsv	True	False	False	
+signatures.py	write_tsv()	874	WORK_DIR/SIMULATED_sbs3_gate6_scope.tsv	WORK_DIR/SIMULATED_sbs3_gate6_scope.tsv	True	False	False	
+signatures.py	write_tsv()	936	WORK_DIR/SIMULATED_sbs3_rates_table.tsv	WORK_DIR/SIMULATED_sbs3_rates_table.tsv	True	False	False	
+signatures.py	open()	959	WORK_DIR/SIMULATED_gate6_output.txt	WORK_DIR/SIMULATED_gate6_output.txt	True	False	False	
+signatures.py	open()	961	WORK_DIR/SIMULATED_gate7_output.txt	WORK_DIR/SIMULATED_gate7_output.txt	True	False	False	
+signatures.py	open()	1273	REPO_ROOT/SIMULATED_signature_validation.md	SIMULATED_signature_validation.md	True	False	False	
+simulate.py	open()	1196	path	path	True	False	False	
+simulate.py	open()	1210	path	path	True	False	False	
+stake_ablation.py	open()	298	REPO_ROOT/ABLATION_TABLE.tsv	ABLATION_TABLE.tsv	True	False	False	
+subtype_gate8_check.py	open()	98	REPO_ROOT/SIMULATED_SUBTYPE_STRATUM_ESTIMATES.tsv	SIMULATED_SUBTYPE_STRATUM_ESTIMATES.tsv	True	False	False	
+subtype_gate8_check.py	subprocess.run() CLI flag	116	--table=str(out_path)	--table=str(out_path)	True	False	False	
+subtype_gate8_check.py	subprocess.run() CLI flag	116	--outdir=str(gate8_outdir)	--outdir=str(gate8_outdir)	True	False	False	
+gates/gate6_recovery.py	write_tsv()	287	args.outdir/SIMULATED_RECOVERY_TABLE.tsv	args.outdir/SIMULATED_RECOVERY_TABLE.tsv	True	False	False	
+gates/gate6_recovery.py	open()	290	args.outdir/SIMULATED_RECOVERY_TABLE.md	args.outdir/SIMULATED_RECOVERY_TABLE.md	True	False	False	
+gates/gate8_interval_informativeness.py	write_tsv()	207	args.outdir/SIMULATED_GATE8_INTERVAL_REPORT.tsv	args.outdir/SIMULATED_GATE8_INTERVAL_REPORT.tsv	True	False	False	
+gates/gate9_imbalance.py	write_tsv()	169	args.outdir/SIMULATED_GATE9_IMBALANCE_REPORT.tsv	args.outdir/SIMULATED_GATE9_IMBALANCE_REPORT.tsv	True	False	False	
+gates/gates_common.py	open()	62	path	path	True	False	False	
+scripts/check_gate8_acceptance.py	subprocess.run() CLI flag	89	--table=str(ABLATION_TABLE)	--table=str(ABLATION_TABLE)	True	False	False	
+scripts/check_gate8_acceptance.py	subprocess.run() CLI flag	89	--outdir=td	--outdir=td	True	False	False	
+scripts/check_gate_housekeeping_acceptance.py	subprocess.run() CLI flag	91	--lr-table=str(fixture)	--lr-table=str(fixture)	True	False	False	
+scripts/check_gate_housekeeping_acceptance.py	subprocess.run() CLI flag	109	--truth=str(truth)	--truth=str(truth)	True	False	False	
+scripts/check_gate_housekeeping_acceptance.py	subprocess.run() CLI flag	109	--recovered=str(recovered)	--recovered=str(recovered)	True	False	False	
+scripts/check_gate_housekeeping_acceptance.py	subprocess.run() CLI flag	109	--scope=str(scope)	--scope=str(scope)	True	False	False	
+scripts/check_gate_housekeeping_acceptance.py	subprocess.run() CLI flag	109	--outdir=str(ROOT)	--outdir=str(ROOT)	True	False	False	
+scripts/check_gates_acceptance.py	subprocess.run() CLI flag	62	--lr-table=str(FIXTURES / 'gate4_bad' / 'lr_table.tsv')	--lr-table=str(FIXTURES / gate4_bad / lr_table.tsv)	True	False	False	
+scripts/check_gates_acceptance.py	subprocess.run() CLI flag	74	--lr-table=str(d / 'lr_table.tsv')	--lr-table=str(d / lr_table.tsv)	True	False	False	
+scripts/check_gates_acceptance.py	subprocess.run() CLI flag	89	--truth=str(d1 / 'truth.tsv')	--truth=str(d1 / truth.tsv)	True	False	False	
+scripts/check_gates_acceptance.py	subprocess.run() CLI flag	89	--recovered=str(d1 / 'recovered.tsv')	--recovered=str(d1 / recovered.tsv)	True	False	False	
+scripts/check_gates_acceptance.py	subprocess.run() CLI flag	89	--scope=str(d1 / 'scope.tsv')	--scope=str(d1 / scope.tsv)	True	False	False	
+scripts/check_gates_acceptance.py	subprocess.run() CLI flag	89	--outdir=/tmp/check_gates_acceptance_ci_out	--outdir=/tmp/check_gates_acceptance_ci_out	False	False	False	
+scripts/check_gates_acceptance.py	subprocess.run() CLI flag	96	--truth=str(d2 / 'truth.tsv')	--truth=str(d2 / truth.tsv)	True	False	False	
+scripts/check_gates_acceptance.py	subprocess.run() CLI flag	96	--recovered=str(d2 / 'recovered.tsv')	--recovered=str(d2 / recovered.tsv)	True	False	False	
+scripts/check_gates_acceptance.py	subprocess.run() CLI flag	96	--scope=str(d2 / 'scope.tsv')	--scope=str(d2 / scope.tsv)	True	False	False	
+scripts/check_gates_acceptance.py	subprocess.run() CLI flag	96	--outdir=/tmp/check_gates_acceptance_estimand_out	--outdir=/tmp/check_gates_acceptance_estimand_out	False	False	False	
+scripts/check_gates_acceptance.py	subprocess.run() CLI flag	134	--lr-table=str(PRODUCTION / 'SIMULATED_LR_TABLE.tsv')	--lr-table=str(PRODUCTION / SIMULATED_LR_TABLE.tsv)	True	False	False	
+scripts/check_gates_acceptance.py	subprocess.run() CLI flag	139	--truth=str(PRODUCTION / 'SIMULATED_TRUTH.tsv')	--truth=str(PRODUCTION / SIMULATED_TRUTH.tsv)	True	False	False	
+scripts/check_gates_acceptance.py	subprocess.run() CLI flag	139	--recovered=str(PRODUCTION / 'SIMULATED_RECOVERED.tsv')	--recovered=str(PRODUCTION / SIMULATED_RECOVERED.tsv)	True	False	False	
+scripts/check_gates_acceptance.py	subprocess.run() CLI flag	139	--scope=str(PRODUCTION / 'SIMULATED_scope.tsv')	--scope=str(PRODUCTION / SIMULATED_scope.tsv)	True	False	False	
+scripts/check_gates_acceptance.py	subprocess.run() CLI flag	139	--outdir=str(PRODUCTION)	--outdir=str(PRODUCTION)	True	False	False	
+scripts/check_loh_caller_acceptance.py	subprocess.run() CLI flag	75	--truth=str(truth)	--truth=str(truth)	True	False	False	
+scripts/check_loh_caller_acceptance.py	subprocess.run() CLI flag	75	--recovered=str(recovered)	--recovered=str(recovered)	True	False	False	
+scripts/check_loh_caller_acceptance.py	subprocess.run() CLI flag	75	--scope=str(scope)	--scope=str(scope)	True	False	False	
+scripts/check_loh_caller_acceptance.py	subprocess.run() CLI flag	75	--outdir=str(REPO_ROOT)	--outdir=str(REPO_ROOT)	True	False	False	
+scripts/check_p06r3_acceptance.py	subprocess.run() CLI flag	183	--truth=str(TRUTH_TSV)	--truth=str(TRUTH_TSV)	True	False	False	
+scripts/check_p06r3_acceptance.py	subprocess.run() CLI flag	183	--recovered=str(loh_recovered)	--recovered=str(loh_recovered)	True	False	False	
+scripts/check_p06r3_acceptance.py	subprocess.run() CLI flag	183	--scope=str(loh_scope)	--scope=str(loh_scope)	True	False	False	
+scripts/check_p06r3_acceptance.py	subprocess.run() CLI flag	183	--outdir=str(REPO_ROOT)	--outdir=str(REPO_ROOT)	True	False	False	
+scripts/check_signatures_acceptance.py	subprocess.run() CLI flag	159	--truth=str(truth)	--truth=str(truth)	True	False	False	
+scripts/check_signatures_acceptance.py	subprocess.run() CLI flag	159	--recovered=str(recovered)	--recovered=str(recovered)	True	False	False	
+scripts/check_signatures_acceptance.py	subprocess.run() CLI flag	159	--scope=str(scope)	--scope=str(scope)	True	False	False	
+scripts/check_signatures_acceptance.py	subprocess.run() CLI flag	159	--outdir=/tmp/check_signatures_acceptance_gate6_rerun	--outdir=/tmp/check_signatures_acceptance_gate6_rerun	False	False	False	
+production/generate_production_run.py	open()	30	path	path	True	False	False	
+production/generate_production_run.py	write_tsv()	79	HERE/SIMULATED_raw_manifest.tsv	HERE/SIMULATED_raw_manifest.tsv	True	False	False	
+production/generate_production_run.py	write_tsv()	83	HERE/SIMULATED_provenance.tsv	HERE/SIMULATED_provenance.tsv	True	False	False	
+production/generate_production_run.py	write_tsv()	84	HERE/SIMULATED_analyzed_samples.tsv	HERE/SIMULATED_analyzed_samples.tsv	True	False	False	
+production/generate_production_run.py	write_tsv()	103	HERE/SIMULATED_phase_log.tsv	HERE/SIMULATED_phase_log.tsv	True	False	False	
+production/generate_production_run.py	write_tsv()	129	HERE/SIMULATED_LR_TABLE.tsv	HERE/SIMULATED_LR_TABLE.tsv	True	False	False	
+production/generate_production_run.py	write_tsv()	144	HERE/SIMULATED_metrics.tsv	HERE/SIMULATED_metrics.tsv	True	False	False	
+production/generate_production_run.py	write_tsv()	150	HERE/SIMULATED_thresholds.tsv	HERE/SIMULATED_thresholds.tsv	True	False	False	
+production/generate_production_run.py	write_tsv()	157	HERE/SIMULATED_circularity.tsv	HERE/SIMULATED_circularity.tsv	True	False	False	
+production/generate_production_run.py	write_tsv()	165	HERE/SIMULATED_TRUTH.tsv	HERE/SIMULATED_TRUTH.tsv	True	False	False	
+production/generate_production_run.py	write_tsv()	172	HERE/SIMULATED_RECOVERED.tsv	HERE/SIMULATED_RECOVERED.tsv	True	False	False	
+production/generate_production_run.py	write_tsv()	182	HERE/SIMULATED_scope.tsv	HERE/SIMULATED_scope.tsv	True	False	False	
+production/generate_production_run.py	write_tsv()	194	HERE/SIMULATED_rates_table.tsv	HERE/SIMULATED_rates_table.tsv	True	False	False	
+DEPLOYMENT_LOG.md Invocation 2 (gate6, historical)	manual_review_of_deployment_log	0	production/SIMULATED_RECOVERY_TABLE.tsv	production/SIMULATED_RECOVERY_TABLE.tsv	False	False	False	
+DEPLOYMENT_LOG.md Invocation 3 (gate8, historical)	manual_review_of_deployment_log	0	SIMULATED_GATE8_INTERVAL_REPORT.tsv (repo root)	SIMULATED_GATE8_INTERVAL_REPORT.tsv (repo root)	False	False	False	
+DEPLOYMENT_LOG.md Invocation 4, gate6 (this session)	manual_review_of_deployment_log	0	production_v2/SIMULATED_RECOVERY_TABLE.tsv	production_v2/SIMULATED_RECOVERY_TABLE.tsv	False	False	False	
+DEPLOYMENT_LOG.md Invocation 4, gate8 (this session)	manual_review_of_deployment_log	0	production_v2/gate8_out/SIMULATED_GATE8_INTERVAL_REPORT.tsv	production_v2/gate8_out/SIMULATED_GATE8_INTERVAL_REPORT.tsv	False	False	False	
+DEPLOYMENT_LOG.md Invocation 4, gate9 (this session)	manual_review_of_deployment_log	0	production_v2/gate9_out/SIMULATED_GATE9_IMBALANCE_REPORT.tsv	production_v2/gate9_out/SIMULATED_GATE9_IMBALANCE_REPORT.tsv	False	False	False	
+loh_caller.py's own gate6 invocation (P06R3 REVERSION_DIAGNOSIS.md) -- DELIBERATE shared writer, gate6's merge-aware logic exists precisely for this	manual_review_of_reversion_diagnosis	0	SIMULATED_RECOVERY_TABLE.tsv (repo root)	SIMULATED_RECOVERY_TABLE.tsv (repo root)	False	True	True	check_loh_caller_acceptance.py / check_gate_housekeeping_acceptance.py (this session, live gate6 re-run) -- DELIBERATE shared writer, same merge-aware target as above
+check_loh_caller_acceptance.py / check_gate_housekeeping_acceptance.py (this session, live gate6 re-run) -- DELIBERATE shared writer, same merge-aware target as above	manual_review_of_this_session_collision	0	SIMULATED_RECOVERY_TABLE.tsv (repo root)	SIMULATED_RECOVERY_TABLE.tsv (repo root)	False	True	True	loh_caller.py's own gate6 invocation (P06R3 REVERSION_DIAGNOSIS.md) -- DELIBERATE shared writer, gate6's merge-aware logic exists precisely for this
