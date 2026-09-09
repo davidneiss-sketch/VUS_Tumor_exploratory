@@ -1,32 +1,62 @@
 metric_name	numerator	denominator	excluded_count	excluded_reason	rate	n_total_cell	low_n_flag
 overall_accuracy_including_ambiguous_and_not_evaluable	9720	11088	0	none -- AMBIGUOUS and NOT_EVALUABLE predictions are scored against their own true category here, not excluded	0.876623	11088	FALSE
-overall_accuracy_excluding_ambiguous_and_not_evaluable	9539	9944	1144	excludes predicted_category in {AMBIGUOUS (confidence < 0.80), NOT_EVALUABLE (depth < 20)}	0.959272	11088	FALSE
-wt_loss_sensitivity_excluding_ambiguous_and_not_evaluable	2394	2430	425	of true WT_LOSS (deletion-type, n_t=1) loci with a definitive call, fraction correctly called WT_LOSS (not CN_NEUTRAL_LOH_WT_LOSS, VARIANT_LOSS, or RETENTION)	0.985185	2855	FALSE
-wt_loss_precision	2394	2464	0	of loci predicted WT_LOSS, fraction whose true category is actually WT_LOSS (deletion-type, n_t=1)	0.971591	2464	FALSE
-inversion_rate_wt_lost_direction_called_variant_lost	46	4359	0	of true WT-lost-direction loci (CN_NEUTRAL_LOH_WT_LOSS or WT_LOSS), fraction called VARIANT_LOSS (the opposite direction -- a genuine inversion, not an AMBIGUOUS/NOT_EVALUABLE non-call)	0.010553	4359	FALSE
-inversion_rate_variant_lost_called_wt_lost_direction	24	2547	0	of true VARIANT_LOSS loci, fraction called a WT-lost-direction category (CN_NEUTRAL_LOH_WT_LOSS or WT_LOSS) -- the opposite direction	0.009423	2547	FALSE
-confidence_filter_ambiguous_rate	1000	10944	0	fraction of depth-evaluable (depth>=20) loci where the confidence<0.80 filter reclassified the best-fitting hypothesis's call to AMBIGUOUS; denominator excludes NOT_EVALUABLE (depth<20) loci because those never entered the hypothesis competition at all	0.091374	10944	FALSE
+overall_accuracy_excluding_ambiguous_and_not_evaluable	9539	9943	1145	excludes predicted_category in {AMBIGUOUS (confidence < 0.80), NOT_EVALUABLE (depth < 20)}	0.959368	11088	FALSE
+wt_loss_sensitivity_excluding_ambiguous_and_not_evaluable	2492	2529	439	of true WT_LOSS (deletion-type, n_t=1) loci with a definitive call, fraction correctly called WT_LOSS (not CN_NEUTRAL_LOH_WT_LOSS, VARIANT_LOSS, or RETENTION)	0.98537	2968	FALSE
+wt_loss_precision	2492	2561	0	of loci predicted WT_LOSS, fraction whose true category is actually WT_LOSS (deletion-type, n_t=1)	0.973057	2561	FALSE
+inversion_rate_wt_lost_direction_called_variant_lost	48	4536	0	of true WT-lost-direction loci (CN_NEUTRAL_LOH_WT_LOSS or WT_LOSS), fraction called VARIANT_LOSS (the opposite direction -- a genuine inversion, not an AMBIGUOUS/NOT_EVALUABLE non-call)	0.010582	4536	FALSE
+inversion_rate_variant_lost_called_wt_lost_direction	23	2478	0	of true VARIANT_LOSS loci, fraction called a WT-lost-direction category (CN_NEUTRAL_LOH_WT_LOSS or WT_LOSS) -- the opposite direction	0.009282	2478	FALSE
+overall_accuracy_including_ambiguous_and_not_evaluable_subtype_luma	4299	4878	0	none -- AMBIGUOUS and NOT_EVALUABLE predictions are scored against their own true category here	0.881304	4878	FALSE
+overall_accuracy_excluding_ambiguous_and_not_evaluable_subtype_luma	4218	4396	482	excludes predicted_category in {AMBIGUOUS (confidence < 0.80), NOT_EVALUABLE (depth < 20)}	0.959509	4878	FALSE
+wt_loss_sensitivity_excluding_ambiguous_and_not_evaluable_subtype_luma	1045	1060	182	of true WT_LOSS loci in PAM50 subtype=LumA, fraction correctly called WT_LOSS	0.985849	1242	FALSE
+wt_loss_precision_subtype_luma	1045	1074	0	of loci predicted WT_LOSS in PAM50 subtype=LumA, fraction whose true category is WT_LOSS	0.972998	1074	FALSE
+inversion_rate_wt_lost_direction_called_variant_lost_subtype_luma	17	1895	0	of true WT-lost-direction loci in PAM50 subtype=LumA, fraction called VARIANT_LOSS	0.008971	1895	FALSE
+inversion_rate_variant_lost_called_wt_lost_direction_subtype_luma	8	1182	0	of true VARIANT_LOSS loci in PAM50 subtype=LumA, fraction called a WT-lost-direction category	0.006768	1182	FALSE
+overall_accuracy_including_ambiguous_and_not_evaluable_subtype_lumb	2340	2675	0	none -- AMBIGUOUS and NOT_EVALUABLE predictions are scored against their own true category here	0.874766	2675	FALSE
+overall_accuracy_excluding_ambiguous_and_not_evaluable_subtype_lumb	2288	2380	295	excludes predicted_category in {AMBIGUOUS (confidence < 0.80), NOT_EVALUABLE (depth < 20)}	0.961345	2675	FALSE
+wt_loss_sensitivity_excluding_ambiguous_and_not_evaluable_subtype_lumb	586	592	103	of true WT_LOSS loci in PAM50 subtype=LumB, fraction correctly called WT_LOSS	0.989865	695	FALSE
+wt_loss_precision_subtype_lumb	586	604	0	of loci predicted WT_LOSS in PAM50 subtype=LumB, fraction whose true category is WT_LOSS	0.970199	604	FALSE
+inversion_rate_wt_lost_direction_called_variant_lost_subtype_lumb	9	1065	0	of true WT-lost-direction loci in PAM50 subtype=LumB, fraction called VARIANT_LOSS	0.008451	1065	FALSE
+inversion_rate_variant_lost_called_wt_lost_direction_subtype_lumb	7	579	0	of true VARIANT_LOSS loci in PAM50 subtype=LumB, fraction called a WT-lost-direction category	0.01209	579	FALSE
+overall_accuracy_including_ambiguous_and_not_evaluable_subtype_her2e	1080	1257	0	none -- AMBIGUOUS and NOT_EVALUABLE predictions are scored against their own true category here	0.859189	1257	FALSE
+overall_accuracy_excluding_ambiguous_and_not_evaluable_subtype_her2e	1061	1115	142	excludes predicted_category in {AMBIGUOUS (confidence < 0.80), NOT_EVALUABLE (depth < 20)}	0.95157	1257	FALSE
+wt_loss_sensitivity_excluding_ambiguous_and_not_evaluable_subtype_her2e	292	299	52	of true WT_LOSS loci in PAM50 subtype=HER2E, fraction correctly called WT_LOSS	0.976589	351	FALSE
+wt_loss_precision_subtype_her2e	292	299	0	of loci predicted WT_LOSS in PAM50 subtype=HER2E, fraction whose true category is WT_LOSS	0.976589	299	FALSE
+inversion_rate_wt_lost_direction_called_variant_lost_subtype_her2e	9	509	0	of true WT-lost-direction loci in PAM50 subtype=HER2E, fraction called VARIANT_LOSS	0.017682	509	FALSE
+inversion_rate_variant_lost_called_wt_lost_direction_subtype_her2e	2	266	0	of true VARIANT_LOSS loci in PAM50 subtype=HER2E, fraction called a WT-lost-direction category	0.007519	266	FALSE
+overall_accuracy_including_ambiguous_and_not_evaluable_subtype_basal	1851	2105	0	none -- AMBIGUOUS and NOT_EVALUABLE predictions are scored against their own true category here	0.879335	2105	FALSE
+overall_accuracy_excluding_ambiguous_and_not_evaluable_subtype_basal	1826	1900	205	excludes predicted_category in {AMBIGUOUS (confidence < 0.80), NOT_EVALUABLE (depth < 20)}	0.961053	2105	FALSE
+wt_loss_sensitivity_excluding_ambiguous_and_not_evaluable_subtype_basal	539	548	93	of true WT_LOSS loci in PAM50 subtype=Basal, fraction correctly called WT_LOSS	0.983577	641	FALSE
+wt_loss_precision_subtype_basal	539	552	0	of loci predicted WT_LOSS in PAM50 subtype=Basal, fraction whose true category is WT_LOSS	0.976449	552	FALSE
+inversion_rate_wt_lost_direction_called_variant_lost_subtype_basal	13	998	0	of true WT-lost-direction loci in PAM50 subtype=Basal, fraction called VARIANT_LOSS	0.013026	998	FALSE
+inversion_rate_variant_lost_called_wt_lost_direction_subtype_basal	6	411	0	of true VARIANT_LOSS loci in PAM50 subtype=Basal, fraction called a WT-lost-direction category	0.014599	411	FALSE
+overall_accuracy_including_ambiguous_and_not_evaluable_subtype_normal_like	150	173	0	none -- AMBIGUOUS and NOT_EVALUABLE predictions are scored against their own true category here	0.867052	173	FALSE
+overall_accuracy_excluding_ambiguous_and_not_evaluable_subtype_normal_like	146	152	21	excludes predicted_category in {AMBIGUOUS (confidence < 0.80), NOT_EVALUABLE (depth < 20)}	0.960526	173	FALSE
+wt_loss_sensitivity_excluding_ambiguous_and_not_evaluable_subtype_normal_like	30	30	9	of true WT_LOSS loci in PAM50 subtype=Normal-like, fraction correctly called WT_LOSS	1.0	39	FALSE
+wt_loss_precision_subtype_normal_like	30	32	0	of loci predicted WT_LOSS in PAM50 subtype=Normal-like, fraction whose true category is WT_LOSS	0.9375	32	FALSE
+inversion_rate_wt_lost_direction_called_variant_lost_subtype_normal_like	0	69	0	of true WT-lost-direction loci in PAM50 subtype=Normal-like, fraction called VARIANT_LOSS	0.0	69	FALSE
+inversion_rate_variant_lost_called_wt_lost_direction_subtype_normal_like	0	40	0	of true VARIANT_LOSS loci in PAM50 subtype=Normal-like, fraction called a WT-lost-direction category	0.0	40	FALSE
+confidence_filter_ambiguous_rate	1001	10944	0	fraction of depth-evaluable (depth>=20) loci where the confidence<0.80 filter reclassified the best-fitting hypothesis's call to AMBIGUOUS; denominator excludes NOT_EVALUABLE (depth<20) loci because those never entered the hypothesis competition at all	0.091466	10944	FALSE
 not_evaluable_rate_depth_lt_20	144	11088	0	fraction of all attempted calls excluded pre-emptively by the depth<20 floor (PROTOCOL.md §5.2), before any hypothesis competition	0.012987	11088	FALSE
-accuracy_by_purity_LOW_0.10_0.35	2378	2685	1010	purity in [0.1,0.35); excludes AMBIGUOUS/NOT_EVALUABLE predictions within this purity band	0.885661	3695	FALSE
-accuracy_by_purity_MID_0.35_0.65	3561	3611	86	purity in [0.35,0.65); excludes AMBIGUOUS/NOT_EVALUABLE predictions within this purity band	0.986153	3697	FALSE
+accuracy_by_purity_LOW_0.10_0.35	2380	2686	1009	purity in [0.1,0.35); excludes AMBIGUOUS/NOT_EVALUABLE predictions within this purity band	0.886076	3695	FALSE
+accuracy_by_purity_MID_0.35_0.65	3559	3609	88	purity in [0.35,0.65); excludes AMBIGUOUS/NOT_EVALUABLE predictions within this purity band	0.986146	3697	FALSE
 accuracy_by_purity_HIGH_0.65_0.95	3600	3648	48	purity in [0.65,0.9500000009999999); excludes AMBIGUOUS/NOT_EVALUABLE predictions within this purity band	0.986842	3696	FALSE
-accuracy_by_depth_BORDERLINE_20_30	661	743	153	tumor depth in [20,30); excludes AMBIGUOUS/NOT_EVALUABLE predictions within this depth band	0.889637	896	FALSE
-accuracy_by_depth_MODERATE_30_60	3965	4138	483	tumor depth in [30,60); excludes AMBIGUOUS/NOT_EVALUABLE predictions within this depth band	0.958192	4621	FALSE
-accuracy_by_depth_HIGH_60_plus	4913	5063	364	tumor depth in [60,10000); excludes AMBIGUOUS/NOT_EVALUABLE predictions within this depth band	0.970373	5427	FALSE
-accuracy_by_total_copy_number_CN1	3804	3966	704	cn_total == 1; excludes AMBIGUOUS/NOT_EVALUABLE predictions	0.959153	4670	FALSE
-accuracy_by_total_copy_number_CN2	3902	4126	366	cn_total == 2; excludes AMBIGUOUS/NOT_EVALUABLE predictions	0.94571	4492	FALSE
-accuracy_by_total_copy_number_CN4	1833	1852	74	cn_total == 4; excludes AMBIGUOUS/NOT_EVALUABLE predictions	0.989741	1926	FALSE
-accuracy_by_purity_LOW_0.10_0.35_x_depth_BORDERLINE_20_30	129	153	138	purity in [0.1,0.35) x depth in [20,30); excludes AMBIGUOUS/NOT_EVALUABLE	0.843137	291	FALSE
-accuracy_by_purity_LOW_0.10_0.35_x_depth_MODERATE_30_60	971	1106	462	purity in [0.1,0.35) x depth in [30,60); excludes AMBIGUOUS/NOT_EVALUABLE	0.877939	1568	FALSE
-accuracy_by_purity_LOW_0.10_0.35_x_depth_HIGH_60_plus	1278	1426	362	purity in [0.1,0.35) x depth in [60,10000); excludes AMBIGUOUS/NOT_EVALUABLE	0.896213	1788	FALSE
-accuracy_by_purity_MID_0.35_0.65_x_depth_BORDERLINE_20_30	267	290	15	purity in [0.35,0.65) x depth in [20,30); excludes AMBIGUOUS/NOT_EVALUABLE	0.92069	305	FALSE
-accuracy_by_purity_MID_0.35_0.65_x_depth_MODERATE_30_60	1484	1509	21	purity in [0.35,0.65) x depth in [30,60); excludes AMBIGUOUS/NOT_EVALUABLE	0.983433	1530	FALSE
+accuracy_by_depth_BORDERLINE_20_30	662	744	152	tumor depth in [20,30); excludes AMBIGUOUS/NOT_EVALUABLE predictions within this depth band	0.889785	896	FALSE
+accuracy_by_depth_MODERATE_30_60	3962	4136	485	tumor depth in [30,60); excludes AMBIGUOUS/NOT_EVALUABLE predictions within this depth band	0.95793	4621	FALSE
+accuracy_by_depth_HIGH_60_plus	4915	5063	364	tumor depth in [60,10000); excludes AMBIGUOUS/NOT_EVALUABLE predictions within this depth band	0.970768	5427	FALSE
+accuracy_by_total_copy_number_CN1	3871	4033	710	cn_total == 1; excludes AMBIGUOUS/NOT_EVALUABLE predictions	0.959831	4743	FALSE
+accuracy_by_total_copy_number_CN2	3859	4082	361	cn_total == 2; excludes AMBIGUOUS/NOT_EVALUABLE predictions	0.94537	4443	FALSE
+accuracy_by_total_copy_number_CN4	1809	1828	74	cn_total == 4; excludes AMBIGUOUS/NOT_EVALUABLE predictions	0.989606	1902	FALSE
+accuracy_by_purity_LOW_0.10_0.35_x_depth_BORDERLINE_20_30	131	155	136	purity in [0.1,0.35) x depth in [20,30); excludes AMBIGUOUS/NOT_EVALUABLE	0.845161	291	FALSE
+accuracy_by_purity_LOW_0.10_0.35_x_depth_MODERATE_30_60	969	1105	463	purity in [0.1,0.35) x depth in [30,60); excludes AMBIGUOUS/NOT_EVALUABLE	0.876923	1568	FALSE
+accuracy_by_purity_LOW_0.10_0.35_x_depth_HIGH_60_plus	1280	1426	362	purity in [0.1,0.35) x depth in [60,10000); excludes AMBIGUOUS/NOT_EVALUABLE	0.897616	1788	FALSE
+accuracy_by_purity_MID_0.35_0.65_x_depth_BORDERLINE_20_30	266	289	16	purity in [0.35,0.65) x depth in [20,30); excludes AMBIGUOUS/NOT_EVALUABLE	0.920415	305	FALSE
+accuracy_by_purity_MID_0.35_0.65_x_depth_MODERATE_30_60	1483	1508	22	purity in [0.35,0.65) x depth in [30,60); excludes AMBIGUOUS/NOT_EVALUABLE	0.983422	1530	FALSE
 accuracy_by_purity_MID_0.35_0.65_x_depth_HIGH_60_plus	1810	1812	2	purity in [0.35,0.65) x depth in [60,10000); excludes AMBIGUOUS/NOT_EVALUABLE	0.998896	1814	FALSE
 accuracy_by_purity_HIGH_0.65_0.95_x_depth_BORDERLINE_20_30	265	300	0	purity in [0.65,0.9500000009999999) x depth in [20,30); excludes AMBIGUOUS/NOT_EVALUABLE	0.883333	300	FALSE
 accuracy_by_purity_HIGH_0.65_0.95_x_depth_MODERATE_30_60	1510	1523	0	purity in [0.65,0.9500000009999999) x depth in [30,60); excludes AMBIGUOUS/NOT_EVALUABLE	0.991464	1523	FALSE
 accuracy_by_purity_HIGH_0.65_0.95_x_depth_HIGH_60_plus	1825	1825	0	purity in [0.65,0.9500000009999999) x depth in [60,10000); excludes AMBIGUOUS/NOT_EVALUABLE	1.0	1825	FALSE
-accuracy_by_wgd_status_NON_WGD	6574	6911	848	wgd == False; excludes AMBIGUOUS/NOT_EVALUABLE predictions	0.951237	7759	FALSE
-accuracy_by_wgd_status_WGD	2965	3033	296	wgd == True; excludes AMBIGUOUS/NOT_EVALUABLE predictions	0.97758	3329	FALSE
-accuracy_by_arm_CORE_HR	3191	3314	382	gene_group == CORE_HR; excludes AMBIGUOUS/NOT_EVALUABLE predictions	0.962885	3696	FALSE
-accuracy_by_arm_DDR_SIGNALING	3159	3298	398	gene_group == DDR_SIGNALING; excludes AMBIGUOUS/NOT_EVALUABLE predictions	0.957853	3696	FALSE
+accuracy_by_wgd_status_NON_WGD	6573	6909	850	wgd == False; excludes AMBIGUOUS/NOT_EVALUABLE predictions	0.951368	7759	FALSE
+accuracy_by_wgd_status_WGD	2966	3034	295	wgd == True; excludes AMBIGUOUS/NOT_EVALUABLE predictions	0.977587	3329	FALSE
+accuracy_by_arm_CORE_HR	3190	3312	384	gene_group == CORE_HR; excludes AMBIGUOUS/NOT_EVALUABLE predictions	0.963164	3696	FALSE
+accuracy_by_arm_DDR_SIGNALING	3160	3299	397	gene_group == DDR_SIGNALING; excludes AMBIGUOUS/NOT_EVALUABLE predictions	0.957866	3696	FALSE
 accuracy_by_arm_NULL_ARM	3189	3332	364	gene_group == NULL_ARM; excludes AMBIGUOUS/NOT_EVALUABLE predictions	0.957083	3696	FALSE

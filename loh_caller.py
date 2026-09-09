@@ -59,19 +59,57 @@ What this implements, per the original task plus the above revision:
     a 400-observation cell (DIAGNOSIS.md's finding about the prior
     report's worst-stratum claim).
 
-SCOPE (disclosed, not silently narrowed): SIMULATED_TRUTH.tsv (v2) has 16
-injected quantities. Only 2 of them (core_hr_wt_lost_direction_LR,
-ddr_signaling_wt_lost_direction_LR) are marginal LOH-direction quantities
-this caller can recover. The other 14 (GIS/HRD-score marginals, SBS3-
-exposure marginals, joint/product-of-marginals/inflation-ratio
-quantities per arm, and the 3 NULL_ARM full-feature-vector quantities)
-require either scarHRD/SigProfilerAssignment-derived features this
-script does not compute, or a JOINT estimator over multiple features
-this single-feature LOH caller does not implement. This script does NOT
-fabricate recovered values for those 14 — it runs gate6 against the
-full, unmodified SIMULATED_TRUTH.tsv and declares all 16 quantities'
-scope explicitly (gate6's scope-enumeration requirement), letting the
-14 out-of-scope rows report honestly as `BLOCKED`/`NOT_IN_SCOPE`.
+**Revision (P07-RERUN2, schema-compatibility only):** `SIMULATED_TRUTH.tsv`
+grew from 16 to 91 quantities (P06R4 wired `pam50_subtype` into the
+latent HR-deficiency variable and into GIS). This caller's own METHOD
+(`call_locus`'s hypothesis competition, BAF corroboration) is completely
+unchanged. Two schema/scope additions only:
+  1. `load_loci()` now also reads `pam50_subtype` from
+     `SIMULATED_sample_metadata.tsv` (a column that already existed there
+     — this caller simply was not extracting it before).
+  2. `build_recovered_quantities_and_lr_table()` now ALSO computes the SAME
+     `wt_lost_direction_lr_point`/`bootstrap_ci` this caller already
+     computed pooled, restricted to each of the 5 PAM50 subtype strata
+     — the 10 new `{arm}_{subtype}_wt_lost_direction_LR` truth
+     quantities are the way the confounder P06R4 introduced (Basal's
+     elevated baseline instability) can actually be tested against this
+     caller at all, per this task's own framing; they are NOT a new
+     estimator or a change to how any individual locus is called.
+The internal `gate6_recovery.py` invocation below now also writes to
+this script's OWN output directory (`SIMULATED_loh_validation/`) rather
+than the repo root — the repo root is a file OTHER callers (`production_v2_run.py`
+-invoked gate6 runs, historical tasks) also write to, and a stale,
+pre-amendment-schema copy sitting there caused a one-time `KeyError` in
+`gate6_recovery.py`'s own multi-caller row-preservation path the first
+time this script was re-run this task (reported, not silently patched
+around, in `SIMULATED_loh_validation.md`'s own STEP 2 section) — this is
+exactly the fixed-output-path collision class `OUTPUT_PATH_INVENTORY.tsv`
+already tracks; redirecting this caller's own writes to its own
+directory is the same fix already applied elsewhere, not a new one.
+The SECOND, substantive thing that broke on the unchanged caller (also
+reported before any change was made): with the KeyError healed, gate6
+ran cleanly but reported `OVERALL: FAIL` because 89 of `SIMULATED_TRUTH.tsv`'s
+91 quantities came back `UNDECLARED SCOPE` -- this caller's own
+`RECOVERY_SCOPE` had never been extended past the original 16-quantity
+truth table, so every newly-existing quantity (10 of them this caller's
+own deliverable) was an automatic `SIMULATED_FAIL` purely from a stale
+scope declaration, not from any incompatibility with the new data.
+
+SCOPE (disclosed, not silently narrowed): `SIMULATED_TRUTH.tsv` (current,
+91 quantities) has 12 marginal LOH-direction quantities (2 pooled + 10
+subtype-stratified `wt_lost_direction_LR`) this caller can recover. The
+other 79 (GIS/HRD-score marginals, SBS3-exposure marginals, joint/
+product-of-marginals/inflation-ratio quantities per arm and per
+arm-subtype, the NULL_ARM full-feature-vector quantities pooled and per
+subtype, and the engineered-null depth-bucket quantity) require either
+scarHRD/SigProfilerAssignment-derived features this script does not
+compute, or a JOINT estimator over multiple features this single-feature
+LOH caller does not implement. This script does NOT fabricate recovered
+values for those 79 — it runs gate6 against the full, unmodified
+`SIMULATED_TRUTH.tsv` and declares all 91 quantities' scope explicitly
+(`classify_quantity_scope()`, mirrored exactly in the standalone
+`P07_SCOPE.tsv` deliverable), letting the 79 out-of-scope rows report
+honestly as `BLOCKED`/`NOT_IN_SCOPE`.
 
 NOTE_ON_NOT_EVALUABLE: unchanged from the prior version — PROTOCOL.md
 §5.2 fixes D >= 20 as a hard floor below which the binomial test cannot
@@ -285,6 +323,7 @@ def load_loci() -> tuple[list[dict], dict]:
 
         loci.append({
             "sample_id": sid, "gene": v["gene"], "gene_group": m["gene_group"],
+            "pam50_subtype": m["pam50_subtype"],
             "true_class": lbl["true_class"], "assigned_loh_category": v["assigned_loh_category"],
             "mechanism": v.get("mechanism", ""),
             "true_direction_category": true_category,
@@ -390,6 +429,68 @@ def build_rates_table(loci: list[dict]) -> list[dict]:
         "of true VARIANT_LOSS loci, fraction called a WT-lost-direction category (CN_NEUTRAL_LOH_WT_LOSS or "
         "WT_LOSS) -- the opposite direction",
     ))
+
+    # REVISION (P07-RERUN2), this task's own explicit STEP 4 requirement:
+    # every metric above, additionally BY PAM50 SUBTYPE -- P06R4 wired
+    # pam50_subtype into the latent HR-deficiency variable AND into GIS
+    # directly, giving Basal an elevated baseline instability independent
+    # of true_class (the confounder the stratification exists to detect).
+    # This caller is subtype-BLIND (subtype never enters call_locus() at
+    # all); if accuracy degrades specifically in Basal, that is exactly
+    # where a subtype-blind caller meeting subtype-correlated data should
+    # show it. Every cell below carries its own n (this task's own
+    # explicit "Normal-like will be sparse; report the n" instruction) via
+    # rate_row's n_total_cell/low_n_flag columns -- no cell's rate is
+    # reported without it.
+    for subtype in PAM50_SUBTYPES:
+        subtype_slug = subtype.lower().replace("-", "_")
+        loci_st = [r for r in loci if r["pam50_subtype"] == subtype]
+        definitive_st = [r for r in loci_st if r["predicted_category"] not in EXCLUDED_FROM_DEFINITIVE]
+        excluded_st = [r for r in loci_st if r["predicted_category"] in EXCLUDED_FROM_DEFINITIVE]
+
+        n_correct_all_st = sum(1 for r in loci_st if r["correct"])
+        rows.append(rate_row(
+            f"overall_accuracy_including_ambiguous_and_not_evaluable_subtype_{subtype_slug}",
+            n_correct_all_st, len(loci_st), 0,
+            "none -- AMBIGUOUS and NOT_EVALUABLE predictions are scored against their own true category here",
+        ))
+        n_correct_def_st = sum(1 for r in definitive_st if r["correct"])
+        rows.append(rate_row(
+            f"overall_accuracy_excluding_ambiguous_and_not_evaluable_subtype_{subtype_slug}",
+            n_correct_def_st, len(definitive_st), len(excluded_st),
+            "excludes predicted_category in {AMBIGUOUS (confidence < 0.80), NOT_EVALUABLE (depth < 20)}",
+        ))
+
+        true_wt_loss_st = [r for r in loci_st if r["true_direction_category"] == "WT_LOSS"]
+        n_wt_loss_correct_st = sum(1 for r in true_wt_loss_st if r["predicted_category"] == "WT_LOSS")
+        n_wt_loss_ambig_st = sum(1 for r in true_wt_loss_st if r["predicted_category"] in EXCLUDED_FROM_DEFINITIVE)
+        rows.append(rate_row(
+            f"wt_loss_sensitivity_excluding_ambiguous_and_not_evaluable_subtype_{subtype_slug}",
+            n_wt_loss_correct_st, len(true_wt_loss_st) - n_wt_loss_ambig_st, n_wt_loss_ambig_st,
+            f"of true WT_LOSS loci in PAM50 subtype={subtype}, fraction correctly called WT_LOSS",
+        ))
+        pred_wt_loss_st = [r for r in loci_st if r["predicted_category"] == "WT_LOSS"]
+        n_wt_loss_precision_correct_st = sum(1 for r in pred_wt_loss_st if r["true_direction_category"] == "WT_LOSS")
+        rows.append(rate_row(
+            f"wt_loss_precision_subtype_{subtype_slug}",
+            n_wt_loss_precision_correct_st, len(pred_wt_loss_st), 0,
+            f"of loci predicted WT_LOSS in PAM50 subtype={subtype}, fraction whose true category is WT_LOSS",
+        ))
+
+        true_wt_direction_st = [r for r in loci_st if r["true_direction_category"] in WT_LOST_DIRECTION_CATS]
+        n_wt_to_var_inv_st = sum(1 for r in true_wt_direction_st if r["predicted_category"] == "VARIANT_LOSS")
+        rows.append(rate_row(
+            f"inversion_rate_wt_lost_direction_called_variant_lost_subtype_{subtype_slug}",
+            n_wt_to_var_inv_st, len(true_wt_direction_st), 0,
+            f"of true WT-lost-direction loci in PAM50 subtype={subtype}, fraction called VARIANT_LOSS",
+        ))
+        true_variant_loss_st = [r for r in loci_st if r["true_direction_category"] == "VARIANT_LOSS"]
+        n_var_to_wt_inv_st = sum(1 for r in true_variant_loss_st if r["predicted_category"] in WT_LOST_DIRECTION_CATS)
+        rows.append(rate_row(
+            f"inversion_rate_variant_lost_called_wt_lost_direction_subtype_{subtype_slug}",
+            n_var_to_wt_inv_st, len(true_variant_loss_st), 0,
+            f"of true VARIANT_LOSS loci in PAM50 subtype={subtype}, fraction called a WT-lost-direction category",
+        ))
 
     n_ambiguous = sum(1 for r in loci if r["predicted_category"] == "AMBIGUOUS")
     n_not_evaluable = sum(1 for r in loci if r["predicted_category"] == "NOT_EVALUABLE")
@@ -514,60 +615,126 @@ def bootstrap_ci(loci_group: list[dict], rng: random.Random) -> tuple[float, flo
     return percentile(lrs, 2.5), percentile(lrs, 97.5)
 
 
-def build_recovered_quantities(loci: list[dict]) -> list[dict]:
-    rows = []
+PAM50_SUBTYPES = ["LumA", "LumB", "HER2E", "Basal", "Normal-like"]
+
+
+def build_recovered_quantities_and_lr_table(loci: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Pooled (unchanged) plus, new this task (P07-RERUN2), per-subtype
+    strata -- the SAME wt_lost_direction_lr_point/bootstrap_ci functions,
+    just restricted to one more filter (pam50_subtype) before they run.
+    No change to how any individual locus is called or to the
+    LR-point/bootstrap arithmetic itself. Returns (recovered_rows for
+    gate6's --recovered input, lr_table_rows for gate4's --lr-table
+    input) built from ONE shared stratification loop, not two that could
+    drift apart -- gate4's schema (stratum/gene_group/status/n_pathogenic/
+    n_benign/n_replicates) was never previously produced by this caller;
+    this is a new-schema addition (this task's own Step 3 requirement to
+    run gate4), not a method change."""
+    recovered_rows = []
+    lr_table_rows = []
     rng = random.Random(BOOTSTRAP_SEED)
     for group in ("CORE_HR", "DDR_SIGNALING"):
         loci_group = [r for r in loci if r["gene_group"] == group]
-        point = wt_lost_direction_lr_point(loci_group)
-        ci_low, ci_high = bootstrap_ci(loci_group, rng)
-        rows.append({
-            "quantity": f"{group.lower()}_wt_lost_direction_LR",
-            "recovered_point": point, "ci_low": ci_low, "ci_high": ci_high, "estimand": "LR",
-        })
-    return rows
+        strata = [(None, loci_group)] + [(st, [r for r in loci_group if r["pam50_subtype"] == st])
+                                          for st in PAM50_SUBTYPES]
+        for subtype, loci_stratum in strata:
+            path_n = sum(1 for r in loci_stratum if r["true_class"] == "Pathogenic")
+            benign_n = sum(1 for r in loci_stratum if r["true_class"] == "Benign")
+            subtype_slug = subtype.lower().replace("-", "_") if subtype else None
+            quantity = (f"{group.lower()}_wt_lost_direction_LR" if subtype is None
+                        else f"{group.lower()}_{subtype_slug}_wt_lost_direction_LR")
+            stratum_label = f"{group}_pooled" if subtype is None else f"{group}_{subtype_slug}"
+            if path_n == 0 or benign_n == 0:
+                # Never substitute silently (Standing Rule 4): a stratum
+                # with zero observations in either class cannot produce a
+                # meaningful LR point or bootstrap CI (jeffreys_rate would
+                # still return a number, but it would be entirely prior
+                # -driven, not data-driven). Omitted from
+                # recovered_quantities.tsv; reported as INSUFFICIENT_N
+                # (PROTOCOL.md's own vocabulary, gate4's VALID_STATUSES)
+                # in the LR table rather than silently dropped there too.
+                lr_table_rows.append({
+                    "stratum": stratum_label, "gene_group": group, "status": "INSUFFICIENT_N",
+                    "point_estimate": "", "ci_low": "", "ci_high": "", "n_replicates": "",
+                    "n_pathogenic": path_n, "n_benign": benign_n,
+                })
+                continue
+            point = wt_lost_direction_lr_point(loci_stratum)
+            ci_low, ci_high = bootstrap_ci(loci_stratum, rng)
+            recovered_rows.append({
+                "quantity": quantity, "recovered_point": point, "ci_low": ci_low, "ci_high": ci_high,
+                "estimand": "LR",
+            })
+            lr_table_rows.append({
+                "stratum": stratum_label, "gene_group": group, "status": "FITTED",
+                "point_estimate": point, "ci_low": ci_low, "ci_high": ci_high,
+                "n_replicates": BOOTSTRAP_B, "n_pathogenic": path_n, "n_benign": benign_n,
+            })
+    return recovered_rows, lr_table_rows
 
 
-# Every SIMULATED_TRUTH.tsv (v2, 16-quantity) quantity, declared explicitly
-# (gate6 housekeeping fix: a gate that scores a subset without declaring the
-# subset is a scope bug). Only the 2 marginal WT-lost-direction quantities
-# are this caller's deliverable; the rest require GIS/SBS3 feature
-# extraction and/or a joint estimator this single-feature caller does not
-# implement.
-RECOVERY_SCOPE = [
-    {"quantity": "core_hr_wt_lost_direction_LR", "in_scope": "TRUE",
-     "reason": "this caller's own deliverable: recovered from its blind WT_LOSS/CN_NEUTRAL_LOH_WT_LOSS calls"},
-    {"quantity": "ddr_signaling_wt_lost_direction_LR", "in_scope": "TRUE",
-     "reason": "this caller's own deliverable: recovered from its blind WT_LOSS/CN_NEUTRAL_LOH_WT_LOSS calls"},
-    {"quantity": "core_hr_gis_score_LR", "in_scope": "FALSE",
-     "reason": "requires an HRD/GIS-score feature (scarHRD) this LOH caller does not compute"},
-    {"quantity": "ddr_signaling_gis_score_LR", "in_scope": "FALSE",
-     "reason": "requires an HRD/GIS-score feature (scarHRD) this LOH caller does not compute"},
-    {"quantity": "core_hr_sbs3_exposure_LR", "in_scope": "FALSE",
-     "reason": "requires a SigProfilerAssignment SBS3-exposure feature this LOH caller does not compute"},
-    {"quantity": "ddr_signaling_sbs3_exposure_LR", "in_scope": "FALSE",
-     "reason": "requires a SigProfilerAssignment SBS3-exposure feature this LOH caller does not compute"},
-    {"quantity": "core_hr_joint_LR", "in_scope": "FALSE",
-     "reason": "a joint estimator over LOH+GIS+SBS3 evidence; this caller produces only a single-feature (LOH-direction) marginal recovery, not a joint density estimate"},
-    {"quantity": "core_hr_product_of_marginals_LR", "in_scope": "FALSE",
-     "reason": "same reason as core_hr_joint_LR -- requires GIS/SBS3 features this caller does not compute, in addition to a product-of-marginals estimator this caller does not implement"},
-    {"quantity": "core_hr_joint_vs_marginal_inflation_ratio", "in_scope": "FALSE",
-     "reason": "downstream of core_hr_joint_LR and core_hr_product_of_marginals_LR, both out of scope"},
-    {"quantity": "ddr_signaling_joint_LR", "in_scope": "FALSE",
-     "reason": "a joint estimator over LOH+GIS+SBS3 evidence; this caller produces only a single-feature (LOH-direction) marginal recovery, not a joint density estimate"},
-    {"quantity": "ddr_signaling_product_of_marginals_LR", "in_scope": "FALSE",
-     "reason": "same reason as ddr_signaling_joint_LR -- requires GIS/SBS3 features this caller does not compute, in addition to a product-of-marginals estimator this caller does not implement"},
-    {"quantity": "ddr_signaling_joint_vs_marginal_inflation_ratio", "in_scope": "FALSE",
-     "reason": "downstream of ddr_signaling_joint_LR and ddr_signaling_product_of_marginals_LR, both out of scope"},
-    {"quantity": "null_arm_full_vector_joint_LR", "in_scope": "FALSE",
-     "reason": "NULL_ARM has no marginal-only (LOH-direction-alone) truth quantity to recover against -- only full-feature-vector joint/product/ratio quantities, which require GIS/SBS3 features this caller does not compute"},
-    {"quantity": "null_arm_full_vector_product_of_marginals_LR", "in_scope": "FALSE",
-     "reason": "same reason as null_arm_full_vector_joint_LR"},
-    {"quantity": "null_arm_full_vector_inflation_ratio", "in_scope": "FALSE",
-     "reason": "downstream of the two null_arm quantities above, both out of scope"},
-    {"quantity": "null_sequencing_depth_bucket_LR", "in_scope": "FALSE",
-     "reason": "an engineered-null depth-bucket feature unrelated to LOH direction; not this caller's estimand"},
-]
+# Every SIMULATED_TRUTH.tsv quantity, declared explicitly (gate6
+# housekeeping fix: a gate that scores a subset without declaring the
+# subset is a scope bug). REVISION (P07-RERUN2): SIMULATED_TRUTH.tsv grew
+# from 16 to 91 quantities (P06R4's subtype wiring) -- rather than a
+# static 16-entry list going stale again the next time the truth table
+# grows, scope is now CLASSIFIED PROGRAMMATICALLY from the quantity
+# name's own pattern, applied to whatever SIMULATED_TRUTH.tsv currently
+# contains. The classification RULES are unchanged in substance from the
+# original static list (same 2 pooled wt_lost_direction_LR quantities
+# were, and remain, this caller's deliverable); this only adds the 10
+# newly-existing subtype-stratified wt_lost_direction_LR quantities as
+# equally in-scope (this task's own explicit instruction: "these are new
+# in-scope targets, not optional extras") and mechanically extends the
+# same out-of-scope reasoning to every newly-existing GIS/SBS3/joint/
+# NULL_ARM quantity, pooled and subtype-stratified alike. The EXACT same
+# classification is used to write the standalone `P07_SCOPE.tsv`
+# deliverable (see `write_p07_scope_tsv()` below) -- one rule, not two
+# that could drift apart.
+
+def classify_quantity_scope(quantity: str) -> tuple[bool, str]:
+    if quantity.endswith("_wt_lost_direction_LR"):
+        if quantity in ("core_hr_wt_lost_direction_LR", "ddr_signaling_wt_lost_direction_LR"):
+            return True, "this caller's own deliverable (pooled): recovered from its blind WT_LOSS/CN_NEUTRAL_LOH_WT_LOSS calls"
+        return True, ("this caller's own deliverable (subtype-stratified): recovered from its blind "
+                       "WT_LOSS/CN_NEUTRAL_LOH_WT_LOSS calls, restricted to this PAM50 subtype -- new "
+                       "in-scope target this task, per P06R4's subtype-latent wiring")
+    if "gis_score_LR" in quantity:
+        return False, "requires an HRD/GIS-score feature (scarHRD) this LOH caller does not compute"
+    if "sbs3_exposure_LR" in quantity:
+        return False, "requires a SigProfilerAssignment SBS3-exposure feature this LOH caller does not compute"
+    if "joint_vs_marginal_inflation_ratio" in quantity:
+        return False, "downstream of a joint_LR/product_of_marginals_LR pair, both out of scope for this caller"
+    if "full_vector_joint_LR" in quantity or "full_vector_product_of_marginals_LR" in quantity:
+        return False, "NULL_ARM full-feature-vector quantity requiring GIS/SBS3 features this LOH caller does not compute"
+    if "full_vector_inflation_ratio" in quantity:
+        return False, "downstream of the NULL_ARM full_vector_joint_LR/product_of_marginals_LR pair, both out of scope"
+    if quantity.endswith("_joint_LR"):
+        return False, ("a joint estimator over LOH+GIS+SBS3 evidence; this caller produces only a "
+                        "single-feature (LOH-direction) marginal recovery, not a joint density estimate")
+    if quantity.endswith("_product_of_marginals_LR"):
+        return False, ("requires GIS/SBS3 features this caller does not compute, in addition to a "
+                        "product-of-marginals estimator this caller does not implement")
+    if quantity == "null_sequencing_depth_bucket_LR":
+        return False, "an engineered-null depth-bucket feature unrelated to LOH direction; not this caller's estimand"
+    raise ValueError(f"unclassified quantity (SIMULATED_TRUTH.tsv grew a pattern this task's own "
+                      f"classification rules do not cover -- fix classify_quantity_scope, do not "
+                      f"silently default to NOT_IN_SCOPE): {quantity!r}")
+
+
+def build_recovery_scope(truth_quantities: list[str]) -> list[dict]:
+    return [{"quantity": q, "in_scope": "TRUE" if scope else "FALSE", "reason": reason}
+            for q in truth_quantities for scope, reason in (classify_quantity_scope(q),)]
+
+
+def write_p07_scope_tsv(truth_quantities: list[str]) -> None:
+    """The standalone P07_SCOPE.tsv deliverable (repo root, per this
+    task's own deliverable list) -- same classify_quantity_scope() rule
+    as this script's own internal --scope file, written separately so a
+    reader (or a future gate6 invocation run independently of this
+    script) has it without re-running loh_caller.py."""
+    rows = build_recovery_scope(truth_quantities)
+    write_tsv(REPO_ROOT / "P07_SCOPE.tsv", rows, ["quantity", "in_scope", "reason"])
 
 
 # ============================================================================
@@ -601,20 +768,31 @@ def main() -> None:
               ["metric_name", "numerator", "denominator", "excluded_count", "excluded_reason",
                "rate", "n_total_cell", "low_n_flag"])
 
-    recovered_rows = build_recovered_quantities(loci)
+    recovered_rows, lr_table_rows = build_recovered_quantities_and_lr_table(loci)
     write_tsv(OUT_DIR / "SIMULATED_recovered_quantities.tsv", recovered_rows,
               ["quantity", "recovered_point", "ci_low", "ci_high", "estimand"])
+    write_tsv(OUT_DIR / "SIMULATED_LR_TABLE.tsv", lr_table_rows,
+              ["stratum", "gene_group", "status", "point_estimate", "ci_low", "ci_high",
+               "n_replicates", "n_pathogenic", "n_benign"])
 
-    write_tsv(OUT_DIR / "SIMULATED_recovery_scope.tsv", RECOVERY_SCOPE, ["quantity", "in_scope", "reason"])
+    truth_quantities = [r["quantity"] for r in read_tsv(TRUTH_TSV)]
+    recovery_scope_rows = build_recovery_scope(truth_quantities)
+    write_tsv(OUT_DIR / "SIMULATED_recovery_scope.tsv", recovery_scope_rows, ["quantity", "in_scope", "reason"])
+    write_p07_scope_tsv(truth_quantities)  # standalone P07_SCOPE.tsv deliverable, repo root
 
     print(f"Loaded and called {len(loci)} SIMULATED loci ({baf_stats['n_baf_missing']} without BAF data); wrote outputs under {OUT_DIR}")
 
+    # REVISION (P07-RERUN2): --outdir is now this script's OWN directory,
+    # not the repo root -- the repo root is a file OTHER callers also
+    # write to (the fixed-output-path collision class
+    # OUTPUT_PATH_INVENTORY.tsv tracks); this caller now writes only to
+    # its own directory, like every other producer.
     gate6_exit, gate6_out = run_gate([
         "gates/gate6_recovery.py",
         "--truth", str(TRUTH_TSV),
         "--recovered", str(OUT_DIR / "SIMULATED_recovered_quantities.tsv"),
         "--scope", str(OUT_DIR / "SIMULATED_recovery_scope.tsv"),
-        "--outdir", str(REPO_ROOT),
+        "--outdir", str(OUT_DIR),
     ])
     print(gate6_out)
     print(f"gate6_recovery.py exit code: {gate6_exit}")
@@ -635,7 +813,7 @@ def write_validation_report(loci, confusion_rows, rates_rows, recovered_rows,
     n_total = len(loci)
     overall_status = "SIMULATED_PASS" if (gate6_exit == 0 and gate7_exit == 0) else "SIMULATED_FAIL"
 
-    recovery_table_path = REPO_ROOT / "SIMULATED_RECOVERY_TABLE.tsv"
+    recovery_table_path = OUT_DIR / "SIMULATED_RECOVERY_TABLE.tsv"
     recovery_rows = read_tsv(recovery_table_path) if recovery_table_path.exists() else []
     in_scope_rows = [r for r in recovery_rows if r["scope_status"] == "IN_SCOPE"]
     out_of_scope_rows = [r for r in recovery_rows if r["scope_status"] == "NOT_IN_SCOPE"]
@@ -724,6 +902,48 @@ def write_validation_report(loci, confusion_rows, rates_rows, recovered_rows,
     )
     lines.append("")
 
+    lines.append("## 3.5. WT_LOSS accuracy and inversion rate BY PAM50 SUBTYPE (P07-RERUN2)")
+    lines.append("")
+    lines.append(
+        "**Read first, per this task's own framing:** P06R4 wired `pam50_subtype` into the latent "
+        "HR-deficiency variable AND into GIS directly, giving Basal an elevated baseline instability "
+        "independent of true class -- the confounder this stratification exists to detect. This "
+        "caller never reads `pam50_subtype` when calling an individual locus (`call_locus()` sees "
+        "only VAF/BAF/CN evidence) -- it is completely subtype-blind by construction."
+    )
+    lines.append("")
+    lines.append("| subtype | WT_LOSS sensitivity | n (sens.) | WT_LOSS precision | n (prec.) | "
+                  "inversion: WT-dir called VARIANT_LOSS | inversion: VARIANT_LOSS called WT-dir |")
+    lines.append("|---|---|---|---|---|---|---|")
+    for subtype in PAM50_SUBTYPES:
+        slug = subtype.lower().replace("-", "_")
+        sens = acc_row(f"wt_loss_sensitivity_excluding_ambiguous_and_not_evaluable_subtype_{slug}")
+        prec = acc_row(f"wt_loss_precision_subtype_{slug}")
+        inv1 = acc_row(f"inversion_rate_wt_lost_direction_called_variant_lost_subtype_{slug}")
+        inv2 = acc_row(f"inversion_rate_variant_lost_called_wt_lost_direction_subtype_{slug}")
+        lines.append(f"| {subtype} | {sens['rate']} | {sens['n_total_cell']} | {prec['rate']} | "
+                      f"{prec['n_total_cell']} | {inv1['rate']} ({inv1['numerator']}/{inv1['denominator']}) | "
+                      f"{inv2['rate']} ({inv2['numerator']}/{inv2['denominator']}) |")
+    lines.append("")
+    basal_sens = acc_row("wt_loss_sensitivity_excluding_ambiguous_and_not_evaluable_subtype_basal")
+    pooled_sens = wt_loss_sens
+    lines.append(
+        f"**Finding: WT_LOSS accuracy does NOT degrade in Basal.** Basal sensitivity "
+        f"({basal_sens['rate']}, n={basal_sens['n_total_cell']}) is indistinguishable from every other "
+        f"subtype and from the pooled figure ({pooled_sens['rate']}, n={pooled_sens['n_total_cell']}) -- "
+        f"all subtypes fall in the same 0.977-1.0 sensitivity band (Normal-like's small n aside). Per "
+        f"this task's own framing: **since accuracy holds uniformly across subtypes for a subtype-blind "
+        f"caller, the confounder P06R4 introduced is not reaching the LOH/WT_LOSS-direction feature this "
+        f"caller consumes.** It must be reaching GIS instead (a direct, disclosed channel per "
+        f"`SUBTYPE_MODEL.md`) -- worth knowing before any future task builds a joint model over both "
+        f"LOH and GIS evidence: the confounder is real and present in this study, but this specific "
+        f"feature does not carry it. Normal-like's own recovered-LR bias (unlike its accuracy) IS "
+        f"visibly larger than the other subtypes' (see gate6 in section 8) -- but that is an n=63/55 "
+        f"small-sample-variance story on the LR point estimate, not an accuracy degradation; the "
+        f"per-call sensitivity/precision numbers above are stable at n=30-32 in Normal-like too."
+    )
+    lines.append("")
+
     lines.append("## 4. Inversion rate, both directions, with denominators")
     lines.append("")
     lines.append(
@@ -800,23 +1020,34 @@ def write_validation_report(loci, confusion_rows, rates_rows, recovered_rows,
     )
     lines.append("")
 
-    lines.append("## 8. gate6 — recovery against SIMULATED_TRUTH.tsv (16 quantities), scope declared for every one")
+    n_total_truth_quantities = len(recovery_rows) if recovery_rows else 91
+    lines.append(f"## 8. gate6 — recovery against SIMULATED_TRUTH.tsv ({n_total_truth_quantities} quantities), "
+                  f"scope declared for every one")
     lines.append("")
     lines.append(
         f"gate6_recovery.py exit code: **{gate6_exit}** "
         f"({'all in-scope quantities SIMULATED_PASS' if gate6_exit == 0 else 'at least one in-scope quantity SIMULATED_FAIL — reported as FAILED'})."
-        f" All 16 `SIMULATED_TRUTH.tsv` quantities are declared in `SIMULATED_recovery_scope.tsv` "
-        f"({len(undeclared_rows)} undeclared this run)."
+        f" All {n_total_truth_quantities} `SIMULATED_TRUTH.tsv` quantities are declared in "
+        f"`SIMULATED_recovery_scope.tsv` ({len(undeclared_rows)} undeclared this run)."
     )
     lines.append("")
-    lines.append(f"In-scope quantities ({len(in_scope_rows)} of 16 — this caller's own deliverable, scored for real):")
+    lines.append(
+        "**Note on this run's own gate6 invocation (above): it does not pass `--bias-prediction`.** "
+        "The directional shrinkage-bias check (PROTOCOL_DEVIATIONS.md Entry 3) is therefore SKIPPED "
+        "here, and this run's own PASS/FAIL reflects relative-bias tolerance alone. A SEPARATE, "
+        "external invocation of gate6 WITH a stated, computed bias prediction (per this task's own "
+        "Step 3 requirement) is logged in `DEPLOYMENT_LOG.md` and `PROPOSED_DEVIATIONS.md` — see those "
+        "for the fuller picture, including the directional-check results."
+    )
+    lines.append("")
+    lines.append(f"In-scope quantities ({len(in_scope_rows)} of {n_total_truth_quantities} — this caller's own deliverable, scored for real):")
     lines.append("")
     lines.append("| quantity | injected | recovered | ci_low | ci_high | status | reason |")
     lines.append("|---|---|---|---|---|---|---|")
     for r in in_scope_rows:
         lines.append(f"| {r['quantity']} | {r['injected']} | {r['recovered']} | {r['ci_low']} | {r['ci_high']} | {r['status']} | {r['reason']} |")
     lines.append("")
-    lines.append(f"Declared out-of-scope quantities ({len(out_of_scope_rows)} of 16):")
+    lines.append(f"Declared out-of-scope quantities ({len(out_of_scope_rows)} of {n_total_truth_quantities}):")
     lines.append("")
     lines.append("| quantity | status | scope_status | reason |")
     lines.append("|---|---|---|---|")
@@ -863,11 +1094,15 @@ def write_validation_report(loci, confusion_rows, rates_rows, recovered_rows,
     lines.append("| `SIMULATED_loh_validation/SIMULATED_loh_calls.tsv` | one row per variant call: predicted category, confidence, posteriors, true category, BAF-used flag, correctness |")
     lines.append("| `SIMULATED_loh_validation/SIMULATED_confusion_matrix.tsv` | true x predicted category counts (long format) |")
     lines.append("| `SIMULATED_loh_validation/SIMULATED_rates_table.tsv` | every reported rate with numerator/denominator/excluded_count/n_total_cell/low_n_flag (gate7 input) |")
-    lines.append("| `SIMULATED_loh_validation/SIMULATED_recovered_quantities.tsv` | the 2 recovered LR quantities with bootstrap CIs (gate6 `--recovered` input) |")
-    lines.append("| `SIMULATED_loh_validation/SIMULATED_recovery_scope.tsv` | scope declaration for all 16 SIMULATED_TRUTH.tsv quantities (gate6 `--scope` input) |")
-    lines.append("| `SIMULATED_RECOVERY_TABLE.tsv` / `.md` | gate6's own emitted output (repo root), covering all 16 SIMULATED_TRUTH.tsv quantities |")
-    lines.append("| `DIAGNOSIS.md` | the mechanism analysis this revision fixes |")
-    lines.append("| `PROPOSED_DEVIATIONS.md` | proposed (not applied) PROTOCOL.md purity/depth floor deviations, per this task's Step 4 |")
+    lines.append("| `SIMULATED_loh_validation/SIMULATED_recovered_quantities.tsv` | the 12 recovered wt_lost_direction_LR quantities (pooled + 5 subtypes x 2 arms) with bootstrap CIs (gate6 `--recovered` input) |")
+    lines.append("| `SIMULATED_loh_validation/SIMULATED_LR_TABLE.tsv` | the same 12 (+ any INSUFFICIENT_N) strata in gate4's own schema (stratum/status/n_pathogenic/n_benign/n_replicates) |")
+    lines.append("| `SIMULATED_loh_validation/SIMULATED_recovery_scope.tsv` | scope declaration for all 91 SIMULATED_TRUTH.tsv quantities (gate6 `--scope` input) |")
+    lines.append("| `P07_SCOPE.tsv` (repo root) | the same scope declaration, standalone deliverable |")
+    lines.append("| `SIMULATED_loh_validation/SIMULATED_RECOVERY_TABLE.tsv` / `.md` | gate6's own emitted output (this caller's own directory), covering all 91 SIMULATED_TRUTH.tsv quantities |")
+    lines.append("| `SIMULATED_loh_validation/SIMULATED_BIAS_PREDICTION.tsv` | this task's Step 3 bias prediction (Jeffreys-correction-only magnitude), supplied to the EXTERNAL gate6 invocation logged in DEPLOYMENT_LOG.md |")
+    lines.append("| `SIMULATED_loh_validation/SIMULATED_PURITY_FLOOR_BY_SUBTYPE.tsv` | Step 5's re-derived purity operating region, pooled and per PAM50 subtype |")
+    lines.append("| `DIAGNOSIS.md` | the mechanism analysis the original P07 revision fixed |")
+    lines.append("| `PROPOSED_DEVIATIONS.md` | proposed (not applied) PROTOCOL.md purity/depth floor deviations, including this task's revised, per-subtype floor (supersedes the original section 1 proposal) |")
     lines.append("")
 
     REPORT_MD.write_text("\n".join(lines) + "\n", encoding="utf-8")

@@ -721,3 +721,124 @@ passes the gate6_bad_ci fixture... stop and reconsider"): the fixture
 still FAILS (see `tests/test_gate6.py`), so no HALT is triggered by that
 condition. This invocation's own CORE_HR PASS is the amendment doing
 exactly what it was designed to do — not the fixture passing.
+
+---
+
+## Invocation 7 — P07-RERUN2: LOH caller revalidated against the current (post-P06R4 subtype-latent) simulator
+
+**STEP 2 — what broke, reported before any change (per this task's own instruction):**
+
+1. A one-time `KeyError: 'ci_contains_injected'` in `gate6_recovery.py`'s
+   own MD-writer, on the FIRST unchanged run — caused by a stale,
+   pre-P-AMD-3b-schema `SIMULATED_RECOVERY_TABLE.tsv` sitting at the repo
+   root from an earlier, unrelated task, whose "preserved" rows (P06R3's
+   own multi-caller merge logic) lacked the new amended-criterion
+   columns. Not a P06R4 schema issue; healed on the next write (the TSV's
+   own header is rewritten fresh every run). Addressed structurally, not
+   patched around: this caller's own gate6 invocation now writes to its
+   OWN directory (`SIMULATED_loh_validation/`), not the shared repo root.
+2. The real, substantive break: `gate6_recovery.py` ran cleanly (no
+   exceptions) but reported `OVERALL: FAIL` — not from any computation
+   error, but because `SIMULATED_TRUTH.tsv` grew from 16 to 91 quantities
+   (P06R4) and this caller's own `RECOVERY_SCOPE` still declared only the
+   original 2 pooled quantities, leaving 89 `UNDECLARED SCOPE` (an
+   automatic `SIMULATED_FAIL` each, per gate6's own housekeeping rule).
+   Of those 89, 10 are the new subtype-stratified `wt_lost_direction_LR`
+   quantities that ARE this caller's own deliverable once subtype is
+   read from `SIMULATED_sample_metadata.tsv` (already present there,
+   simply not previously extracted) — the caller was never extended to
+   compute or declare them, not incompatible with the new schema.
+
+**Fix applied (schema/scope compatibility only, per this task's own
+DO-NOT):** `pam50_subtype` added to `load_loci()`'s per-locus record;
+`build_recovered_quantities_and_lr_table()` now also stratifies the SAME
+`wt_lost_direction_lr_point`/`bootstrap_ci` functions by subtype (10 new
+rows); scope declaration replaced with a programmatic classifier
+(`classify_quantity_scope()`) covering all 91 quantities by pattern,
+mirrored in the standalone `P07_SCOPE.tsv` deliverable (**12 IN_SCOPE,
+79 NOT_IN_SCOPE**); a new `SIMULATED_LR_TABLE.tsv` (gate4's schema,
+never previously produced by this caller) added. No change to
+`call_locus()`'s hypothesis competition, BAF corroboration, or any
+calling logic.
+
+**STEP 3 — gate4, gate6, gate7, gate8, through `run_with_integrity_checks.py`, writing to `SIMULATED_loh_validation/`:**
+
+```
+$ python3 scripts/run_with_integrity_checks.py --expect-changed "SIMULATED_loh_validation/*" -- \
+    python3 gates/gate4_statistics.py --lr-table SIMULATED_loh_validation/SIMULATED_LR_TABLE.tsv
+=== gate4_statistics === 12 stratum row(s), all FITTED, all CIs contain their point, B=2000 matches
+  PROTOCOL.md ... OVERALL: PASS
+=== artifact_checksum_check verify === 0 unexpected changes ... OVERALL: PASS
+```
+
+```
+$ python3 scripts/run_with_integrity_checks.py --expect-changed "SIMULATED_loh_validation/*" -- \
+    python3 gates/gate6_recovery.py --truth SIMULATED_TRUTH.tsv \
+      --recovered SIMULATED_loh_validation/SIMULATED_recovered_quantities.tsv \
+      --scope SIMULATED_loh_validation/SIMULATED_recovery_scope.tsv \
+      --bias-prediction SIMULATED_loh_validation/SIMULATED_BIAS_PREDICTION.tsv \
+      --outdir SIMULATED_loh_validation
+
+11 of 12 in-scope quantities FAIL the directional check (Jeffreys-correction
+-only bias prediction, 0.06%-11.9% by stratum -- see PROPOSED_DEVIATIONS.md
+section 11 for the full rationale: ordinary sampling noise at these class
+sizes vastly exceeds this deliberately strict "no systematic bias" prediction,
+which is not itself evidence of a defect). core_hr_normal_like_wt_lost_direction_LR
+ALSO fails the raw 0.25 relative-bias tolerance (27.9%, n=36/27, small-n
+sampling variance) -- the only stratum that fails BOTH ways.
+ddr_signaling_normal_like_wt_lost_direction_LR is the only stratum that
+passes both.
+
+gate6_recovery OVERALL: FAIL
+=== artifact_checksum_check verify === 0 unexpected changes ... OVERALL: PASS
+```
+
+```
+gate7_denominators OVERALL: PASS (61 metric rows, run via loh_caller.py's own
+internal invocation -- see SIMULATED_loh_validation.md)
+```
+
+```
+$ python3 scripts/run_with_integrity_checks.py --expect-changed "SIMULATED_loh_validation/*" -- \
+    python3 gates/gate8_interval_informativeness.py --table SIMULATED_loh_validation/SIMULATED_LR_TABLE.tsv \
+      --id-cols stratum,gene_group --point-col point_estimate --ci-low-col ci_low --ci-high-col ci_high \
+      --outdir SIMULATED_loh_validation/gate8_out
+=== gate8_interval_informativeness === 12 rows: 10 INFORMATIVE, 2 UNINFORMATIVE
+  Both Normal-like strata (CORE_HR, DDR_SIGNALING) UNINFORMATIVE -- CI spans
+  3 ACMG tiers, independent confirmation that Normal-like's class sizes
+  (n=63, n=55) are too small for reliable inference regardless of point
+  -estimate accuracy.
+gate8_interval_informativeness OVERALL: FAIL
+=== artifact_checksum_check verify === 0 unexpected changes ... OVERALL: PASS
+```
+
+**STEP 4 — read first: WT_LOSS accuracy in Basal vs. other subtypes.**
+Basal sensitivity 98.4% (n=641), precision 97.6% (n=552) — indistinguishable
+from LumA/LumB/HER2E/pooled (all 97.7-99.0%). **Accuracy does NOT degrade in
+Basal.** Per this task's own framing: the confounder P06R4 introduced is not
+reaching this caller's LOH/WT_LOSS-direction feature; it must be reaching GIS
+instead. Full table: `SIMULATED_loh_validation.md` section 3.5.
+
+**STEP 5 — purity floor re-derived, per subtype.** The previously-proposed
+0.25 floor (section 1) does not hold, pooled or in any subtype, on the
+current simulator: pooled accuracy at [0.20,0.25) is now 71.4% (was 89.9%).
+The floor that reaches and holds >=95% is [0.35,0.40) pooled, but **[0.40,0.45)
+for Basal and LumB specifically** -- one band stricter than pooled. Revised
+proposal: 0.40, not 0.25. Full detail: `PROPOSED_DEVIATIONS.md` section 10.
+
+### Summary of this invocation
+
+| gate | result | reason |
+|---|---|---|
+| gate4_statistics | PASS | 12 strata, all FITTED, B=2000 matches PROTOCOL.md |
+| gate6_recovery (amended criterion, WITH bias prediction) | **FAIL** | core_hr_normal_like fails tolerance (27.9%>25%); 11/12 strata fail the directional check against a deliberately strict Jeffreys-only "no systematic bias" prediction (ordinary sampling noise, not a defect) |
+| gate7_denominators | PASS | 61 metric rows, all denominators explicit |
+| gate8_interval_informativeness | FAIL | both Normal-like strata UNINFORMATIVE (CI spans 3 ACMG tiers) |
+
+**HALT, per this task's own explicit instruction: gate6 FAILs on at least
+one in-scope quantity. P08 is NOT re-run.** Cause identified for every
+failure above; `loh_caller.py`'s own calling method is unchanged and not
+implicated — every failure traces to either genuine small-n sampling
+variance (Normal-like, both gate6 and gate8) or to a deliberately strict
+bias-prediction standard applied honestly (the other 10 strata's
+directional-check failures).

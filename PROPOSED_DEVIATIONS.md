@@ -482,3 +482,156 @@ which case the current containment requirement is doing its job correctly
 by failing CORE_HR). **Standing Rule 10 applies: this is the human's
 decision.** No change is made to `gate6`'s implementation, `PROTOCOL.md`,
 or `logistic_estimator.py`'s lambda selection by this task.
+
+---
+
+## 10. P07-RERUN2: the purity floor no longer holds at 0.25, pooled or per subtype — a stricter, subtype-aware revision (supersedes section 1)
+
+SIMULATED: this section supersedes section 1's 0.25 purity-floor proposal
+for `loh_caller.py` (P07), which was derived on the pre-subtype
+simulator. Re-derived on the current simulator (post-P06R4's subtype
+wiring into the latent HR-deficiency variable and GIS), using the
+IDENTICAL "clean direction accuracy" method section 1 used (excludes
+true-`AMBIGUOUS`/`NOT_EVALUABLE` loci; n stated for every band). Full
+data: `SIMULATED_loh_validation/SIMULATED_PURITY_FLOOR_BY_SUBTYPE.tsv`
+(102 rows, 0.05-wide purity bands, pooled and per PAM50 subtype). Script:
+`p07_rerun2_purity_floor_analysis.py`.
+
+### Finding: the 0.25 floor does not hold — pooled or in any subtype
+
+| stratum | accuracy at [0.20,0.25) | accuracy at [0.25,0.30) | first band reaching AND HOLDING ≥95% |
+|---|---|---|---|
+| POOLED | 0.7143 (n=763) | 0.8663 (n=703) | **[0.35, 0.40)** (n=594) |
+| LumA | 0.7068 (n=324) | 0.8762 (n=315) | [0.35, 0.40) (n=271) |
+| LumB | 0.7287 (n=188) | 0.8355 (n=152) | **[0.40, 0.45)** (n=152) |
+| HER2E | 0.6966 (n=89) | 0.8657 (n=67) | [0.35, 0.40) (n=67) |
+| Basal | 0.7143 (n=154) | 0.8710 (n=155) | **[0.40, 0.45)** (n=140) |
+| Normal-like | 0.8750 (n=8) | 0.9286 (n=14) | [0.35, 0.40) (n=10), but see the sparsity caveat below |
+
+At [0.20, 0.25) — where section 1 previously reported 89.9% pooled — the
+current simulator gives **71.4% pooled**, and no subtype exceeds 73%.
+Section 1's own ≥95%-reliability bar (its stated threshold for "high
+reliability") is not reached until **[0.35, 0.40) pooled**, a full two
+purity bands above the previously-proposed 0.25 floor. **The 0.25
+proposal is superseded; it does not describe this caller's current
+operating characteristics at all, pooled or in any subtype.**
+
+### Basal specifically requires a STRICTER floor than pooled
+
+Per this task's own framing ("A floor that works pooled but fails in
+Basal is not a usable floor, and Basal is where the study's evidence is
+expected to be strongest"): **Basal and LumB both require [0.40, 0.45) —
+one purity band stricter than the pooled floor of [0.35, 0.40)** — before
+reaching and holding ≥95% clean direction accuracy. This is not a case of
+Basal merely matching a pooled floor derived from other subtypes; Basal
+needs the pooled floor tightened further to be a usable floor for Basal
+specifically. LumA, HER2E, and Normal-like reach the pooled floor's own
+band ([0.35, 0.40)).
+
+**Proposed deviation (revised): P07's own effective purity floor should
+be raised from the superseded 0.25 to 0.40 — not 0.35 — to cover Basal
+and LumB, the two subtypes that do not reach reliability at the pooled
+floor.** A single pooled floor that is only correct for 3 of 5 subtypes
+is not a usable floor for a study whose stratified analysis specifically
+targets subtype-level conclusions. This remains a **proposal**, not an
+edit to `PROTOCOL.md` §3 — per Standing Rule 10, a human reviewer
+decides whether `PROTOCOL.md`'s own primary floor changes, or whether
+P07 documents this narrower reliable range as its own caveat within the
+existing floor, exactly as section 1 originally framed the choice.
+
+### Sparsity caveat: Normal-like
+
+Normal-like's own per-band n is small throughout (4-14 per 0.05-wide
+band) — its apparent "first floor" of [0.35, 0.40) at n=10 is not a
+statistically meaningful floor determination on its own; `gate8`
+(`DEPLOYMENT_LOG.md` Invocation 7) independently flags BOTH Normal-like
+wt_lost_direction_LR strata (CORE_HR and DDR_SIGNALING) as
+`UNINFORMATIVE` (CI spans 3 ACMG tiers) regardless of purity band. The
+purity-floor analysis above is reported for Normal-like for completeness
+(never silently omitted, Standing Rule 4) but should not be read as a
+reliable floor determination the way the other four subtypes' figures
+are — Normal-like's own class sizes are simply too small for this
+question to be answerable yet, independent of purity.
+
+### What this does not change
+
+- `simulate.py`, `PROTOCOL.md`, and `loh_caller.py`'s own calling method
+  are unmodified by this section — the accuracy shift documented above
+  is a property of the current simulator's data (most likely traceable
+  to DEFECT 1's earlier deletion-type WT_LOSS injection across the
+  purity range, not to P06R4's subtype wiring specifically, though this
+  section does not attempt to attribute the shift to one exact
+  simulator change — that would require its own diff-by-diff analysis
+  this task was not scoped to perform), re-derived with the identical,
+  unmodified method section 1 used.
+- No tuning was applied to `loh_caller.py` to move this floor in either
+  direction (this task's own explicit DO-NOT).
+
+---
+
+## 11. gate6 amended-criterion directional check on the LOH caller: a stated "no systematic bias" prediction, and what it reveals
+
+SIMULATED: per this task's Step 3 ("the LOH caller is not a penalized
+estimator, so state what bias direction and magnitude you expect and
+why"). Full gate6 output with `--bias-prediction`:
+`DEPLOYMENT_LOG.md` Invocation 7.
+
+### What is predicted, and why
+
+Unlike the ridge-penalized logistic estimator (P-AMD-3a/3b), this
+caller's `wt_lost_direction_LR` is a Jeffreys-corrected empirical
+rate-ratio with **no tunable penalty and no shrinkage-toward-null
+selection mechanism** — there is no analog of "the CV-selected lambda"
+to characterize. The ONLY genuinely systematic (i.e., non-sampling)
+bias source identified is the Jeffreys `+0.5`/`+1` continuity correction
+itself, which mechanically pulls any small-sample proportion toward 0.5
+and therefore any rate-ratio LR toward 1 (the null) — small, and
+shrinking with n. This was computed analytically for each of the 12
+strata (comparing the Jeffreys-corrected rate ratio against the SAME
+data's raw, uncorrected rate ratio, entirely independent of the injected
+truth value) and supplied as `predicted_relative_bias_magnitude` in
+`SIMULATED_loh_validation/SIMULATED_BIAS_PREDICTION.tsv`. Per-stratum
+values range from 0.06% (pooled, n=1848/1848) to 11.9% (CORE_HR
+Normal-like, n=36/27) — small, and monotonically larger at smaller n, as
+expected for a continuity-correction effect.
+
+### What this reveals: 11 of 12 strata fail the directional check
+
+Every stratum except `ddr_signaling_normal_like_wt_lost_direction_LR`
+fails the directional check under this prediction — either on magnitude
+(observed bias vs. the injected truth, 2-19%, vastly exceeds the
+Jeffreys-only prediction's 0.06-1.2% for 10 of the 12 strata) or on
+sign (`core_hr_normal_like_wt_lost_direction_LR` and
+`ddr_signaling_lumb_wt_lost_direction_LR` deviate UPWARD from truth,
+the opposite of the predicted downward pull).
+
+**This is not evidence the caller is broken — it is the expected,
+disclosed consequence of holding an intentionally strict, near-zero
+"no systematic bias" standard against ordinary finite-sample sampling
+noise.** The Jeffreys-correction-only magnitude characterizes ONE small,
+real, mechanical effect; it does not, and is not intended to, bound
+total sampling variability, which is generically much larger (this is
+exactly what the already-computed bootstrap CIs quantify, and why 11 of
+these same 12 strata PASS the raw 0.25 relative-bias tolerance — only
+`core_hr_normal_like_wt_lost_direction_LR` fails that too). The
+directional check, applied faithfully to a stated "expect no systematic
+bias" prediction, correctly reports that this caller's deviations from
+truth at these class sizes are sampling-driven, not mechanism-driven —
+which is itself the honest answer to "what bias do you expect and why."
+No alternative, looser magnitude was substituted to make more strata
+pass; the analytic, computed Jeffreys-only figure is reported as-is,
+per Standing Rule 4.
+
+### Disposition
+
+Per this task's own explicit HALT condition ("if gate6 FAILs on any
+in-scope quantity, report with the cause identified and stop"): gate6
+FAILS this run, on two independent grounds —
+`core_hr_normal_like_wt_lost_direction_LR`'s raw tolerance breach (27.9%
+> 25%, small-n sampling variance in a 63-observation stratum),
+independently confirmed by `gate8`'s `UNINFORMATIVE` flag on both
+Normal-like strata — and, under the stated bias prediction, 11 of 12
+strata's directional-check failures (ordinary sampling noise exceeding
+a deliberately strict near-zero-bias standard, not a defect). Both
+causes are identified and evidenced above. **P08 is not re-run from this
+task, per this HALT.**
