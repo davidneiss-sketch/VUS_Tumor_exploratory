@@ -1,0 +1,162 @@
+SIMULATED DATA — NOT A SCIENTIFIC RESULT
+
+# PROTOCOL_DEVIATIONS.md — pre-registered protocol amendments
+
+SIMULATED: this document records amendments to the pre-registered
+`PROTOCOL.md`, made in response to evidence, not silently absorbed into
+a later methods section. Per Standing Rule 10, an agent may PROPOSE an
+amendment; it may never APPLY one. **This entry is a DRAFT.** No entry
+in this document takes effect until its Approver field is completed by
+a human and `PROTOCOL.md` is itself edited in a separate, subsequent
+task — this document, on its own, changes nothing.
+
+This document is distinct from `PROPOSED_DEVIATIONS.md` (an earlier,
+still-standing set of proposals concerning P07's purity/depth floors and
+a P08 SBS3-informativeness addendum) — that document is unaffected by
+this one and remains open on its own terms.
+
+---
+
+## Entry 1 — Replace PROTOCOL.md §7.1's estimator (product-of-marginals) with penalized logistic regression
+
+| field | value |
+|---|---|
+| **Status** | DRAFT — not yet applied |
+| **Date drafted** | 2026-09-09 |
+| **Section amended** | PROTOCOL.md §7.1 ("Model") |
+| **Approver** | _(blank — for human completion)_ |
+
+### What changed
+
+The current §7.1 specifies "the product of per-feature LRs, under a
+conditional-independence assumption given class" for the joint feature
+vector's likelihood ratio. This entry proposes replacing that with
+**L2-penalized (ridge) logistic regression on the full feature vector,
+with purity, PAM50 subtype, and WGD as covariates**, converting the
+fitted probability to a likelihood ratio by dividing out the reference
+set's own class-balance-implied prior odds. Full replacement text:
+`PROPOSED_PROTOCOL_AMENDMENT.md`.
+
+### Why
+
+`ESTIMATOR_SPECIFICATION_AUDIT.md` (this session, prior task) proved from
+the code that §7.1's current estimator, exactly as specified and
+implemented, cannot represent correlation between features at all — it
+is a literal, in-code product of independently-estimated marginal
+likelihood ratios, with no step conditioning one feature's density
+estimate on another. This was then proven numerically by a decisive
+constructed test, not inferred from behavior: two synthetic datasets with
+IDENTICAL class-conditional marginal feature distributions and DIFFERENT
+correlation structure (one drawn from this project's own shared-latent-Z
+generative model, one with the three features drawn independently from
+the same closed-form marginals) were both run through the estimator.
+
+**The evidence, in full (`SIMULATED_ESTIMATOR_JOINT_VS_PRODUCT_TEST.tsv`,
+prior task):**
+
+| arm | true joint LR (correlated data) | true joint LR (independent data) = product-of-marginals LR | estimator's mean, correlated data | estimator's mean, independent data | difference (pooled-sd units) |
+|---|---|---|---|---|---|
+| CORE_HR | 7.243 | 92.625 | 73.151 | 78.535 | 0.26 |
+| DDR_SIGNALING | 6.204 | 22.794 | 21.320 | 21.470 | 0.02 |
+
+The true joint LR differs from the true product-of-marginals LR by 12.8x
+(CORE_HR) and 3.7x (DDR_SIGNALING) by construction — a large, real,
+by-design gap this project's own shared-latent-variable simulator (P06R)
+exists specifically to make testable. The estimator's own empirical mean
+is statistically indistinguishable between the correlated and independent
+datasets (0.26 and 0.02 pooled-sd units apart — noise) and sits close to
+the product-of-marginals value in both cases, nowhere near the true joint
+value of the correlated dataset. **This estimator cannot recover the
+joint-density quantities this study was built to measure, regardless of
+sample size, bootstrap replicate count, or KDE implementation quality —
+this is structural to its factorization, not a small-n artifact.**
+
+This is precisely the failure mode the original brief this project
+started from identified as the error reviewers look for first: three
+readouts of one underlying biological event (HR-deficiency), treated as
+if independent, and multiplied. The features are three readouts of one
+underlying event; the independence assumption is known false by this
+project's own generative design (P06R's shared latent variable exists to
+make it false and testable) — not a hypothetical concern raised in the
+abstract.
+
+### What was known at pre-registration, and what was not
+
+**Known at pre-registration:** that the joint feature vector's LR would
+be computed as *some* combination of the three evidentiary features, and
+that §7.1's text itself disclosed the combination as a product under a
+stated conditional-independence assumption, with correlation "tested and
+reported (not assumed silently)" via pairwise correlation diagnostics.
+
+**Not known at pre-registration:** that the correlation diagnostics
+§7.1 already required to be reported would, when actually computed
+against this project's own shared-latent-variable simulator (built in a
+LATER task, P06R, specifically to make the correlation testable). show a
+gap this large (12.8x / 3.7x, later 8.0x / 3.1x post the subtype fix) —
+and, more fundamentally, that no amount of larger sample size or better
+per-feature density estimation could close it, because the estimator's
+own factorization structurally forecloses recovering the joint quantity
+regardless of how well each marginal piece is estimated. This was not
+resolvable at pre-registration time: it required both (a) building a
+generative model with a genuine, quantifiable correlation structure
+(P06R, a later task) and (b) the decisive two-dataset test constructed
+specifically to distinguish "estimator models the joint density" from
+"estimator multiplies marginals" (P-EST-1, this session's immediately
+prior task) — neither existed when §7.1 was first written.
+
+### Is this a legitimate amendment, or the study editing its own criteria?
+
+Standing Rule 10 exists precisely to stop a result from editing the
+criteria it is judged against, and to require that an amendment be
+PROPOSED and recorded, never silently applied or used to waive a gate.
+This entry is permitted under that rule for a specific, narrow reason,
+stated here rather than assumed: **the finding is not that §7.1's
+estimator produced an unfavorable result and is being replaced to get a
+more favorable one — the finding is that the specified method cannot
+structurally answer the specified question, proven by a test whose
+outcome was not predetermined** (a true joint estimator would have
+passed STEP 2's test; this one did not, and the test does not know in
+advance which way it will come out). No gate was waived to reach this
+conclusion — `ESTIMATOR_SPECIFICATION_AUDIT.md` explicitly reported the
+finding and HALTed rather than acting on it, and this document records
+the resulting amendment rather than applying it. The distinction Standing
+Rule 10 draws — "an agent that can waive its own gates has no gates" —
+is respected here: no code, gate, or protocol file is edited by this
+document; `PROTOCOL.md` amendment happens, if at all, in a separate,
+subsequent, human-approved task.
+
+### Evidence
+
+- `ESTIMATOR_SPECIFICATION_AUDIT.md` — STEP 1 (code-vs-spec agreement),
+  STEP 2 (the decisive numeric test, full table above), STEP 3 (what
+  becomes unreachable under the current estimator), STEP 4 (the two
+  separate GATE8 instability findings, neither a consequence of the
+  independence assumption).
+- `SIMULATED_ESTIMATOR_JOINT_VS_PRODUCT_TEST.tsv` /
+  `SIMULATED_ESTIMATOR_JOINT_VS_PRODUCT_TEST_REPLICATES.tsv` — the raw
+  test output the table above is drawn from.
+- `ESTIMATOR_OPTIONS.md` — the four candidate paths this decision chose
+  among (this entry implements Option C: penalized logistic regression
+  with the prior-odds correction, per the original brief's own
+  specification).
+- `REACHABILITY_TABLE.tsv` — every `SIMULATED_TRUTH.tsv` quantity's
+  reachability status under this amendment (24 of 91 quantities move from
+  unreachable to newly reachable; the remaining 67 were, and remain,
+  reachable).
+
+### Downstream consequence for gate6 / P09
+
+Under the CURRENT estimator, `*_joint_LR` and `*_joint_vs_marginal_inflation_ratio`
+quantities (24 of 91) are structurally unreachable — a gate6 run against
+them would and should FAIL regardless of tuning. Under this amendment,
+those same 24 quantities become the estimator's own primary,
+correctly-factored target. `REACHABILITY_TABLE.tsv` gives the full,
+per-quantity classification.
+
+---
+
+## Approver
+
+_(blank — for human completion. This amendment does not take effect,
+and `PROTOCOL.md` is not edited, until this field is completed and a
+separate, subsequent implementation task is run.)_
