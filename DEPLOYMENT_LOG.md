@@ -307,3 +307,176 @@ Per the task's deploy clause (see "Summary" above): gate8 is now part of
 the standard invocation set alongside gate5 and gate6, and this entry is
 the record of it running against real, on-disk production output, by file
 name, this session.
+
+---
+
+## Invocation 4 — gate4, gate6, gate8, and NEW MANDATORY gate9, run against
+## the NEW ridge-logistic estimator's own production output (`production_v2/`)
+
+Following implementation of `logistic_estimator.py` (per the approved
+`PROPOSED_PROTOCOL_AMENDMENT.md`), this entry runs gate4, gate6, gate8,
+and the newly-implemented gate9 against `production_v2/` — a **dedicated**
+output directory, deliberately separate from `production/` (the OLD
+estimator's own clean, already-committed example) and from the repo
+root. `gate6_recovery.py`'s emitted `SIMULATED_RECOVERY_TABLE.tsv` has no
+protection against a different caller silently overwriting another
+caller's rows at the SAME `--outdir` with a different scope — this
+project has hit exactly that collision twice already this session (see
+`REVERSION_DIAGNOSIS.md`, and the subtype-fix task's own live
+reproduction), each time fixed the same way: a dedicated outdir, before
+any collision, not after. Applied here preemptively.
+
+Real production data: `production_v2_run.py` fits the new estimator on
+the FULL committed synthetic population (CORE_HR: 1848/1848,
+DDR_SIGNALING: 1848/1848), bootstraps at **B=2000 — PROTOCOL.md §7.3's
+own, real replicate count, read live and asserted to match, not a
+reduced one** (feasible here: ~2 minutes/stratum at this n, benchmarked
+this session), and prints the prior-odds correction applied for every
+production fit (STEP 1's own requirement) — captured verbatim below.
+
+```
+$ python3 production_v2_run.py
+SIMULATED DATA — NOT A SCIENTIFIC RESULT
+
+--- Fitting CORE_HR, n_path=1848, n_benign=1848, B=2000 ---
+    [prior-odds correction] n_path_ref=1848, n_benign_ref=1848, reference-set prior odds=1.000000, correction multiplier=1.000000
+  point=8.505054  CI=[6.873805, 10.867266]  (B=2000 bootstrap replicates, identical prior-odds correction n_path_ref=1848/n_benign_ref=1848 applied to every replicate since resample size is fixed)
+
+--- Fitting DDR_SIGNALING, n_path=1848, n_benign=1848, B=2000 ---
+    [prior-odds correction] n_path_ref=1848, n_benign_ref=1848, reference-set prior odds=1.000000, correction multiplier=1.000000
+  point=6.853624  CI=[5.822123, 8.291558]  (B=2000 bootstrap replicates, identical prior-odds correction n_path_ref=1848/n_benign_ref=1848 applied to every replicate since resample size is fixed)
+```
+
+### gate4_statistics — against `production_v2/SIMULATED_LR_TABLE.tsv`
+
+```
+$ python3 gates/gate4_statistics.py --lr-table production_v2/SIMULATED_LR_TABLE.tsv
+
+=== gate4_statistics ===
+[PASS] expected replicate count read from PROTOCOL.md — read B = 2000 from PROTOCOL.md
+[PASS] LR table present — SIMULATED_LR_TABLE.tsv, 2 stratum row(s)
+[PASS] every row's status is FITTED or INSUFFICIENT_N — all 2 row(s) have a valid status
+[PASS] every fitted row carries n_pathogenic and n_benign (non-negative) — all 2 row(s) carry valid denominators
+[PASS] every bootstrap CI contains its own point estimate — all 2 fitted row(s) OK
+[PASS] replicate count matches protocol (B=2000, read live from PROTOCOL.md) — all 2 fitted row(s) OK
+[PASS] CI widths vary across strata — 2 distinct CI width(s) across 2 fitted stratum/strata
+
+gate4_statistics OVERALL: PASS
+EXIT_CODE=0
+```
+
+### gate6_recovery — scope declared explicitly (STEP 6's own requirement); the 24 quantities `REACHABILITY_TABLE.tsv` marks NEWLY_REACHABLE are now in gate6's declarable scope for the first time
+
+`production_v2/SIMULATED_scope.tsv` declares `in_scope=TRUE` for
+`core_hr_joint_LR` and `ddr_signaling_joint_LR` — 2 of the 24 quantities
+`REACHABILITY_TABLE.tsv` classifies `NEWLY_REACHABLE` under the amendment
+(a representative, tractable subset recovered by this run; every other
+truth quantity is declared `in_scope=FALSE` with an explicit reason
+pointing to `REACHABILITY_TABLE.tsv`, per this gate's own "never silently
+omit a quantity" rule).
+
+```
+$ python3 gates/gate6_recovery.py --truth SIMULATED_TRUTH.tsv \
+    --recovered production_v2/SIMULATED_RECOVERED.tsv \
+    --scope production_v2/SIMULATED_scope.tsv --outdir production_v2
+
+[SIMULATED_FAIL] core_hr_joint_LR: injected=5.826333463989027, recovered=8.505054, CI=[6.873805, 10.867266], relative_bias=0.4598 — CI does not contain injected value — FAILED per Standing Rule 2; relative bias 0.4598 exceeds tolerance 0.25
+[SIMULATED_FAIL] ddr_signaling_joint_LR: injected=5.154487467493152, recovered=6.853624, CI=[5.822123, 8.291558], relative_bias=0.3296 — CI does not contain injected value — FAILED per Standing Rule 2; relative bias 0.3296 exceeds tolerance 0.25
+[89 other quantities: BLOCKED, declared NOT_IN_SCOPE with an explicit reason]
+
+=== gate6_recovery ===
+[PASS] truth and recovered files present
+[PASS] SIMULATED_RECOVERY_TABLE.tsv and .md emitted
+[PASS] every truth quantity has a declared scope (no UNDECLARED quantities)
+[FAIL] every quantity is SIMULATED_PASS or declared out of scope
+
+gate6_recovery OVERALL: FAIL
+EXIT_CODE=1
+```
+
+**This FAIL is genuine and reported per Standing Rule 2 — not a bug in
+the estimator's core mechanism (`DISPOSITIVE_TEST_AFTER.md`'s isolated
+test already proved that works), and not "fixed" by re-running with
+different settings to force a PASS (the task's own DO-NOT clause: "Do not
+tune anything toward a target recovery value").** Diagnosed cause,
+verified numerically rather than asserted: `SIMULATED_TRUTH.tsv`'s pooled
+`core_hr_joint_LR` (5.826) is the PAM50-prevalence-**weighted mixture**
+truth (`simulate.py`'s `joint_lr_collapsed`, per the subtype fix), but
+`production_v2_run.py` evaluated the fitted model at a SINGLE fixed
+covariate point (`subtype="LumA"`) — a different estimand. A cheap
+diagnostic re-evaluation of the SAME fitted CORE_HR model at all 5
+subtype levels gives: LumA=8.505, LumB=8.046, HER2E=7.780, **Basal=1.394**,
+Normal-like=14.877 — the model correctly learned Basal's confounding
+depression (matching `SUBTYPE_MODEL.md`'s own design), but the
+PAM50-prevalence-weighted average of these five (7.108) still exceeds the
+true mixture value (5.826) by a real margin. Two compounding, disclosed
+factors, neither of which this entry corrects post hoc: (1)
+`production_v2_run.py` evaluates at one reference subtype rather than a
+prevalence-weighted average across all 5 (an evaluation-methodology gap,
+not an estimator defect); (2) it fixes `lambda=1.0` for tractability
+(2 strata × B=2000) rather than the amendment's own CV-selected
+`lambda.1se` (30.0 for CORE_HR per `CALIBRATION_DIAGNOSTICS.md`), which
+would shrink the recovered LR further toward 1. **Both are reported here
+as findings for a future task to address (recover the pooled estimand by
+prevalence-weighted subtype averaging, using CV-selected lambda) — not
+resolved in this entry**, since resolving them now, in direct response to
+seeing this specific FAIL, would blur into exactly the "tune toward a
+target" this task forbids.
+
+### gate8_interval_informativeness — against `production_v2/SIMULATED_ABLATION_TABLE_V2.tsv` (the SAME 2 fits, no extra compute)
+
+```
+$ python3 gates/gate8_interval_informativeness.py \
+    --table production_v2/SIMULATED_ABLATION_TABLE_V2.tsv \
+    --id-cols arm,feature_subset,n_scenario \
+    --point-col point_estimate --ci-low-col ci_low --ci-high-col ci_high \
+    --outdir production_v2/gate8_out
+
+=== gate8_interval_informativeness ===
+[PASS] input table present — SIMULATED_ABLATION_TABLE_V2.tsv (2 rows)
+[PASS] SIMULATED_GATE8_INTERVAL_REPORT.tsv emitted — 2 rows: 2 INFORMATIVE, 0 UNINFORMATIVE, 0 NOT_APPLICABLE
+[PASS] every row with a computable interval is INFORMATIVE
+
+gate8_interval_informativeness OVERALL: PASS
+EXIT_CODE=0
+```
+
+Both full-population-scale production intervals are gate8-INFORMATIVE —
+consistent with `INTERVAL_INSTABILITY_V2.md`'s own finding that
+informativeness improves substantially at the largest tested n; these are
+larger than any n that sweep tested (n=1848/class vs. the sweep's max of
+n=160/class).
+
+### gate9_imbalance — NEW AND MANDATORY, against `production_v2/SIMULATED_GATE9_INPUT.tsv` (real class-ratio sweep, 1:1/1:5/1:20, both arms, 5 replicates each, genuine data — not the unit-test fixtures)
+
+```
+$ python3 gates/gate9_imbalance.py --table production_v2/SIMULATED_GATE9_INPUT.tsv --outdir production_v2/gate9_out
+
+=== gate9_imbalance ===
+[PASS] input table present — SIMULATED_GATE9_INPUT.tsv, 30 row(s)
+[PASS] every row parses
+[PASS] at least one test_case present — 2 test_case(s): ['CORE_HR', 'DDR_SIGNALING']
+[PASS] every test_case has recovered LR rows for all 3 required ratios (1:1, 1:5, 1:20)
+[PASS] recovered LR is stable across class ratios within 2.0x tolerance, per test_case
+
+gate9_imbalance OVERALL: PASS
+EXIT_CODE=0
+```
+
+Real, on-disk evidence the prior-odds conversion holds on genuine data,
+not only the unit-test fixtures: CORE_HR's per-ratio mean recovered LR is
+8.611 (1:1), 6.725 (1:5), 5.987 (1:20) — spread ratio 1.438x, well inside
+the 2.0x tolerance; DDR_SIGNALING's is 6.831/6.520/5.499 — spread ratio
+1.242x. Full detail: `production_v2/gate9_out/SIMULATED_GATE9_IMBALANCE_REPORT.tsv`.
+
+### Summary of this invocation
+
+| gate | result | reason |
+|---|---|---|
+| gate4 | **PASS** | production LR table well-formed, B=2000 matches protocol, CIs valid |
+| gate6 | **FAIL** (genuine, diagnosed) | pooled `joint_LR` recovery uses a single-subtype evaluation point and a fixed (non-CV-selected) lambda — a disclosed evaluation-methodology gap, not an estimator defect (see diagnosis above) |
+| gate8 | **PASS** | both full-n production intervals informative |
+| gate9 | **PASS** | prior-odds conversion demonstrably stable across a real 1:1→1:20 imbalance sweep |
+
+Per Standing Rule 8, this FAIL is reported with the same prominence as
+the 3 PASSes, not buried beneath them.
