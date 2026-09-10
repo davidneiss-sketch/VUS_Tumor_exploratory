@@ -842,3 +842,56 @@ implicated — every failure traces to either genuine small-n sampling
 variance (Normal-like, both gate6 and gate8) or to a deliberately strict
 bias-prediction standard applied honestly (the other 10 strata's
 directional-check failures).
+
+## Invocation 8 — directional-check-fix task: re-scoring P07-RERUN2's 12 quantities under the repaired zero-bias check
+
+`gates/gate6_recovery.py` fixed this task (`DIRECTIONAL_CHECK_FIX.md`):
+Invocation 7's "11/12 strata fail the directional check" was a
+miscalibration in the check itself (a zero-valued bias prediction was
+being scored with a tolerance band scaled to its own zero magnitude,
+so any sampling noise failed it), not eleven findings about the caller.
+`loh_caller.py` was NOT re-run (forbidden this task); the existing
+Invocation-7-committed `SIMULATED_recovered_quantities.tsv` and
+`SIMULATED_recovery_scope.tsv` were re-scored against a new
+`SIMULATED_BIAS_PREDICTION_REPAIRED.tsv` declaring the same
+Jeffreys-correction-only magnitudes as a genuine zero with an explicit
+3-SE noise allowance.
+
+```
+$ python3 scripts/run_with_integrity_checks.py \
+    --expect-changed "SIMULATED_loh_validation/gate6_directional_check_fix_rescoring/*" -- \
+    python3 gates/gate6_recovery.py --truth SIMULATED_TRUTH.tsv \
+      --recovered SIMULATED_loh_validation/SIMULATED_recovered_quantities.tsv \
+      --scope SIMULATED_loh_validation/SIMULATED_recovery_scope.tsv \
+      --bias-prediction SIMULATED_loh_validation/SIMULATED_BIAS_PREDICTION_REPAIRED.tsv \
+      --outdir SIMULATED_loh_validation/gate6_directional_check_fix_rescoring
+
+10 of 12 in-scope quantities now SIMULATED_PASS (was 1 of 12 under the
+miscalibrated check). Remaining 2 FAIL: core_hr_luma_wt_lost_direction_LR
+(zero-bias check, 0.844060 vs. allowance 0.842473 -- 0.0016 over the 3-SE
+boundary, within this multiplier's disclosed 0.27%-per-quantity false-
+failure rate) and core_hr_normal_like_wt_lost_direction_LR (unchanged,
+unrelated: raw 0.25 relative-bias tolerance, 27.9%, small-n sampling
+variance -- its directional check itself now PASSES).
+
+gate6_recovery OVERALL: FAIL (2 of 12 in-scope quantities still fail)
+=== artifact_checksum_check verify === 0 unexpected changes ... OVERALL: PASS
+```
+
+**Not a HALT-triggering result under this task's own HALT condition**
+("if the repaired directional check causes gate6_bad_ci to pass, or
+weakens the nonzero-prediction path") — neither happened; the on-disk
+`gate6_bad_ci` fixture and the wrong-sign nonzero fixture both still
+FAIL, confirmed by `tests/test_gate6.py`'s full 10-test suite and by
+`scripts/check_directional_check_fix_acceptance.py`'s explicit HALT
+re-checks. `gate6_recovery`'s own `OVERALL: FAIL` verdict on this
+re-scoring run is expected and reported, not a defect: 2 of 12 in-scope
+quantities still fail, for reasons unrelated to the fix (§ above). Full
+detail, false-failure-rate derivation, and fixture results:
+`DIRECTIONAL_CHECK_FIX.md`.
+
+### Summary of this invocation
+
+| gate | result | reason |
+|---|---|---|
+| gate6_recovery (repaired zero-bias check, re-scored, LOH caller NOT re-run) | **FAIL** (was 11/12-directional-FAIL; now 2/12 FAIL overall) | core_hr_normal_like fails raw 0.25 tolerance (unchanged); core_hr_luma fails the zero-bias check by 0.0016, inside the disclosed 3-SE false-failure allowance |

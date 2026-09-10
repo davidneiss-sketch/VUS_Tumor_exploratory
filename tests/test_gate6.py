@@ -191,6 +191,49 @@ class TestGate6Recovery(unittest.TestCase):
         # A declared-out-of-scope row must never be silently omitted from the table.
         self.assertEqual(len(rows), 3)
 
+    def test_zero_bias_prediction_within_noise_allowance_passes(self):
+        """The directional-check miscalibration fix: a predicted_relative_bias_magnitude
+        of exactly 0 (a non-penalized estimator with no systematic bias
+        mechanism) must NOT fail on ordinary sampling noise. A deviation
+        well inside ZERO_BIAS_NOISE_ALLOWANCE_SE_MULTIPLIER standard
+        errors of the quantity's own bootstrap CI passes."""
+        d = FIXTURES_DIR / "gate6_zero_bias_within_allowance"
+        outdir = Path(self._tmpdir) / "zero_bias_within"
+        r = run_gate(
+            "gate6_recovery.py",
+            "--truth", str(d / "truth.tsv"),
+            "--recovered", str(d / "recovered.tsv"),
+            "--scope", str(d / "scope.tsv"),
+            "--outdir", str(outdir),
+            "--bias-prediction", str(d / "bias_prediction.tsv"),
+        )
+        self.assertEqual(r.returncode, 0, msg=r.stdout + r.stderr)
+        self.assertIn("gate6_recovery OVERALL: PASS", r.stdout)
+        self.assertIn("within zero-bias noise allowance", r.stdout)
+
+    def test_zero_bias_prediction_exceeding_noise_allowance_fails(self):
+        """The other half of the fix: a zero-bias prediction must STILL
+        catch a real systematic bias -- a deviation exceeding the SE
+        -based noise allowance fails, even though it is well within the
+        raw 0.25 relative-bias tolerance (isolating this check from the
+        tolerance check, same pattern as the wrong-sign fixture)."""
+        d = FIXTURES_DIR / "gate6_zero_bias_exceeds_allowance"
+        outdir = Path(self._tmpdir) / "zero_bias_exceeds"
+        r = run_gate(
+            "gate6_recovery.py",
+            "--truth", str(d / "truth.tsv"),
+            "--recovered", str(d / "recovered.tsv"),
+            "--scope", str(d / "scope.tsv"),
+            "--outdir", str(outdir),
+            "--bias-prediction", str(d / "bias_prediction.tsv"),
+        )
+        self.assertEqual(r.returncode, 1, msg=r.stdout + r.stderr)
+        self.assertIn("gate6_recovery OVERALL: FAIL", r.stdout)
+        self.assertIn("exceeds zero-bias noise allowance", r.stdout)
+        table_text = (outdir / "SIMULATED_RECOVERY_TABLE.tsv").read_text()
+        rows = {line.split("\t")[0]: line for line in table_text.splitlines()[1:] if line}
+        self.assertIn("SIMULATED_FAIL", rows["ZERO_BIAS_EXCEEDS_QUANTITY"])
+
 
 if __name__ == "__main__":
     unittest.main()

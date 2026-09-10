@@ -1,0 +1,2 @@
+quantity	predicted_relative_bias_magnitude	source	noise_allowance_se_multiples
+ZERO_BIAS_EXCEEDS_QUANTITY	0	test fixture: no systematic bias mechanism predicted, but this deviation is a real systematic bias (1.0 absolute, tight CI) far exceeding a 3-SE allowance -- within the raw 0.25 relative-bias tolerance, isolating the zero-bias check	3.0

@@ -635,3 +635,177 @@ strata's directional-check failures (ordinary sampling noise exceeding
 a deliberately strict near-zero-bias standard, not a defect). Both
 causes are identified and evidenced above. **P08 is not re-run from this
 task, per this HALT.**
+
+**Superseding note (this task, `DIRECTIONAL_CHECK_FIX.md`):** the "11 of
+12 strata fail the directional check" finding above was itself a
+miscalibration in `gate6_recovery.py`'s directional check, not eleven
+findings about the LOH caller — a genuinely zero-valued bias prediction
+was being scored with a tolerance band scaled to its own (zero)
+magnitude, so any sampling noise at all failed it. `gate6_recovery.py`
+now accepts an explicit noise allowance for zero-bias predictions
+(`zero_bias_check()`, 3 SE, false-failure rate 0.27%/quantity, 3.19%
+family-wise at n=12 — full derivation in `DIRECTIONAL_CHECK_FIX.md`).
+Re-scored under the repaired check (existing P07-RERUN2 output, not
+re-run): **10 of 12 now PASS.** The two remaining failures are
+`core_hr_luma_wt_lost_direction_LR` (zero-bias check, 0.0016 over the
+3-SE boundary) and `core_hr_normal_like_wt_lost_direction_LR` (the
+same, unrelated, already-identified raw-tolerance/small-n failure above
+— unchanged in substance). Full detail: `DIRECTIONAL_CHECK_FIX.md`.
+
+## 12. Costing the 0.40 purity floor against real TCGA-BRCA data — a Stage 4 feasibility question (`PURITY_FLOOR_COST.md`)
+
+**Full analysis: `PURITY_FLOOR_COST.md`. Summary here per Standing Rule
+8 (report blocked/failed work as prominently as completed work) and
+because this finding bears directly on whether the 0.40/0.45 floor
+proposed in section 10 is adoptable as currently scoped.**
+
+P07-RERUN2 (section 10) moved the proposed purity floor from 0.25 to
+0.40, with Basal and LumB needing a stricter [0.40, 0.45) band. This
+section costs that floor against **live-retrieved, real TCGA-BRCA
+consensus purity and PAM50 subtype data** (not simulated, not
+estimated from memory — Standing Rule 3).
+
+**Retrieval:** general-web retrieval (nature.com, ncbi.nlm.nih.gov,
+cbioportal.org, wikipedia.org) was blocked outright by this session's
+network egress policy — `EGRESS_BLOCKED` on every domain tried, and a
+direct `curl` to cbioportal.org logged a `403` at the proxy's CONNECT
+step (`$HTTPS_PROXY/__agentproxy/status`). This is a policy-level block
+(a fixed allowlist of infrastructure + GitHub domains), reported here
+per Standing Rule 4 rather than silently worked around. Live retrieval
+still succeeded via two GitHub-hosted mirrors of the same underlying
+published tables: the TCGA PanCanAtlas ABSOLUTE purity/ploidy master
+calls (`TCGA_mastercalls.abs_tables_JSedit.fixed.txt`) and cBioPortal's
+own curated `brca_tcga_pan_can_atlas_2018` clinical/PAM50-subtype table.
+Joined by patient barcode: **951 real TCGA-BRCA patients with both an
+ABSOLUTE-called purity and a PAM50 subtype** (of 981 subtyped; 30 have
+no usable purity call at all, a separate, floor-independent loss).
+
+**Survival fractions (real data, this session):**
+
+| Floor | Overall | Basal | Her2 | LumA | LumB | Normal |
+|---|---|---|---|---|---|---|
+| 0.20 | 98.5% | 98.1% | 98.7% | 98.4% | 100.0% | 93.3% |
+| 0.25 | 96.2% | 94.4% | 94.8% | 96.5% | 100.0% | 80.0% |
+| 0.30 | 92.6% | 90.7% | 85.7% | 93.4% | 98.5% | 70.0% |
+| **0.40** | **83.5%** | **82.1%** | **71.4%** | **83.6%** | **94.4%** | **50.0%** |
+| **0.45** | **77.1%** | **74.7%** | **63.6%** | **77.2%** | **88.7%** | **46.7%** |
+
+**This does not confirm the section-10 hypothesis that 0.40 "will hit
+Basal hardest."** Real data shows **Her2-enriched and Normal-like are
+hit hardest**; Basal sits mid-pack, close to LumA; **LumB is the most
+purity-robust subtype at every floor**. The hypothesis was reasonable to
+raise but the retrieved data does not bear it out — exactly the kind of
+correction live retrieval (vs. prior-based assertion) is supposed to
+produce.
+
+**Implied per-gene class sizes:** applying `BENCHMARKS.tsv`'s
+unstratified carrier rates (`BRCA_PREV01` 5.0% CORE_HR; `DDR_PREV01`
+sum 3.66% DDR_SIGNALING — the same rates and caveats
+`SIMULATION_SPEC.md` already uses) to the real per-subtype post-floor
+counts gives, **at a 0.40 floor**: CORE_HR ≈ 39.7 pooled (Basal 6.7,
+Her2 2.8, LumA 20.4, LumB 9.2, Normal 0.8); DDR_SIGNALING ≈ 29.1 pooled
+(Basal 4.9, Her2 2.0, LumA 14.9, LumB 6.7, Normal 0.5). At 0.45 these
+fall further (CORE_HR ≈ 36.6 pooled; DDR_SIGNALING ≈ 26.8 pooled).
+Caveat: germline BRCA1 carriers' tumors are well-documented to skew
+basal-like (~80% in a WebSearch-synthesized range of 57–91.5% across
+cited cohorts, consistent with `BENCHMARKS.tsv` `HRD06`), so Basal's
+true CORE_HR rate is likely above this flat 5.0% and the other four
+subtypes' correspondingly below it — no subtype-stratified rate was
+retrievable this session, so this caveat is disclosed rather than
+corrected for.
+
+**Cross-reference against gate8:** `gate8_interval_informativeness.py`
+already returns `UNINFORMATIVE` for both Normal-like strata in the
+LOH caller's current output at n=27–36 — larger than every real-data
+expected-carrier count above except LumA/LumB. This implies (not
+re-verifies; gate8 was not re-run against real data) that essentially
+every subtype x gene-group cell at a 0.40+ floor other than LumA/LumB
+would be expected to return `UNINFORMATIVE` or `INSUFFICIENT_N`.
+
+**Finding, stated plainly:** a 0.40 (or 0.45) purity floor, layered on
+this project's already-marginal per-gene class sizes
+(`SIMULATION_SPEC.md`'s own pre-floor CORE_HR≈55–75/DDR_SIGNALING≈25–35
+estimate), **leaves too few carriers for the study to resolve anything
+per gene in four of five PAM50 subtypes, and leaves the fifth (LumA)
+marginal.** Her2-enriched and Normal-like are expected to have fewer
+than 3 carriers per gene-group at 0.40, regardless of which specific
+gene is examined. This is a Stage 4 feasibility question, answered here
+before Stage 4 is planned. PROTOCOL.md is not edited by this finding.
+
+## 13. The P06 simulator's LOH-confounding gap: subtype reaches GIS, not LOH direction
+
+**This section does not modify `simulate.py`. Whether to route subtype
+into LOH is a design decision with its own blast radius (it would move
+truth quantities again and require another P07 re-run) — that is the
+human's call, per this task's explicit instruction.**
+
+P07-RERUN2 (section 11) established, on a genuinely subtype-blind LOH
+caller, that `WT_LOSS` recovery accuracy is uniform across PAM50
+subtypes (the caller's per-subtype relative-bias and, now under the
+repaired directional check, PASS/FAIL pattern show no subtype-correlated
+degradation beyond ordinary small-n effects at Normal-like). Since the
+caller cannot see subtype at all, any subtype-correlated signal in its
+inputs would have to come from the simulator. The absence of one here
+means **P06R4's subtype-latent wiring reaches the genomic-instability
+score (GIS) pathway but not the LOH-direction pathway** — subtype
+shifts `SUBTYPE_GIS_SHIFT` (documented, `SUBTYPE_MODEL.md` §2,
+`PARAMETER_PROVENANCE.tsv`, cited qualitatively via `BENCHMARKS.tsv`
+`HRD06`) but does not shift the probability or direction of a locus
+being called `WT_LOSS` vs `CN_NEUTRAL_LOH_WT_LOSS`.
+
+**This is biologically incomplete, not merely a simplification.** Real
+basal-like breast tumors carry **more LOH burden**, not merely a higher
+composite genomic-instability score. A live-retrieved, cited primary
+source: Wang ZC, Lin M, Wei LJ, Li C, Miron A, Lodeiro G, Harris L,
+Ramaswamy S, Tanenbaum DM, Meyerson M, Iglehart JD, Richardson A. "Loss
+of Heterozygosity and Its Correlation with Expression Profiles in
+Subclasses of Invasive Breast Cancers." Cancer Res. 2004 Jan
+1;64(1):64-71. PMID 14729609
+(https://aacrjournals.org/cancerres/article/64/1/64/511233) — genome-
+wide SNP allelotyping of 34 microdissected invasive breast cancers
+across four expression-defined subclasses found the basal-like subclass
+had the **highest mean fractional LOH rate (37%)** of any subclass,
+with basal-like tumors showing "frequent and widely dispersed LOH
+events, often on chromosomal regions rarely affected" in the other
+subclasses. (Caveat: this 2004 paper predates the formal PAM50
+classifier and uses expression-cluster-derived "basal-like"
+terminology from the Perou/Sorlie intrinsic-subtype lineage that PAM50
+later formalized, not a PAM50 call itself; aacrjournals.org was not
+directly fetchable this session — `EGRESS_BLOCKED` — so this citation's
+exact wording is WebSearch-synthesized, not independently confirmed by
+direct fetch, in the same disclosed manner as several `BENCHMARKS.tsv`
+rows, e.g. `TP01`/`PAM01`/`HRD06`; the finding itself — highest LOH
+fraction in the basal-like subclass — was consistently reported across
+multiple independent search results, not a single ambiguous snippet.)
+This is consistent with, and adds LOH-specific quantification to,
+`BENCHMARKS.tsv` `HRD06`'s already-recorded qualitative finding that
+basal-like tumors carry elevated genomic instability independent of
+germline BRCA1/2 status.
+
+**What P09's joint model can and cannot demonstrate under the current
+simulator.** P09 integrates evidence across LOH, GIS, and SBS3 as
+(according to `SIMULATION_SPEC.md`'s shared-latent design) correlated
+but not identical signals. With subtype wired into GIS only:
+
+- P09 **can** demonstrate that its joint estimator correctly combines a
+  subtype-confounded feature (GIS) with subtype-unconfounded features
+  (LOH, SBS3) without inflating or deflating the joint LR relative to
+  the product of marginals *for the specific confounding structure this
+  simulator encodes* — this is a real and valid test of the joint
+  model's mechanics.
+- P09 **cannot** demonstrate that the joint estimator correctly handles
+  a real-world case where **two** of its three input features (GIS and
+  LOH) are both subtype-confounded, which is what the cited real-data
+  evidence above says actually happens in basal-like disease. A joint
+  model that correctly discounts one confounded feature against two
+  clean ones has not been shown to correctly discount two confounded
+  features against one clean one (SBS3) — a materially different
+  estimation problem (less independent information to triangulate
+  against), and this simulator cannot currently exercise it.
+- Concretely: any Stage 2 recovery claim about subtype-stratified joint
+  LR accuracy should be read as validating the estimator's mechanics
+  under a partially-confounded input vector, not as evidence the
+  estimator would perform equivalently well if LOH were confounded too.
+  P09's own report should carry this caveat until the simulator is
+  (if the human approves it) extended to route subtype into LOH
+  direction as well.

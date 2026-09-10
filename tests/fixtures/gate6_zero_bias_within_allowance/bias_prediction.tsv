@@ -1,0 +1,2 @@
+quantity	predicted_relative_bias_magnitude	source	noise_allowance_se_multiples
+ZERO_BIAS_WITHIN_QUANTITY	0	test fixture: no systematic bias mechanism (non-penalized estimator); deviation is ordinary sampling noise well inside a 3-SE allowance	3.0

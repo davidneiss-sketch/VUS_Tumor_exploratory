@@ -112,6 +112,7 @@ SIMULATED_FAIL (including any undeclared-scope quantity).
 from __future__ import annotations
 
 import argparse
+import math
 import sys
 from pathlib import Path
 
@@ -137,8 +138,69 @@ ODDSPATH_PATHOGENIC_BOUNDARIES = [
 # consistent with the prediction; beyond that, the estimator's ACTUAL
 # behavior on this run has departed from its own characterized shrinkage
 # curve, which is exactly the kind of "wrong in a checkable way" the
-# directional check exists to catch.
+# directional check exists to catch. UNCHANGED by the zero-bias fix below
+# -- this constant, and the nonzero-prediction code path it governs, are
+# untouched (this task's own explicit "preserve unchanged" requirement).
 MAGNITUDE_SLACK_FACTOR = 1.5
+
+# ============================================================================
+# P07-RERUN2-followup fix: the directional check was specified for a
+# NONZERO predicted bias, where MAGNITUDE_SLACK_FACTOR x a real magnitude
+# gives a genuine tolerance band. A caller with NO systematic bias
+# mechanism (P07-RERUN2's LOH caller) correctly predicts a magnitude of
+# 0 -- and 1.5 x 0 = 0, so ANY sampling noise at all fails the check. That
+# is the gate misfiring (P07-RERUN2 found 11 of 12 strata "failing" this
+# way), not eleven genuine findings.
+#
+# Fix: a ZERO predicted magnitude routes to a DIFFERENT check -- an
+# explicit NOISE ALLOWANCE expressed as a multiple of the quantity's own
+# bootstrap standard error (estimated from its 95% CI width via the
+# standard normal approximation SE ~= (ci_high - ci_low) / (2 * Z_95),
+# Z_95 = 1.959964 being the standard normal distribution's 97.5th
+# percentile -- this scales correctly with n and needs no per-quantity
+# tuning, exactly as this task's own instruction specifies). A quantity
+# whose |recovered - injected| exceeds ZERO_BIAS_NOISE_ALLOWANCE_SE_MULTIPLIER
+# SEs fails; otherwise it passes -- no sign check (a true zero-bias
+# hypothesis has no predicted direction to be "wrong" about; only
+# magnitude, in either direction, is meaningful).
+#
+# Multiplier chosen and justified: 3.0 standard errors. Under a TRUE zero
+# bias (the null this mode tests), the two-sided false-failure rate at k
+# SEs is 2*(1-Phi(k)) for the standard normal CDF Phi -- computed below via
+# math.erf (Phi(k) = 0.5*(1+erf(k/sqrt(2)))), not hand-typed. At k=3.0 this
+# is ~0.27% per quantity. A gate that HALTs a pipeline on failure should
+# favor a LOW false-alarm rate over high sensitivity to small deviations
+# (a missed small deviation costs nothing here, since the raw relative
+# -bias tolerance, PROTOCOL.md section 11's own 0.25 bound, still screens
+# for genuinely large errors independently) -- the conventional "3-sigma"
+# threshold used in quality-control settings for exactly this
+# low-false-alarm reason is adopted rather than the tighter 1.96 (5%
+# false-failure) or 1.5 (13.4% false-failure, computed the same way) that
+# would fire far more readily on ordinary sampling noise. For P07-RERUN2's
+# own 12 simultaneously-tested quantities, the IMPLIED family-wise
+# false-failure rate (at least one of 12 independent true-zero-bias
+# quantities spuriously failing) is 1-(1-0.0027)^12, computed below --
+# reported, not asserted, alongside the per-quantity rate.
+ZERO_BIAS_NOISE_ALLOWANCE_SE_MULTIPLIER = 3.0
+Z_95 = 1.959964  # standard normal 97.5th percentile, for SE-from-95%-CI
+
+
+def standard_normal_cdf(z: float) -> float:
+    return 0.5 * (1.0 + math.erf(z / math.sqrt(2.0)))
+
+
+def two_sided_false_failure_rate(k_multiplier: float) -> float:
+    """P(|X| > k*SE) for X ~ Normal(0, SE) -- the false-failure rate of the
+    zero-bias noise-allowance check under a TRUE zero bias, at k standard
+    errors. Computed via the standard normal CDF (math.erf), not asserted."""
+    return 2.0 * (1.0 - standard_normal_cdf(k_multiplier))
+
+
+def family_wise_false_failure_rate(per_quantity_rate: float, n_quantities: int) -> float:
+    """P(at least one of n_quantities independent, truly-zero-bias
+    quantities spuriously fails), given each fails independently at
+    per_quantity_rate."""
+    return 1.0 - (1.0 - per_quantity_rate) ** n_quantities
 
 RECOVERY_COLUMNS = [
     "quantity", "injected", "recovered", "ci_low", "ci_high",
@@ -171,18 +233,34 @@ def read_existing_recovery_table(path: Path) -> dict[str, dict]:
         return {}
 
 
-def read_bias_prediction(path: Path | None) -> dict[str, tuple[float, str]]:
-    """Returns {quantity: (predicted_relative_bias_magnitude, source)}.
-    Missing path or missing entry for a quantity -> that quantity's
-    directional check and NEAR_TIER_BOUNDARY column are simply not
-    evaluated (reported as such, never silently treated as "no bias
-    predicted" == "prediction of zero bias")."""
+def read_bias_prediction(path: Path | None) -> dict[str, dict]:
+    """Returns {quantity: {"magnitude": float, "source": str,
+    "se_multiplier": float | None}}. Missing path or missing entry for a
+    quantity -> that quantity's directional check and NEAR_TIER_BOUNDARY
+    column are simply not evaluated (reported as such, never silently
+    treated as "no bias predicted" == "prediction of zero bias").
+
+    A ZERO magnitude (predicted_relative_bias_magnitude == 0, e.g. a
+    non-penalized estimator with no systematic bias mechanism) is a
+    DIFFERENT prediction from a small-but-nonzero one, and is evaluated
+    by zero_bias_check() (an explicit SE-multiple noise allowance) rather
+    than directional_check() (a multiplicative slack factor around a
+    nonzero magnitude, which collapses to zero tolerance at magnitude
+    zero -- the miscalibration this revision fixes). The OPTIONAL
+    `noise_allowance_se_multiples` column overrides
+    ZERO_BIAS_NOISE_ALLOWANCE_SE_MULTIPLIER per-quantity when present and
+    non-blank; otherwise the disclosed module default applies."""
     if path is None:
         return {}
     rows = read_tsv(path)
     out = {}
     for r in rows:
-        out[r["quantity"]] = (float(r["predicted_relative_bias_magnitude"]), r.get("source", ""))
+        se_mult_raw = (r.get("noise_allowance_se_multiples") or "").strip()
+        out[r["quantity"]] = {
+            "magnitude": float(r["predicted_relative_bias_magnitude"]),
+            "source": r.get("source", ""),
+            "se_multiplier": float(se_mult_raw) if se_mult_raw else None,
+        }
     return out
 
 
@@ -224,6 +302,35 @@ def directional_check(injected: float, recovered_point: float, relative_bias: fl
                         f"{magnitude_limit:.4f})")
     return True, (f"consistent with prediction: direction={predicted_dir}, predicted magnitude="
                    f"{predicted_magnitude:.4f}, observed={relative_bias:.4f} (limit {magnitude_limit:.4f})")
+
+
+def estimate_se_from_ci(ci_low: float, ci_high: float, z: float = Z_95) -> float:
+    """Standard normal-approximation SE from a 95% CI width. An
+    approximation (percentile bootstrap CIs need not be exactly normal or
+    symmetric), disclosed as such -- not a claim of exact SE recovery."""
+    return (ci_high - ci_low) / (2.0 * z)
+
+
+def zero_bias_check(injected: float, recovered_point: float, ci_low: float, ci_high: float,
+                     se_multiplier: float) -> tuple[bool, str]:
+    """For a predicted_relative_bias_magnitude of exactly 0 (no systematic
+    bias mechanism expected): no sign is predicted, so no wrong-sign
+    check applies -- only whether the OBSERVED deviation from the
+    injected value, in EITHER direction, exceeds an explicit noise
+    allowance of se_multiplier standard errors (estimated from this
+    quantity's own bootstrap CI, per estimate_se_from_ci). This is what
+    replaces directional_check()'s magnitude test when the predicted
+    magnitude is zero, where MAGNITUDE_SLACK_FACTOR x 0 = 0 would fail
+    any nonzero observation regardless of ordinary sampling noise."""
+    se_estimate = estimate_se_from_ci(ci_low, ci_high)
+    allowance = se_multiplier * se_estimate
+    observed_abs_deviation = abs(recovered_point - injected)
+    detail = (f"predicted zero systematic bias; observed |recovered-injected|={observed_abs_deviation:.6f} "
+              f"vs. noise allowance {se_multiplier:.2f} x SE({se_estimate:.6f})={allowance:.6f} "
+              f"(SE estimated from CI [{ci_low:.6f}, {ci_high:.6f}] via SE~=(ci_high-ci_low)/(2*{Z_95}))")
+    if observed_abs_deviation > allowance:
+        return False, f"exceeds zero-bias noise allowance: {detail}"
+    return True, f"within zero-bias noise allowance: {detail}"
 
 
 def near_tier_boundary(injected: float, ci_low: float, predicted_magnitude: float) -> tuple[str, str]:
@@ -450,14 +557,33 @@ def main() -> None:
         directional_check_result = ""
         near_tier_boundary_flag = "N/A"
         if q in bias_prediction:
-            pred_magnitude, pred_source = bias_prediction[q]
-            predicted_bias_direction = expected_bias_direction(injected)
+            pred = bias_prediction[q]
+            pred_magnitude, pred_source = pred["magnitude"], pred["source"]
             predicted_bias_magnitude = round(pred_magnitude, 6)
-            dir_ok, dir_detail = directional_check(injected, recovered_point, relative_bias, pred_magnitude)
-            directional_check_result = "PASS" if dir_ok else "FAIL"
-            print(f"    [directional check, source={pred_source}] {directional_check_result} — {dir_detail}")
-            if not dir_ok:
-                reasons.append(f"directional shrinkage-bias check FAILED: {dir_detail}")
+            if pred_magnitude == 0.0:
+                # ZERO-bias mode (this revision's fix): no predicted
+                # direction -- directional_check()'s own
+                # MAGNITUDE_SLACK_FACTOR x 0 = 0 would fail any nonzero
+                # sampling noise, which is the gate misfiring, not a
+                # finding. zero_bias_check() uses an explicit SE-multiple
+                # noise allowance instead; UNCHANGED path (directional_check)
+                # is used for any nonzero predicted magnitude below.
+                predicted_bias_direction = "none (zero-bias prediction)"
+                se_multiplier = pred["se_multiplier"] if pred["se_multiplier"] is not None \
+                    else ZERO_BIAS_NOISE_ALLOWANCE_SE_MULTIPLIER
+                dir_ok, dir_detail = zero_bias_check(injected, recovered_point, ci_low, ci_high, se_multiplier)
+                directional_check_result = "PASS" if dir_ok else "FAIL"
+                print(f"    [zero-bias check, source={pred_source}, se_multiplier={se_multiplier}] "
+                      f"{directional_check_result} — {dir_detail}")
+                if not dir_ok:
+                    reasons.append(f"zero-bias noise-allowance check FAILED: {dir_detail}")
+            else:
+                predicted_bias_direction = expected_bias_direction(injected)
+                dir_ok, dir_detail = directional_check(injected, recovered_point, relative_bias, pred_magnitude)
+                directional_check_result = "PASS" if dir_ok else "FAIL"
+                print(f"    [directional check, source={pred_source}] {directional_check_result} — {dir_detail}")
+                if not dir_ok:
+                    reasons.append(f"directional shrinkage-bias check FAILED: {dir_detail}")
             near_tier_boundary_flag, near_detail = near_tier_boundary(injected, ci_low, pred_magnitude)
             print(f"    [near_tier_boundary] {near_tier_boundary_flag} — {near_detail}")
         else:
